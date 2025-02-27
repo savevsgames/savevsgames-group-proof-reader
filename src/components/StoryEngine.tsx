@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Story } from 'inkjs';
 import dogStoryJson from '../stories/placeholder-dog-story.json';
 import darkEyeStoryJson from '../stories/placeholder-dark-eye-story.json';
@@ -11,8 +11,9 @@ import '@fontsource/playfair-display/600.css';
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/500.css';
 import { MessageSquare } from 'lucide-react';
-import { CommentModal, Comment } from './CommentModal';
-import { v4 as uuidv4 } from 'uuid';
+import { CommentModal } from './CommentModal';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 
 // Map story IDs to their respective story data files
 const storyMap: Record<string, any> = {
@@ -30,10 +31,12 @@ export const StoryEngine = () => {
   const [storyHistory, setStoryHistory] = useState<string[]>([]);
   const [canGoBack, setCanGoBack] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   
   // Comment state
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentCount, setCommentCount] = useState(0);
   const [currentStoryPosition, setCurrentStoryPosition] = useState<string>('');
 
   // Initialize the story
@@ -65,7 +68,9 @@ export const StoryEngine = () => {
         
         // Save current story position for comments
         if (newStory.state) {
-          setCurrentStoryPosition(newStory.state.toJson());
+          const position = newStory.state.toJson();
+          setCurrentStoryPosition(position);
+          fetchCommentCount(storyId, position);
         }
         
         setIsLoading(false);
@@ -85,6 +90,25 @@ export const StoryEngine = () => {
       setIsLoading(false);
     }
   }, [storyId, toast]);
+
+  // Fetch comment count for the current position
+  const fetchCommentCount = async (sid: string, position: string) => {
+    try {
+      const { count, error } = await supabase
+        .from('comments')
+        .select('*', { count: 'exact', head: true })
+        .eq('story_id', sid)
+        .eq('story_position', position);
+      
+      if (error) {
+        throw error;
+      }
+      
+      setCommentCount(count || 0);
+    } catch (error) {
+      console.error('Error fetching comment count:', error);
+    }
+  };
 
   const handleChoice = (index: number) => {
     if (!story) return;
@@ -108,7 +132,9 @@ export const StoryEngine = () => {
     
     // Update current story position for comments
     if (story.state) {
-      setCurrentStoryPosition(story.state.toJson());
+      const position = story.state.toJson();
+      setCurrentStoryPosition(position);
+      fetchCommentCount(storyId || '', position);
     }
   };
 
@@ -136,7 +162,9 @@ export const StoryEngine = () => {
       
       // Update current story position for comments
       if (story.state) {
-        setCurrentStoryPosition(story.state.toJson());
+        const position = story.state.toJson();
+        setCurrentStoryPosition(position);
+        fetchCommentCount(storyId || '', position);
       }
     }
   };
@@ -159,30 +187,21 @@ export const StoryEngine = () => {
     
     // Update current story position for comments
     if (story.state) {
-      setCurrentStoryPosition(story.state.toJson());
+      const position = story.state.toJson();
+      setCurrentStoryPosition(position);
+      fetchCommentCount(storyId || '', position);
     }
   };
   
-  // Function to add a new comment
-  const handleAddComment = (commentData: Omit<Comment, 'id' | 'timestamp'>) => {
-    const newComment: Comment = {
-      ...commentData,
-      id: uuidv4(), // Generate a unique ID
-      timestamp: new Date(),
-    };
+  // Handle the comment modal open state change
+  const handleCommentModalOpenChange = (open: boolean) => {
+    setIsCommentModalOpen(open);
     
-    setComments(prevComments => [...prevComments, newComment]);
+    // Refresh comment count when modal closes (in case comments were added/deleted)
+    if (!open) {
+      fetchCommentCount(storyId || '', currentStoryPosition);
+    }
   };
-  
-  // Get comments for current story position
-  const getCurrentPositionComments = () => {
-    return comments.filter(comment => 
-      comment.storyId === storyId && 
-      comment.storyPosition === currentStoryPosition
-    );
-  };
-  
-  const currentPositionComments = getCurrentPositionComments();
 
   if (isLoading) {
     return (
@@ -198,7 +217,7 @@ export const StoryEngine = () => {
         <div className="text-[#E8DCC4] font-serif">
           <p className="text-xl mb-4">Error: {error}</p>
           <button 
-            onClick={() => window.history.back()}
+            onClick={() => navigate('/dashboard')}
             className="px-6 py-3 bg-[#F97316] text-[#E8DCC4] font-serif rounded hover:bg-[#E86305] transition-colors"
           >
             Go Back
@@ -241,9 +260,9 @@ export const StoryEngine = () => {
           >
             <MessageSquare className="h-5 w-5" />
             
-            {currentPositionComments.length > 0 && (
+            {commentCount > 0 && (
               <div className="absolute -top-2 -right-2 bg-white text-[#3A2618] rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
-                {currentPositionComments.length}
+                {commentCount}
               </div>
             )}
           </button>
@@ -304,11 +323,10 @@ export const StoryEngine = () => {
       {/* Comment Modal */}
       <CommentModal
         isOpen={isCommentModalOpen}
-        onOpenChange={setIsCommentModalOpen}
+        onOpenChange={handleCommentModalOpenChange}
         storyId={storyId || ''}
         storyPosition={currentStoryPosition}
-        comments={currentPositionComments}
-        onAddComment={handleAddComment}
+        currentUser={user}
       />
     </div>
   );
