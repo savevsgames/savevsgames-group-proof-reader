@@ -1,0 +1,12 @@
+
+{
+  "inkVersion": 20,
+  "root": [
+    ["^This is a placeholder for the compiled dark eye story. Replace this file with your compiled Ink JSON.", "\n"],
+    ["end", ["done", {
+      "#f": 7,
+      "#t": 18
+    }]]
+  ],
+  "#f": 1
+}

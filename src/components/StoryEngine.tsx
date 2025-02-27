@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Story } from 'inkjs';
-import dogStory from '../stories/dog-story.ink.json';
-import darkEyeStory from '../stories/dark-eye-story.ink.json';
+import dogStoryJson from '../stories/placeholder-dog-story.json';
+import darkEyeStoryJson from '../stories/placeholder-dark-eye-story.json';
 import { useToast } from '@/hooks/use-toast';
 import '@fontsource/playfair-display/400.css';
 import '@fontsource/playfair-display/500.css';
@@ -13,8 +13,8 @@ import '@fontsource/inter/500.css';
 
 // Map story IDs to their respective story data files
 const storyMap: Record<string, any> = {
-  'dog-story': dogStory,
-  'dark-eye-story': darkEyeStory
+  'dog-story': dogStoryJson,
+  'dark-eye-story': darkEyeStoryJson
 };
 
 export const StoryEngine = () => {
@@ -60,7 +60,7 @@ export const StoryEngine = () => {
         setError(`Error loading story: ${storyError.message}`);
         toast({
           title: "Story Error",
-          description: "There was an issue loading the story. Please try another story.",
+          description: "There was an issue loading the story. Please try another story or check if you've replaced the placeholder JSON files with properly compiled Ink stories.",
           variant: "destructive"
         });
         setIsLoading(false);
