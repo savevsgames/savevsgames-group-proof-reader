@@ -62,10 +62,14 @@ const Auth = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <BookOpen className="h-16 w-16 text-[#E8DCC4]" />
+            <img 
+              src="/lovable-uploads/2386c015-8e81-4433-9997-ae0f0b94bb6a.png" 
+              alt="saveVSgames logo" 
+              className="h-24 w-24"
+            />
           </div>
-          <h1 className="text-4xl font-serif font-bold text-[#E8DCC4] mb-2">StoryTale Adventures</h1>
-          <p className="text-[#E8DCC4] opacity-75">Immerse yourself in interactive stories</p>
+          <h1 className="text-4xl font-serif font-bold text-[#F97316] mb-2">saveVSgames</h1>
+          <p className="text-[#E8DCC4] opacity-75">Adventures on Shadowtide Island</p>
         </div>
 
         <div className="bg-[#E8DCC4] rounded-lg p-8 shadow-2xl">
@@ -90,7 +94,7 @@ const Auth = () => {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full px-3 py-2 border border-[#3A2618]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#8B2E2E]"
+                  className="w-full px-3 py-2 border border-[#3A2618]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F97316]"
                   required
                 />
               </div>
@@ -105,7 +109,7 @@ const Auth = () => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-[#3A2618]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#8B2E2E]"
+                className="w-full px-3 py-2 border border-[#3A2618]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F97316]"
                 required
               />
             </div>
@@ -119,14 +123,14 @@ const Auth = () => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-[#3A2618]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#8B2E2E]"
+                className="w-full px-3 py-2 border border-[#3A2618]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F97316]"
                 required
               />
             </div>
 
             <button
               type="submit"
-              className="w-full bg-[#8B2E2E] text-[#E8DCC4] py-2 rounded-md font-medium hover:bg-[#6A2424] transition-colors duration-200 mt-6"
+              className="w-full bg-[#F97316] text-[#E8DCC4] py-2 rounded-md font-medium hover:bg-[#E86305] transition-colors duration-200 mt-6"
               disabled={loading}
             >
               {loading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Sign In'}
@@ -136,7 +140,7 @@ const Auth = () => {
           <div className="mt-6">
             <button
               onClick={() => setIsSignUp(!isSignUp)}
-              className="text-sm text-[#3A2618] hover:text-[#8B2E2E] transition-colors duration-200"
+              className="text-sm text-[#3A2618] hover:text-[#F97316] transition-colors duration-200"
             >
               {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
             </button>
@@ -145,7 +149,7 @@ const Auth = () => {
           <div className="mt-6 pt-4 border-t border-[#3A2618]/10 text-center">
             <button
               onClick={handleGuestAccess}
-              className="text-sm text-[#3A2618] font-medium hover:text-[#8B2E2E] transition-colors duration-200"
+              className="text-sm text-[#3A2618] font-medium hover:text-[#F97316] transition-colors duration-200"
             >
               Continue as Guest
             </button>

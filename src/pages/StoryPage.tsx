@@ -13,7 +13,7 @@ const StoryPage = () => {
       <div className="max-w-7xl mx-auto px-4 py-4">
         <button 
           onClick={() => navigate('/dashboard')}
-          className="flex items-center text-[#E8DCC4] hover:text-white transition-colors mb-4"
+          className="flex items-center text-[#E8DCC4] hover:text-[#F97316] transition-colors mb-4"
         >
           <ArrowLeft className="h-5 w-5 mr-2" />
           Back to Library

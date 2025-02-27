@@ -51,8 +51,15 @@ const Dashboard = () => {
       <header className="bg-[#3A2618] text-[#E8DCC4] py-4 px-6 shadow-md">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center space-x-3">
-            <Book className="h-8 w-8" />
-            <h1 className="text-2xl font-serif font-bold">StoryTale Library</h1>
+            <img 
+              src="/lovable-uploads/2386c015-8e81-4433-9997-ae0f0b94bb6a.png" 
+              alt="saveVSgames logo" 
+              className="h-8 w-8"
+            />
+            <div>
+              <h1 className="text-xl font-serif font-bold text-[#F97316]">saveVSgames</h1>
+              <p className="text-xs text-[#E8DCC4]">Adventures on Shadowtide Island</p>
+            </div>
           </div>
           <div className="flex items-center space-x-6">
             <div className="text-sm">
@@ -96,8 +103,8 @@ const Dashboard = () => {
                 <div className="h-48 bg-gray-200">
                   {/* Book cover backgrounds based on category */}
                   <div className={`h-full w-full flex items-center justify-center ${
-                    book.category === 'Fantasy' ? 'bg-[#4C3B71]' : 
-                    book.category === 'Adventure' ? 'bg-[#8B2E2E]' :
+                    book.category === 'Fantasy' ? 'bg-[#8B5CF6]' : 
+                    book.category === 'Adventure' ? 'bg-[#F97316]' :
                     book.category === 'Horror' ? 'bg-[#2E3A18]' :
                     book.category === 'Sci-Fi' ? 'bg-[#1A3A5A]' :
                     'bg-[#5A3A28]'
@@ -127,15 +134,15 @@ const Dashboard = () => {
           <div className="bg-[#E8DCC4] rounded-lg shadow-2xl max-w-2xl w-full overflow-hidden relative">
             <button 
               onClick={handleCloseDetails}
-              className="absolute right-4 top-4 text-[#3A2618] hover:text-[#8B2E2E] transition-colors"
+              className="absolute right-4 top-4 text-[#3A2618] hover:text-[#F97316] transition-colors"
             >
               ✕
             </button>
             
             <div className="flex flex-col md:flex-row">
               <div className={`md:w-1/3 p-6 flex items-center justify-center ${
-                selectedBook.category === 'Fantasy' ? 'bg-[#4C3B71]' : 
-                selectedBook.category === 'Adventure' ? 'bg-[#8B2E2E]' :
+                selectedBook.category === 'Fantasy' ? 'bg-[#8B5CF6]' : 
+                selectedBook.category === 'Adventure' ? 'bg-[#F97316]' :
                 selectedBook.category === 'Horror' ? 'bg-[#2E3A18]' :
                 selectedBook.category === 'Sci-Fi' ? 'bg-[#1A3A5A]' :
                 'bg-[#5A3A28]'
@@ -147,7 +154,7 @@ const Dashboard = () => {
                 <h2 className="text-2xl font-serif font-bold text-[#3A2618] mb-2">
                   {selectedBook.title}
                 </h2>
-                <p className="text-sm font-medium text-[#8B2E2E] mb-4">{selectedBook.category}</p>
+                <p className="text-sm font-medium text-[#F97316] mb-4">{selectedBook.category}</p>
                 <p className="text-gray-700 mb-6">{selectedBook.description}</p>
                 
                 <div className="flex items-center justify-between mb-6">
@@ -159,7 +166,7 @@ const Dashboard = () => {
                 
                 <button
                   onClick={handleReadBook}
-                  className="w-full bg-[#8B2E2E] text-[#E8DCC4] py-3 rounded-md font-medium hover:bg-[#6A2424] transition-colors duration-200"
+                  className="w-full bg-[#F97316] text-[#E8DCC4] py-3 rounded-md font-medium hover:bg-[#E86305] transition-colors duration-200"
                 >
                   Read Story
                 </button>

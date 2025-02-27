@@ -85,7 +85,7 @@ export const StoryEngine = () => {
           <p className="text-xl mb-4">Error: {error}</p>
           <button 
             onClick={() => window.history.back()}
-            className="px-6 py-3 bg-[#8B2E2E] text-[#E8DCC4] font-serif rounded hover:bg-[#6A2424] transition-colors"
+            className="px-6 py-3 bg-[#F97316] text-[#E8DCC4] font-serif rounded hover:bg-[#E86305] transition-colors"
           >
             Go Back
           </button>
@@ -110,7 +110,7 @@ export const StoryEngine = () => {
         {/* Close button */}
         <button 
           onClick={handleRestart} 
-          className="absolute right-2 top-2 z-10 bg-[#8B2E2E] text-[#E8DCC4] w-10 h-10 flex items-center justify-center"
+          className="absolute right-2 top-2 z-10 bg-[#F97316] text-[#E8DCC4] w-10 h-10 flex items-center justify-center"
           style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%)' }}
         >
           ✕
@@ -143,7 +143,7 @@ export const StoryEngine = () => {
                     <div key={index} className="text-center">
                       <button
                         onClick={() => handleChoice(choice.nextNode)}
-                        className="font-serif text-[#3A2618] hover:text-[#8B2E2E] transition-colors border-b border-[#3A2618] hover:border-[#8B2E2E] px-4 py-1 italic"
+                        className="font-serif text-[#3A2618] hover:text-[#F97316] transition-colors border-b border-[#3A2618] hover:border-[#F97316] px-4 py-1 italic"
                       >
                         {choice.text}
                       </button>
@@ -156,7 +156,7 @@ export const StoryEngine = () => {
                 <p className="text-[#3A2618] font-serif mb-6">The story has ended.</p>
                 <button
                   onClick={handleRestart}
-                  className="px-6 py-3 bg-[#8B2E2E] text-[#E8DCC4] font-serif rounded hover:bg-[#6A2424] transition-colors"
+                  className="px-6 py-3 bg-[#F97316] text-[#E8DCC4] font-serif rounded hover:bg-[#E86305] transition-colors"
                 >
                   Start Over
                 </button>
