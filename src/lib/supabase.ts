@@ -1,64 +1,12 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Default to empty strings but log a warning to help with debugging
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Get the Supabase URL and key from environment variables
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://pakmcaxaxyvhjdddfpdh.supabase.co";
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBha21jYXhheHl2aGpkZGRmcGRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2ODg1NjksImV4cCI6MjA1NjI2NDU2OX0.00F3C-SjlKk2mBtvw-Zfa74ykFLgnVFpRwoJlUvBKSc";
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Missing Supabase credentials. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file.');
-}
-
-// Mock functions for the database client when credentials are missing
-const mockFrom = (table: string) => {
-  return {
-    select: (columns?: string, options?: any) => ({
-      eq: () => ({
-        eq: () => mockFrom(table),
-        order: () => mockFrom(table),
-        then: async () => ({ data: [], error: null, count: 0 })
-      }),
-      order: () => mockFrom(table),
-      then: async () => ({ data: [], error: null, count: 0 })
-    }),
-    insert: () => ({
-      then: async () => ({ data: null, error: null })
-    }),
-    update: () => ({
-      eq: () => ({
-        eq: () => ({
-          then: async () => ({ data: null, error: null })
-        })
-      }),
-      then: async () => ({ data: null, error: null })
-    }),
-    delete: () => ({
-      eq: () => ({
-        eq: () => ({
-          then: async () => ({ data: null, error: null })
-        })
-      }),
-      then: async () => ({ data: null, error: null })
-    }),
-    single: async () => ({ data: null, error: null }),
-    maybeSingle: async () => ({ data: null, error: null }),
-    count: async (columnName?: string, opts?: any) => ({ count: 0, error: null }),
-  };
-};
-
-// Create a real client if credentials exist, otherwise use a mock client
-export const supabase = supabaseUrl && supabaseAnonKey 
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : {
-      auth: {
-        getSession: async () => ({ data: { session: null }, error: null }),
-        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-        signInWithPassword: async () => ({ error: null }),
-        signUp: async () => ({ error: null }),
-        signOut: async () => {}
-      },
-      from: (table: string) => mockFrom(table)
-    } as any;
+// Create the Supabase client
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export type User = {
   id: string;
