@@ -36,6 +36,27 @@ const storyMap: Record<string, any> = {
   'dark-eye-story': darkEyeStoryJson
 };
 
+// Map to track story sections for page counting
+const storyNodeToPageMap: Record<string, number> = {
+  'root': 1,
+  'vault_description': 2,
+  'dark_eye_introduction': 3,
+  'mages_attempt': 4,
+  'kavan_arrival': 5,
+  'kavan_determination': 6,
+  'dark_eye_awakens': 7,
+  'dark_eye_speaks': 8,
+  'kavan_response': 9,
+  'battle_begins': 10,
+  'kavan_struggle': 11,
+  'kavan_love': 12,
+  'kavan_fight': 13,
+  'dark_eye_reaction': 14,
+  'dark_eye_withdraws': 15,
+  'final_blast': 16,
+  'story_ending': 17
+};
+
 export const StoryEngine = () => {
   const { storyId } = useParams<{ storyId: string }>();
   const [story, setStory] = useState<Story | null>(null);
@@ -55,7 +76,7 @@ export const StoryEngine = () => {
   // Book info state
   const [bookTitle, setBookTitle] = useState('Shadowtide');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(16); // There are 16 distinct sections in this story
+  const [totalPages, setTotalPages] = useState(17); // There are 17 distinct sections in this story (including the ending)
   
   // Comment state
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
@@ -64,6 +85,9 @@ export const StoryEngine = () => {
   
   // State to track if the story can continue
   const [canContinue, setCanContinue] = useState(false);
+  
+  // Track current story path for page counting
+  const [currentPath, setCurrentPath] = useState<string>('root');
 
   // Initialize the story
   useEffect(() => {
@@ -155,6 +179,31 @@ export const StoryEngine = () => {
     }
   };
 
+  // Use a fallback JSON format for the story
+  useEffect(() => {
+    if (storyId === 'dark-eye-story' && error) {
+      console.log("Falling back to custom story format");
+      // Fall back to the custom JSON format
+      import('../stories/dark-eye-story.json')
+        .then((storyData) => {
+          setUsingCustomFormat(true);
+          setCustomStory(storyData.default);
+          setCurrentNode('start');
+          setCurrentText(storyData.default.start.text);
+          setCurrentChoices(storyData.default.start.choices);
+          setCurrentStoryPosition('start');
+          fetchCommentCount(storyId, 'start');
+          setError(null);
+          setIsLoading(false);
+        })
+        .catch((error) => {
+          console.error('Error loading fallback story:', error);
+          setError('Failed to load story data');
+          setIsLoading(false);
+        });
+    }
+  }, [error, storyId]);
+
   // Handle the "Continue" button for inkjs format
   const handleContinue = () => {
     if (!story) return;
@@ -169,8 +218,30 @@ export const StoryEngine = () => {
     setCurrentText(nextText);
     setCanContinue(story.canContinue);
     
-    // Update current page
-    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+    // Try to determine the current path for page tracking
+    try {
+      // This is a heuristic approach - we're looking at the state to guess which section we're in
+      const stateObj = JSON.parse(story.state.toJson());
+      if (stateObj && stateObj.currentPath && stateObj.currentPath.length > 0) {
+        const pathComponent = stateObj.currentPath[stateObj.currentPath.length - 1];
+        const pathName = typeof pathComponent === 'string' ? pathComponent : 
+                         (pathComponent.component || '');
+        
+        if (pathName && storyNodeToPageMap[pathName]) {
+          setCurrentPage(storyNodeToPageMap[pathName]);
+          setCurrentPath(pathName);
+        } else {
+          // Fallback - just increment the page
+          setCurrentPage(prev => Math.min(prev + 1, totalPages));
+        }
+      } else {
+        // Fallback - just increment the page
+        setCurrentPage(prev => Math.min(prev + 1, totalPages));
+      }
+    } catch (e) {
+      // If we can't parse the state, just increment the page
+      setCurrentPage(prev => Math.min(prev + 1, totalPages));
+    }
     
     // Only show choices if we can't continue
     if (!story.canContinue) {
@@ -202,7 +273,14 @@ export const StoryEngine = () => {
       setCurrentText(nextStoryNode.text);
       setCurrentChoices(nextStoryNode.choices);
       setCurrentStoryPosition(nextNode);
-      setCurrentPage(prev => Math.min(prev + 1, totalPages));
+      
+      // Update page based on the node mapping
+      if (storyNodeToPageMap[nextNode]) {
+        setCurrentPage(storyNodeToPageMap[nextNode]);
+      } else {
+        setCurrentPage(prev => Math.min(prev + 1, totalPages));
+      }
+      
       fetchCommentCount(storyId || '', nextNode);
     } else {
       console.error(`Node "${nextNode}" not found in story`);
@@ -239,7 +317,29 @@ export const StoryEngine = () => {
       setCanContinue(false);
     }
     
-    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+    // Update page based on current state
+    try {
+      const stateObj = JSON.parse(story.state.toJson());
+      if (stateObj && stateObj.currentPath && stateObj.currentPath.length > 0) {
+        const pathComponent = stateObj.currentPath[stateObj.currentPath.length - 1];
+        const pathName = typeof pathComponent === 'string' ? pathComponent : 
+                         (pathComponent.component || '');
+        
+        if (pathName && storyNodeToPageMap[pathName]) {
+          setCurrentPage(storyNodeToPageMap[pathName]);
+          setCurrentPath(pathName);
+        } else {
+          // Fallback - just increment the page
+          setCurrentPage(prev => Math.min(prev + 1, totalPages));
+        }
+      } else {
+        // Fallback - just increment the page
+        setCurrentPage(prev => Math.min(prev + 1, totalPages));
+      }
+    } catch (e) {
+      // If we can't parse the state, just increment the page
+      setCurrentPage(prev => Math.min(prev + 1, totalPages));
+    }
     
     // Update current story position for comments
     if (story.state) {
@@ -270,7 +370,6 @@ export const StoryEngine = () => {
     if (previousState) {
       setStoryHistory(newHistory);
       setCanGoBack(newHistory.length > 0);
-      setCurrentPage(prev => Math.max(prev - 1, 1));
       
       if (usingCustomFormat && customStory) {
         // For custom format, previousState is the node name
@@ -280,6 +379,14 @@ export const StoryEngine = () => {
           setCurrentText(prevNode.text);
           setCurrentChoices(prevNode.choices);
           setCurrentStoryPosition(previousState);
+          
+          // Update page based on the node mapping
+          if (storyNodeToPageMap[previousState]) {
+            setCurrentPage(storyNodeToPageMap[previousState]);
+          } else {
+            setCurrentPage(prev => Math.max(prev - 1, 1));
+          }
+          
           fetchCommentCount(storyId || '', previousState);
         }
       } else if (story) {
@@ -300,6 +407,30 @@ export const StoryEngine = () => {
           setCurrentChoices([]);
         }
         
+        // Update page based on current state
+        try {
+          const stateObj = JSON.parse(story.state.toJson());
+          if (stateObj && stateObj.currentPath && stateObj.currentPath.length > 0) {
+            const pathComponent = stateObj.currentPath[stateObj.currentPath.length - 1];
+            const pathName = typeof pathComponent === 'string' ? pathComponent : 
+                            (pathComponent.component || '');
+            
+            if (pathName && storyNodeToPageMap[pathName]) {
+              setCurrentPage(storyNodeToPageMap[pathName]);
+              setCurrentPath(pathName);
+            } else {
+              // Fallback - just decrement the page
+              setCurrentPage(prev => Math.max(prev - 1, 1));
+            }
+          } else {
+            // Fallback - just decrement the page
+            setCurrentPage(prev => Math.max(prev - 1, 1));
+          }
+        } catch (e) {
+          // If we can't parse the state, just decrement the page
+          setCurrentPage(prev => Math.max(prev - 1, 1));
+        }
+        
         // Update current story position for comments
         if (story.state) {
           const position = story.state.toJson();
@@ -315,6 +446,7 @@ export const StoryEngine = () => {
     setStoryHistory([]);
     setCanGoBack(false);
     setCurrentPage(1);
+    setCurrentPath('root');
     
     if (usingCustomFormat && customStory) {
       // Reset to start node for custom format
