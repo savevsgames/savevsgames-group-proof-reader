@@ -1,0 +1,152 @@
+
+{
+  "start": {
+    "text": "The vault was quiet before the end. No winds howled through the stone halls. No whispers stirred in the dark. Only the hum of power—trapped, pulsing, waiting.",
+    "choices": [
+      {
+        "text": "Continue",
+        "nextNode": "vault_description"
+      }
+    ]
+  },
+  "vault_description": {
+    "text": "Row upon row of obsidian-black soulstones lined the walls, latticed into great metallic constructs, veins of crimson energy webbing across their surfaces. They held the echoes of thousands of lives, their lifeforce burning like distant stars in the abyss. A vault of raw existence, stolen and bound into crystal.",
+    "choices": [
+      {
+        "text": "Proceed",
+        "nextNode": "dark_eye_introduction"
+      }
+    ]
+  },
+  "dark_eye_introduction": {
+    "text": "At the very center, frozen in place for centuries—The Dark Eye. It was neither beast nor god, but something beyond such mortal imaginings. A churning mass of obsidian and liquid gold, shifting endlessly between stillness and motion, entropy and silence.",
+    "choices": [
+      {
+        "text": "Next",
+        "nextNode": "mages_attempt"
+      }
+    ]
+  },
+  "mages_attempt": {
+    "text": "When the mages of the High Order sought to unmake the limits of magic, they had come here, pried open its prison, and tried to wield it for themselves. Instead, it had taken Nezeira.",
+    "choices": [
+      {
+        "text": "Continue",
+        "nextNode": "kavan_arrival"
+      }
+    ]
+  },
+  "kavan_arrival": {
+    "text": "Kavan stood at the entrance, fingers curled into fists. The vault smelled of burning—old spells, broken souls, and the metallic tang of death. The remains of the mages and their guards littered the floor, their bodies frozen in agonized expressions, as though their very essence had been peeled away.",
+    "choices": [
+      {
+        "text": "Proceed",
+        "nextNode": "kavan_determination"
+      }
+    ]
+  },
+  "kavan_determination": {
+    "text": "But Nezeira was still here. He felt her, past the boundary of nothingness, beyond the wound the Dark Eye had torn in reality. He would bring her back.",
+    "choices": [
+      {
+        "text": "Next",
+        "nextNode": "dark_eye_awakens"
+      }
+    ]
+  },
+  "dark_eye_awakens": {
+    "text": "The Dark Eye awoke. Oily tendrils of void and gold coiled outward, sliding across the floor, warping the air as they moved. The vault shook as its prison cracked further.",
+    "choices": [
+      {
+        "text": "Continue",
+        "nextNode": "dark_eye_speaks"
+      }
+    ]
+  },
+  "dark_eye_speaks": {
+    "text": "\"You should not have come, Kavan,\" the abyss whispered, though it had no mouth. \"You are flesh. You are fragile. You are already mine.\"",
+    "choices": [
+      {
+        "text": "Proceed",
+        "nextNode": "kavan_response"
+      }
+    ]
+  },
+  "kavan_response": {
+    "text": "Kavan thrust his hands outward—and the vault answered. The soulstones flared. A thousand lost voices screamed in silence as the stolen life within them surged into Kavan's grasp. Red lightning crackled through his veins, the lattice of the vault's stolen power bending to his will.",
+    "choices": [
+      {
+        "text": "Next",
+        "nextNode": "battle_begins"
+      }
+    ]
+  },
+  "battle_begins": {
+    "text": "Each pulse of energy was another soul—a warrior, a poet, a child, a king—millennia of stolen existence bound into crystal, now unleashed against the abyss itself. And still, it pulled at him.",
+    "choices": [
+      {
+        "text": "Continue",
+        "nextNode": "kavan_struggle"
+      }
+    ]
+  },
+  "kavan_struggle": {
+    "text": "His body tore, unraveling as The Dark Eye's gravity threatened to rip him into nothingness. It did not fight him in the way a mortal enemy would. It did not struggle, did not lash out in anger. It simply pulled—for entropy required no effort, only inevitability.",
+    "choices": [
+      {
+        "text": "Proceed",
+        "nextNode": "kavan_love"
+      }
+    ]
+  },
+  "kavan_love": {
+    "text": "Kavan clung to Nezeira's memory. The way her laugh once filled the halls of the Archive. The warmth of her fingers curled in his. The whispers before sleep, the stolen moments between battle and duty. She was his tether. The anchor between his soul and the world.",
+    "choices": [
+      {
+        "text": "Next",
+        "nextNode": "kavan_fight"
+      }
+    ]
+  },
+  "kavan_fight": {
+    "text": "Through that love, he remained. Through that love, he fought.",
+    "choices": [
+      {
+        "text": "Continue",
+        "nextNode": "dark_eye_reaction"
+      }
+    ]
+  },
+  "dark_eye_reaction": {
+    "text": "The Dark Eye shuddered as the souls of the vault rose against it. Red lightning speared into the swirling void, lancing through its golden veins, fracturing its endless hunger. It was no longer only Kavan fighting—the thousands who had been imprisoned here, used and discarded, now roared in vengeance, their power turning against the thing that had fed upon them.",
+    "choices": [
+      {
+        "text": "Proceed",
+        "nextNode": "dark_eye_withdraws"
+      }
+    ]
+  },
+  "dark_eye_withdraws": {
+    "text": "For the first time since the beginning of its existence, the Dark Eye withdrew. It could not consume love. It could not consume will. It could not take what was freely given.",
+    "choices": [
+      {
+        "text": "Next",
+        "nextNode": "final_blast"
+      }
+    ]
+  },
+  "final_blast": {
+    "text": "The last of the energy exploded outward, a shockwave of burning crimson light. The vault imploded—and the wound in reality collapsed. The force flung Kavan backward. He hit the ground hard, gasping, the soulstone energy burned from his veins. The vault was still. It was over.",
+    "choices": [
+      {
+        "text": "Continue",
+        "nextNode": "story_ending"
+      }
+    ]
+  },
+  "story_ending": {
+    "text": "And there, amidst the rubble and ash, a hand reached out from the darkness. A familiar voice called his name. Nezeira stepped forward, her outline gradually taking form against the fading glow of the collapsed vault. She was changed—eyes holding galaxies, skin marked with threads of golden light—but she was alive. Kavan had brought her back from the abyss.",
+    "choices": [],
+    "isEnding": true
+  }
+}

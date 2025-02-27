@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import dogStory from '../stories/dog-story.json';
+import darkEyeStory from '../stories/dark-eye-story.json';
 import '@fontsource/playfair-display/400.css';
 import '@fontsource/playfair-display/500.css';
 import '@fontsource/playfair-display/600.css';
@@ -23,7 +24,8 @@ type StoryContent = {
 
 // Map story IDs to their respective story data files
 const storyMap: Record<string, any> = {
-  'dog-story': dogStory
+  'dog-story': dogStory,
+  'dark-eye-story': darkEyeStory
 };
 
 export const StoryEngine = () => {

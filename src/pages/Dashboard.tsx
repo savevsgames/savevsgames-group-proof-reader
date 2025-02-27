@@ -14,6 +14,15 @@ const sampleBooks = [
     isFree: true,
     category: 'Adventure',
     lastUpdated: '2023-05-15',
+  },
+  {
+    id: 'dark-eye-story',
+    title: 'The Dark Eye',
+    description: 'A mystical tale about love, sacrifice, and the battle against an ancient entity.',
+    coverImage: '/dark-eye-cover.jpg', // You'll need to add this image
+    isFree: true,
+    category: 'Fantasy',
+    lastUpdated: '2023-09-22',
   }
 ];
 
@@ -85,8 +94,14 @@ const Dashboard = () => {
                 onClick={() => handleBookClick(book)}
               >
                 <div className="h-48 bg-gray-200">
-                  {/* Placeholder for book cover - replace with actual images later */}
-                  <div className="h-full w-full flex items-center justify-center bg-[#8B2E2E]">
+                  {/* Book cover backgrounds based on category */}
+                  <div className={`h-full w-full flex items-center justify-center ${
+                    book.category === 'Fantasy' ? 'bg-[#4C3B71]' : 
+                    book.category === 'Adventure' ? 'bg-[#8B2E2E]' :
+                    book.category === 'Horror' ? 'bg-[#2E3A18]' :
+                    book.category === 'Sci-Fi' ? 'bg-[#1A3A5A]' :
+                    'bg-[#5A3A28]'
+                  }`}>
                     <Book className="h-16 w-16 text-white" />
                   </div>
                 </div>
@@ -118,7 +133,13 @@ const Dashboard = () => {
             </button>
             
             <div className="flex flex-col md:flex-row">
-              <div className="md:w-1/3 bg-[#8B2E2E] p-6 flex items-center justify-center">
+              <div className={`md:w-1/3 p-6 flex items-center justify-center ${
+                selectedBook.category === 'Fantasy' ? 'bg-[#4C3B71]' : 
+                selectedBook.category === 'Adventure' ? 'bg-[#8B2E2E]' :
+                selectedBook.category === 'Horror' ? 'bg-[#2E3A18]' :
+                selectedBook.category === 'Sci-Fi' ? 'bg-[#1A3A5A]' :
+                'bg-[#5A3A28]'
+              }`}>
                 <Book className="h-24 w-24 text-white" />
               </div>
               
