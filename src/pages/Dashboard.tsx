@@ -14,43 +14,7 @@ const sampleBooks = [
     isFree: true,
     category: 'Adventure',
     lastUpdated: '2023-05-15',
-  },
-  {
-    id: 'haunted-house',
-    title: 'The Haunted House',
-    description: 'Explore a mysterious mansion with dark secrets.',
-    coverImage: '/haunted-house-cover.jpg', // You'll need to add this image
-    isFree: true,
-    category: 'Horror',
-    lastUpdated: '2023-06-22',
-  },
-  {
-    id: 'space-odyssey',
-    title: 'Space Odyssey',
-    description: 'An intergalactic journey through distant galaxies.',
-    coverImage: '/space-odyssey-cover.jpg', // You'll need to add this image
-    isFree: true,
-    category: 'Sci-Fi',
-    lastUpdated: '2023-07-10',
-  },
-  {
-    id: 'pirate-treasure',
-    title: 'Pirate Treasure',
-    description: 'Hunt for legendary treasure across dangerous seas.',
-    coverImage: '/pirate-treasure-cover.jpg', // You'll need to add this image
-    isFree: true,
-    category: 'Adventure',
-    lastUpdated: '2023-08-05',
-  },
-  {
-    id: 'enchanted-forest',
-    title: 'The Enchanted Forest',
-    description: 'Discover magical creatures in a mystical woodland.',
-    coverImage: '/enchanted-forest-cover.jpg', // You'll need to add this image
-    isFree: true,
-    category: 'Fantasy',
-    lastUpdated: '2023-09-12',
-  },
+  }
 ];
 
 const Dashboard = () => {

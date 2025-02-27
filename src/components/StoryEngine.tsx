@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import storyContent from '../stories/dog-story.json';
+import { useParams } from 'react-router-dom';
+import dogStory from '../stories/dog-story.json';
 import '@fontsource/playfair-display/400.css';
 import '@fontsource/playfair-display/500.css';
 import '@fontsource/playfair-display/600.css';
@@ -20,22 +21,44 @@ type StoryContent = {
   [key: string]: StoryNode;
 };
 
+// Map story IDs to their respective story data files
+const storyMap: Record<string, any> = {
+  'dog-story': dogStory
+};
+
 export const StoryEngine = () => {
+  const { storyId } = useParams<{ storyId: string }>();
   const [currentNode, setCurrentNode] = useState<string>('start');
   const [nodeContent, setNodeContent] = useState<StoryNode | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     try {
-      console.log("Initializing story...");
-      const content = storyContent as StoryContent;
+      console.log("Initializing story...", storyId);
+      
+      if (!storyId || !storyMap[storyId]) {
+        setError(`Story not found: ${storyId}`);
+        setIsLoading(false);
+        return;
+      }
+      
+      const content = storyMap[storyId] as StoryContent;
+      
+      if (!content[currentNode]) {
+        setError(`Node not found in story: ${currentNode}`);
+        setIsLoading(false);
+        return;
+      }
+      
       setNodeContent(content[currentNode]);
       setIsLoading(false);
     } catch (error) {
       console.error('Error initializing story:', error);
+      setError('Failed to load story data');
       setIsLoading(false);
     }
-  }, [currentNode]);
+  }, [storyId, currentNode]);
 
   const handleChoice = (nextNode: string) => {
     setCurrentNode(nextNode);
@@ -45,10 +68,34 @@ export const StoryEngine = () => {
     setCurrentNode('start');
   };
 
-  if (isLoading || !nodeContent) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#3A2618]">
         <div className="animate-fade-in text-[#E8DCC4] font-serif">Loading story...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#3A2618]">
+        <div className="text-[#E8DCC4] font-serif">
+          <p className="text-xl mb-4">Error: {error}</p>
+          <button 
+            onClick={() => window.history.back()}
+            className="px-6 py-3 bg-[#8B2E2E] text-[#E8DCC4] font-serif rounded hover:bg-[#6A2424] transition-colors"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!nodeContent) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#3A2618]">
+        <div className="text-[#E8DCC4] font-serif">Story content not found</div>
       </div>
     );
   }
