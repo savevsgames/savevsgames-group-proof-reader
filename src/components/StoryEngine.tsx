@@ -18,17 +18,12 @@ export const StoryEngine = () => {
   useEffect(() => {
     const initStory = async () => {
       try {
+        console.log("Initializing story...");
         const newStory = new Story(storyContent);
         setStory(newStory);
         
         // Initial continuation of the story
-        let text = '';
-        while (newStory.canContinue) {
-          text += newStory.Continue() + '\n';
-        }
-        
-        setCurrentText(text.trim());
-        setCurrentChoices(newStory.currentChoices);
+        continueStory(newStory);
         setIsLoading(false);
       } catch (error) {
         console.error('Error initializing story:', error);
