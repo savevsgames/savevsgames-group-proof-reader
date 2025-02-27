@@ -1,9 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Story } from 'inkjs';
-import dogStoryJson from '../stories/placeholder-dog-story.json';
-import darkEyeStoryJson from '../stories/placeholder-dark-eye-story.json';
+import darkEyeStoryJson from '../stories/ShadowtideEndTestJSON.json';
 import { useToast } from '@/hooks/use-toast';
 import '@fontsource/playfair-display/400.css';
 import '@fontsource/playfair-display/500.css';
@@ -33,7 +32,6 @@ interface CustomStory {
 
 // Map story IDs to their respective story data files
 const storyMap: Record<string, any> = {
-  'dog-story': dogStoryJson,
   'dark-eye-story': darkEyeStoryJson
 };
 
@@ -52,6 +50,11 @@ export const StoryEngine = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user } = useAuth();
+  
+  // Book info state
+  const [bookTitle, setBookTitle] = useState('Shadowtide');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(16); // Estimated from the story content
   
   // Comment state
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
@@ -159,6 +162,7 @@ export const StoryEngine = () => {
       setCurrentText([nextStoryNode.text]);
       setCurrentChoices(nextStoryNode.choices);
       setCurrentStoryPosition(nextNode);
+      setCurrentPage(prev => Math.min(prev + 1, totalPages));
       fetchCommentCount(storyId || '', nextNode);
     } else {
       console.error(`Node "${nextNode}" not found in story`);
@@ -186,6 +190,7 @@ export const StoryEngine = () => {
 
     setCurrentText(text);
     setCurrentChoices(story.currentChoices);
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
     
     // Update current story position for comments
     if (story.state) {
@@ -216,6 +221,7 @@ export const StoryEngine = () => {
     if (previousState) {
       setStoryHistory(newHistory);
       setCanGoBack(newHistory.length > 0);
+      setCurrentPage(prev => Math.max(prev - 1, 1));
       
       if (usingCustomFormat && customStory) {
         // For custom format, previousState is the node name
@@ -255,6 +261,7 @@ export const StoryEngine = () => {
   const handleRestart = () => {
     setStoryHistory([]);
     setCanGoBack(false);
+    setCurrentPage(1);
     
     if (usingCustomFormat && customStory) {
       // Reset to start node for custom format
@@ -324,6 +331,11 @@ export const StoryEngine = () => {
   return (
     <div className="min-h-screen bg-[#3A2618] py-8 px-4 flex items-center justify-center">
       <div className="max-w-5xl w-full relative book-container">
+        {/* Book Title and Page Number */}
+        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-6 bg-[#F97316] text-[#E8DCC4] px-4 py-1 rounded-full z-10 whitespace-nowrap">
+          <span className="font-serif">{bookTitle} - Page {currentPage} of {totalPages}</span>
+        </div>
+        
         {/* Controls */}
         <div className="absolute right-2 top-2 z-10 flex gap-2">
           {canGoBack && (
@@ -352,11 +364,9 @@ export const StoryEngine = () => {
           >
             <MessageSquare className="h-5 w-5" />
             
-            {commentCount > 0 && (
-              <div className="absolute -top-2 -right-2 bg-white text-[#3A2618] rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
-                {commentCount}
-              </div>
-            )}
+            <div className="absolute -top-2 -right-2 bg-white text-[#3A2618] rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+              {commentCount}
+            </div>
           </button>
         </div>
         

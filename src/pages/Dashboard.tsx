@@ -7,17 +7,8 @@ import { Book, LogOut, User } from 'lucide-react';
 // This is sample data - in a real app, you'd fetch this from Supabase
 const sampleBooks = [
   {
-    id: 'dog-story',
-    title: 'The Lost Dog',
-    description: 'A heartwarming story about choices and compassion.',
-    coverImage: '/dog-story-cover.jpg', // You'll need to add this image
-    isFree: true,
-    category: 'Adventure',
-    lastUpdated: '2023-05-15',
-  },
-  {
     id: 'dark-eye-story',
-    title: 'The Dark Eye',
+    title: 'Shadowtide',
     description: 'A mystical tale about love, sacrifice, and the battle against an ancient entity.',
     coverImage: '/dark-eye-cover.jpg', // You'll need to add this image
     isFree: true,
