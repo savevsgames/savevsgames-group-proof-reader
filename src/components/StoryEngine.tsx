@@ -15,6 +15,22 @@ import { CommentModal } from './CommentModal';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 
+// Define interfaces for the custom story format
+interface StoryChoice {
+  text: string;
+  nextNode: string;
+}
+
+interface StoryNode {
+  text: string;
+  choices: StoryChoice[];
+  isEnding?: boolean;
+}
+
+interface CustomStory {
+  [key: string]: StoryNode;
+}
+
 // Map story IDs to their respective story data files
 const storyMap: Record<string, any> = {
   'dog-story': dogStoryJson,
@@ -24,6 +40,9 @@ const storyMap: Record<string, any> = {
 export const StoryEngine = () => {
   const { storyId } = useParams<{ storyId: string }>();
   const [story, setStory] = useState<Story | null>(null);
+  const [customStory, setCustomStory] = useState<CustomStory | null>(null);
+  const [usingCustomFormat, setUsingCustomFormat] = useState(false);
+  const [currentNode, setCurrentNode] = useState<string>('start');
   const [currentText, setCurrentText] = useState<string[]>([]);
   const [currentChoices, setCurrentChoices] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,42 +67,57 @@ export const StoryEngine = () => {
         return;
       }
 
-      // Create a new story instance with the imported JSON
+      // Get the story data
       const storyData = storyMap[storyId];
       console.log("Loading story:", storyId);
       
-      try {
-        const newStory = new Story(storyData);
-        setStory(newStory);
-        
-        // Continue the story until we get to the first choice
-        const text: string[] = [];
-        while (newStory.canContinue) {
-          const nextText = newStory.Continue();
-          text.push(nextText);
-        }
-        
-        setCurrentText(text);
-        setCurrentChoices(newStory.currentChoices);
-        
-        // Save current story position for comments
-        if (newStory.state) {
-          const position = newStory.state.toJson();
-          setCurrentStoryPosition(position);
-          fetchCommentCount(storyId, position);
-        }
-        
+      // Check if it's a custom format (has a "start" node) or an inkjs format
+      if (storyData.start) {
+        console.log("Using custom story format");
+        setUsingCustomFormat(true);
+        setCustomStory(storyData);
+        setCurrentNode('start');
+        setCurrentText([storyData.start.text]);
+        setCurrentChoices(storyData.start.choices);
+        setCurrentStoryPosition('start');
+        fetchCommentCount(storyId, 'start');
         setIsLoading(false);
-      } catch (storyError) {
-        console.error('Error initializing story:', storyError);
-        setError(`Error loading story: ${storyError.message}`);
-        toast({
-          title: "Story Error",
-          description: "There was an issue loading the story. Please try another story or check if you've replaced the placeholder JSON files with properly compiled Ink stories.",
-          variant: "destructive"
-        });
-        setIsLoading(false);
+      } else {
+        // It's an inkjs format
+        console.log("Using inkjs story format");
+        try {
+          const newStory = new Story(storyData);
+          setStory(newStory);
+          setUsingCustomFormat(false);
+          
+          // Continue the story until we get to the first choice
+          const text: string[] = [];
+          while (newStory.canContinue) {
+            const nextText = newStory.Continue();
+            text.push(nextText);
+          }
+          
+          setCurrentText(text);
+          setCurrentChoices(newStory.currentChoices);
+          
+          // Save current story position for comments
+          if (newStory.state) {
+            const position = newStory.state.toJson();
+            setCurrentStoryPosition(position);
+            fetchCommentCount(storyId, position);
+          }
+        } catch (storyError) {
+          console.error('Error initializing inkjs story:', storyError);
+          setError(`Error loading story: ${storyError.message}`);
+          toast({
+            title: "Story Error",
+            description: "There was an issue loading the story. Please try another story or check if you've replaced the placeholder JSON files with properly compiled Ink stories.",
+            variant: "destructive"
+          });
+        }
       }
+      
+      setIsLoading(false);
     } catch (error) {
       console.error('General error:', error);
       setError('Failed to load story data');
@@ -110,7 +144,30 @@ export const StoryEngine = () => {
     }
   };
 
-  const handleChoice = (index: number) => {
+  // Handle choice for custom story format
+  const handleCustomChoice = (nextNode: string) => {
+    if (!customStory) return;
+
+    // Save current node to history for "back" functionality
+    setStoryHistory(prev => [...prev, currentNode]);
+    setCanGoBack(true);
+
+    // Navigate to the next node
+    const nextStoryNode = customStory[nextNode];
+    if (nextStoryNode) {
+      setCurrentNode(nextNode);
+      setCurrentText([nextStoryNode.text]);
+      setCurrentChoices(nextStoryNode.choices);
+      setCurrentStoryPosition(nextNode);
+      fetchCommentCount(storyId || '', nextNode);
+    } else {
+      console.error(`Node "${nextNode}" not found in story`);
+      setError(`Story navigation error: Node "${nextNode}" not found`);
+    }
+  };
+
+  // Handle choice for inkjs format
+  const handleInkChoice = (index: number) => {
     if (!story) return;
 
     // Save current state before making choice
@@ -138,18 +195,78 @@ export const StoryEngine = () => {
     }
   };
 
+  // Combined choice handler
+  const handleChoice = (index: number) => {
+    if (usingCustomFormat) {
+      const choice = currentChoices[index];
+      handleCustomChoice(choice.nextNode);
+    } else {
+      handleInkChoice(index);
+    }
+  };
+
+  // Back functionality
   const handleBack = () => {
-    if (!story || storyHistory.length === 0) return;
+    if (storyHistory.length === 0) return;
 
     // Pop the last state from history
     const newHistory = [...storyHistory];
     const previousState = newHistory.pop();
     
     if (previousState) {
-      story.state.LoadJson(previousState);
       setStoryHistory(newHistory);
+      setCanGoBack(newHistory.length > 0);
       
-      // Update current text and choices
+      if (usingCustomFormat && customStory) {
+        // For custom format, previousState is the node name
+        const prevNode = customStory[previousState];
+        if (prevNode) {
+          setCurrentNode(previousState);
+          setCurrentText([prevNode.text]);
+          setCurrentChoices(prevNode.choices);
+          setCurrentStoryPosition(previousState);
+          fetchCommentCount(storyId || '', previousState);
+        }
+      } else if (story) {
+        // For inkjs format
+        story.state.LoadJson(previousState);
+        
+        // Update current text and choices
+        const text: string[] = [];
+        while (story.canContinue) {
+          const nextText = story.Continue();
+          text.push(nextText);
+        }
+        
+        setCurrentText(text);
+        setCurrentChoices(story.currentChoices);
+        
+        // Update current story position for comments
+        if (story.state) {
+          const position = story.state.toJson();
+          setCurrentStoryPosition(position);
+          fetchCommentCount(storyId || '', position);
+        }
+      }
+    }
+  };
+
+  // Reset functionality
+  const handleRestart = () => {
+    setStoryHistory([]);
+    setCanGoBack(false);
+    
+    if (usingCustomFormat && customStory) {
+      // Reset to start node for custom format
+      setCurrentNode('start');
+      setCurrentText([customStory.start.text]);
+      setCurrentChoices(customStory.start.choices);
+      setCurrentStoryPosition('start');
+      fetchCommentCount(storyId || '', 'start');
+    } else if (story) {
+      // Reset inkjs story
+      story.ResetState();
+      
       const text: string[] = [];
       while (story.canContinue) {
         const nextText = story.Continue();
@@ -158,7 +275,6 @@ export const StoryEngine = () => {
       
       setCurrentText(text);
       setCurrentChoices(story.currentChoices);
-      setCanGoBack(newHistory.length > 0);
       
       // Update current story position for comments
       if (story.state) {
@@ -166,30 +282,6 @@ export const StoryEngine = () => {
         setCurrentStoryPosition(position);
         fetchCommentCount(storyId || '', position);
       }
-    }
-  };
-
-  const handleRestart = () => {
-    if (!story) return;
-    
-    story.ResetState();
-    setStoryHistory([]);
-    setCanGoBack(false);
-    
-    const text: string[] = [];
-    while (story.canContinue) {
-      const nextText = story.Continue();
-      text.push(nextText);
-    }
-    
-    setCurrentText(text);
-    setCurrentChoices(story.currentChoices);
-    
-    // Update current story position for comments
-    if (story.state) {
-      const position = story.state.toJson();
-      setCurrentStoryPosition(position);
-      fetchCommentCount(storyId || '', position);
     }
   };
   

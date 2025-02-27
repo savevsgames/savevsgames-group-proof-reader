@@ -1,53 +1,62 @@
 
 {
-  "inkVersion": 20,
-  "root": [
-    ["^Walking home one rainy evening, you hear whimpering coming from a dark alley. The sound seems to be coming from behind some trash cans.", "\n", [
-      ["ev", "str", "^Investigate the sound", "/str", "/ev", {
-        "*": "0.c-0",
-        "flg": 20
-      }],
-      ["ev", "str", "^Keep walking", "/str", "/ev", {
-        "*": "0.c-1",
-        "flg": 20
-      }]
-    ], null],
-    {"c-0": [
-      "\n", "^You approach carefully and find a small, injured dog huddled in the corner. Its leg appears to be hurt, but its tail wags slightly when it sees you.", "\n", [
-        ["ev", "str", "^Take the dog home", "/str", "/ev", {
-          "*": "0.c-2",
-          "flg": 20
-        }],
-        ["ev", "str", "^Call animal services", "/str", "/ev", {
-          "*": "0.c-3",
-          "flg": 20
-        }]
-      ], null]
-    },
-    {"c-1": [
-      "\n", "^You decide to keep walking, trying to ignore the pitiful sounds. That night, you have trouble sleeping, haunted by thoughts of what might have happened to the dog.", "\n", [
-        ["ev", "str", "^Apologize to the universe", "/str", "/ev", {
-          "*": "0.c-4",
-          "flg": 20
-        }],
-        ["ev", "str", "^Hide under the covers", "/str", "/ev", {
-          "*": "0.c-5",
-          "flg": 20
-        }]
-      ], null]
-    },
-    {"c-2": [
-      "\n", "^You take the dog home, clean its wounds, and nurse it back to health. Over time, you and your new friend become inseparable. Years later, people still smile seeing you two walking together in the park, the happiest duo in the neighborhood.", "\n", "end", null
-    ]},
-    {"c-3": [
-      "\n", "^Animal services arrives quickly. Though it's hard to say goodbye, you know you did the right thing. Months later, you receive a photo of the dog, now healthy and happy with its new family. You smile, knowing you helped give it a second chance.", "\n", "end", null
-    ]},
-    {"c-4": [
-      "\n", "^Your sincere apology seems to touch the universe. The next day, you become a dedicated volunteer at the local animal shelter, determined to help other animals in need.", "\n", "end", null
-    ]},
-    {"c-5": [
-      "\n", "^You hide, but your conscience persists. Night after night, the memory returns - a reminder of your choice. You realize some decisions will haunt us forever, their consequences echoing in the dark hours of the night.", "\n", "end", null
-    ]}
-  ],
-  "#f": 1
+  "start": {
+    "text": "Walking home one rainy evening, you hear whimpering coming from a dark alley. The sound seems to be coming from behind some trash cans.",
+    "choices": [
+      {
+        "text": "Investigate the sound",
+        "nextNode": "investigate_sound"
+      },
+      {
+        "text": "Keep walking",
+        "nextNode": "keep_walking"
+      }
+    ]
+  },
+  "investigate_sound": {
+    "text": "You approach carefully and find a small, injured dog huddled in the corner. Its leg appears to be hurt, but its tail wags slightly when it sees you.",
+    "choices": [
+      {
+        "text": "Take the dog home",
+        "nextNode": "take_dog_home"
+      },
+      {
+        "text": "Call animal services",
+        "nextNode": "call_animal_services"
+      }
+    ]
+  },
+  "take_dog_home": {
+    "text": "You take the dog home, clean its wounds, and nurse it back to health. Over time, you and your new friend become inseparable. Years later, people still smile seeing you two walking together in the park, the happiest duo in the neighborhood.",
+    "choices": [],
+    "isEnding": true
+  },
+  "call_animal_services": {
+    "text": "Animal services arrives quickly. Though it's hard to say goodbye, you know you did the right thing. Months later, you receive a photo of the dog, now healthy and happy with its new family. You smile, knowing you helped give it a second chance.",
+    "choices": [],
+    "isEnding": true
+  },
+  "keep_walking": {
+    "text": "You decide to keep walking, trying to ignore the pitiful sounds. That night, you have trouble sleeping, haunted by thoughts of what might have happened to the dog.",
+    "choices": [
+      {
+        "text": "Apologize to the universe",
+        "nextNode": "apologize_universe"
+      },
+      {
+        "text": "Hide under the covers",
+        "nextNode": "hide_under_covers"
+      }
+    ]
+  },
+  "apologize_universe": {
+    "text": "Your sincere apology seems to touch the universe. The next day, you become a dedicated volunteer at the local animal shelter, determined to help other animals in need.",
+    "choices": [],
+    "isEnding": true
+  },
+  "hide_under_covers": {
+    "text": "You hide, but your conscience persists. Night after night, the memory returns—a reminder of your choice. You realize some decisions will haunt us forever, their consequences echoing in the dark hours of the night.",
+    "choices": [],
+    "isEnding": true
+  }
 }
