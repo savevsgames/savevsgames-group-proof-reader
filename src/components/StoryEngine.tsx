@@ -10,6 +10,9 @@ import '@fontsource/playfair-display/500.css';
 import '@fontsource/playfair-display/600.css';
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/500.css';
+import { MessageSquare } from 'lucide-react';
+import { CommentModal, Comment } from './CommentModal';
+import { v4 as uuidv4 } from 'uuid';
 
 // Map story IDs to their respective story data files
 const storyMap: Record<string, any> = {
@@ -27,6 +30,11 @@ export const StoryEngine = () => {
   const [storyHistory, setStoryHistory] = useState<string[]>([]);
   const [canGoBack, setCanGoBack] = useState(false);
   const { toast } = useToast();
+  
+  // Comment state
+  const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [currentStoryPosition, setCurrentStoryPosition] = useState<string>('');
 
   // Initialize the story
   useEffect(() => {
@@ -54,6 +62,12 @@ export const StoryEngine = () => {
         
         setCurrentText(text);
         setCurrentChoices(newStory.currentChoices);
+        
+        // Save current story position for comments
+        if (newStory.state) {
+          setCurrentStoryPosition(newStory.state.toJson());
+        }
+        
         setIsLoading(false);
       } catch (storyError) {
         console.error('Error initializing story:', storyError);
@@ -91,6 +105,11 @@ export const StoryEngine = () => {
 
     setCurrentText(text);
     setCurrentChoices(story.currentChoices);
+    
+    // Update current story position for comments
+    if (story.state) {
+      setCurrentStoryPosition(story.state.toJson());
+    }
   };
 
   const handleBack = () => {
@@ -114,6 +133,11 @@ export const StoryEngine = () => {
       setCurrentText(text);
       setCurrentChoices(story.currentChoices);
       setCanGoBack(newHistory.length > 0);
+      
+      // Update current story position for comments
+      if (story.state) {
+        setCurrentStoryPosition(story.state.toJson());
+      }
     }
   };
 
@@ -132,7 +156,33 @@ export const StoryEngine = () => {
     
     setCurrentText(text);
     setCurrentChoices(story.currentChoices);
+    
+    // Update current story position for comments
+    if (story.state) {
+      setCurrentStoryPosition(story.state.toJson());
+    }
   };
+  
+  // Function to add a new comment
+  const handleAddComment = (commentData: Omit<Comment, 'id' | 'timestamp'>) => {
+    const newComment: Comment = {
+      ...commentData,
+      id: uuidv4(), // Generate a unique ID
+      timestamp: new Date(),
+    };
+    
+    setComments(prevComments => [...prevComments, newComment]);
+  };
+  
+  // Get comments for current story position
+  const getCurrentPositionComments = () => {
+    return comments.filter(comment => 
+      comment.storyId === storyId && 
+      comment.storyPosition === currentStoryPosition
+    );
+  };
+  
+  const currentPositionComments = getCurrentPositionComments();
 
   if (isLoading) {
     return (
@@ -170,6 +220,7 @@ export const StoryEngine = () => {
               onClick={handleBack}
               className="bg-[#F97316] text-[#E8DCC4] w-10 h-10 flex items-center justify-center hover:bg-[#E86305] transition-colors"
               style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%)' }}
+              title="Go back"
             >
               ↩
             </button>
@@ -178,8 +229,23 @@ export const StoryEngine = () => {
             onClick={handleRestart} 
             className="bg-[#F97316] text-[#E8DCC4] w-10 h-10 flex items-center justify-center hover:bg-[#E86305] transition-colors"
             style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%)' }}
+            title="Reset story"
           >
             ✕
+          </button>
+          <button 
+            onClick={() => setIsCommentModalOpen(true)}
+            className="bg-[#F97316] text-[#E8DCC4] w-10 h-10 flex items-center justify-center hover:bg-[#E86305] transition-colors relative"
+            style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%)' }}
+            title="Comments"
+          >
+            <MessageSquare className="h-5 w-5" />
+            
+            {currentPositionComments.length > 0 && (
+              <div className="absolute -top-2 -right-2 bg-white text-[#3A2618] rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+                {currentPositionComments.length}
+              </div>
+            )}
           </button>
         </div>
         
@@ -234,6 +300,16 @@ export const StoryEngine = () => {
           </div>
         </div>
       </div>
+      
+      {/* Comment Modal */}
+      <CommentModal
+        isOpen={isCommentModalOpen}
+        onOpenChange={setIsCommentModalOpen}
+        storyId={storyId || ''}
+        storyPosition={currentStoryPosition}
+        comments={currentPositionComments}
+        onAddComment={handleAddComment}
+      />
     </div>
   );
 };
