@@ -4,84 +4,48 @@
   "root": [
     ["^Walking home one rainy evening, you hear whimpering coming from a dark alley. The sound seems to be coming from behind some trash cans.", "\n", [
       ["ev", "str", "^Investigate the sound", "/str", "/ev", {
-        "VAR=": "__temp_0",
-        "re": true
-      }, {
-        "->": ".^.s0"
-      }, ["pop", "no"],
-        "s0", {
-        "*": "0.c_0",
+        "*": "0.c-0",
         "flg": 20
       }],
       ["ev", "str", "^Keep walking", "/str", "/ev", {
-        "VAR=": "__temp_1",
-        "re": true
-      }, {
-        "->": ".^.s1"
-      }, ["pop", "no"],
-        "s1", {
-        "*": "0.c_1",
+        "*": "0.c-1",
         "flg": 20
       }]
     ], null],
-    {"c_0": [
+    {"c-0": [
       "\n", "^You approach carefully and find a small, injured dog huddled in the corner. Its leg appears to be hurt, but its tail wags slightly when it sees you.", "\n", [
         ["ev", "str", "^Take the dog home", "/str", "/ev", {
-          "VAR=": "__temp_2",
-          "re": true
-        }, {
-          "->": ".^.s2"
-        }, ["pop", "no"],
-          "s2", {
-          "*": "0.c_2",
+          "*": "0.c-2",
           "flg": 20
         }],
         ["ev", "str", "^Call animal services", "/str", "/ev", {
-          "VAR=": "__temp_3",
-          "re": true
-        }, {
-          "->": ".^.s3"
-        }, ["pop", "no"],
-          "s3", {
-          "*": "0.c_3",
+          "*": "0.c-3",
           "flg": 20
         }]
       ], null]
     },
-    {"c_1": [
+    {"c-1": [
       "\n", "^You decide to keep walking, trying to ignore the pitiful sounds. That night, you have trouble sleeping, haunted by thoughts of what might have happened to the dog.", "\n", [
         ["ev", "str", "^Apologize to the universe", "/str", "/ev", {
-          "VAR=": "__temp_4",
-          "re": true
-        }, {
-          "->": ".^.s4"
-        }, ["pop", "no"],
-          "s4", {
-          "*": "0.c_4",
+          "*": "0.c-4",
           "flg": 20
         }],
         ["ev", "str", "^Hide under the covers", "/str", "/ev", {
-          "VAR=": "__temp_5",
-          "re": true
-        }, {
-          "->": ".^.s5"
-        }, ["pop", "no"],
-          "s5", {
-          "*": "0.c_5",
+          "*": "0.c-5",
           "flg": 20
         }]
       ], null]
     },
-    {"c_2": [
+    {"c-2": [
       "\n", "^You take the dog home, clean its wounds, and nurse it back to health. Over time, you and your new friend become inseparable. Years later, people still smile seeing you two walking together in the park, the happiest duo in the neighborhood.", "\n", "end", null
     ]},
-    {"c_3": [
+    {"c-3": [
       "\n", "^Animal services arrives quickly. Though it's hard to say goodbye, you know you did the right thing. Months later, you receive a photo of the dog, now healthy and happy with its new family. You smile, knowing you helped give it a second chance.", "\n", "end", null
     ]},
-    {"c_4": [
+    {"c-4": [
       "\n", "^Your sincere apology seems to touch the universe. The next day, you become a dedicated volunteer at the local animal shelter, determined to help other animals in need.", "\n", "end", null
     ]},
-    {"c_5": [
+    {"c-5": [
       "\n", "^You hide, but your conscience persists. Night after night, the memory returns - a reminder of your choice. You realize some decisions will haunt us forever, their consequences echoing in the dark hours of the night.", "\n", "end", null
     ]}
   ],
