@@ -44,9 +44,7 @@ const Index = () => {
           </button>
           
           <button 
-            onClick={() => {
-              // Implement learn more functionality
-            }}
+            onClick={() => navigate('/faq')}
             className="border border-[#E8DCC4] text-[#E8DCC4] hover:bg-[#E8DCC4]/10 transition-colors px-8 py-3 rounded-md font-medium text-lg"
           >
             Learn More
