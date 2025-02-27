@@ -9,11 +9,11 @@ const sampleBooks = [
   {
     id: 'dark-eye-story',
     title: 'Shadowtide',
-    description: 'A mystical tale about love, sacrifice, and the battle against an ancient entity.',
-    coverImage: '/dark-eye-cover.jpg', // You'll need to add this image
+    description: 'A mystical tale about love, sacrifice, and the meaning of existence.',
+    coverImage: '/shadowtidecover1.png',
     isFree: true,
     category: 'Fantasy',
-    lastUpdated: '2023-09-22',
+    lastUpdated: '2025-02-22',
   }
 ];
 
@@ -106,6 +106,7 @@ const Dashboard = () => {
                 <div className="p-4">
                   <h3 className="font-serif font-bold text-lg text-[#3A2618] mb-1">{book.title}</h3>
                   <p className="text-sm text-gray-600 mb-2">{book.category}</p>
+                  <div><img src='./shadowtidecover1.webp'></img></div>
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-gray-500">Updated: {book.lastUpdated}</span>
                     <span className="text-xs font-medium bg-green-100 text-green-800 px-2 py-1 rounded">
