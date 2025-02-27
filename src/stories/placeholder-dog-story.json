@@ -2,160 +2,53 @@
 {
   "inkVersion": 20,
   "root": [
-    ["^Walking home one rainy evening, you hear whimpering coming from a dark alley. The sound seems to be coming from behind some trash cans.", "\n"],
-    ["ev", "str", "^Investigate the sound", "/str", "/ev", {
-      "c": [
-        [
-          {
-            "->": ".^.b"
-          },
-          {
-            "b": [
-              "\n",
-              "^You approach carefully and find a small, injured dog huddled in the corner. Its leg appears to be hurt, but its tail wags slightly when it sees you.",
-              "\n",
-              {
-                "->": "dog_found"
-              },
-              null
-            ]
-          }
-        ],
-        [
-          {
-            "->": ".^.b"
-          },
-          {
-            "b": [
-              "done",
-              null
-            ]
-          }
-        ]
+    ["^Walking home one rainy evening, you hear whimpering coming from a dark alley. The sound seems to be coming from behind some trash cans.", "\n", [
+      ["ev", "str", "^Investigate the sound", "/str", "/ev", {
+        "*": "0.c-0",
+        "flg": 20
+      }],
+      ["ev", "str", "^Keep walking", "/str", "/ev", {
+        "*": "0.c-1",
+        "flg": 20
+      }]
+    ], null],
+    ["done", {
+      "c-0": [
+        "\n", "^You approach carefully and find a small, injured dog huddled in the corner. Its leg appears to be hurt, but its tail wags slightly when it sees you.", "\n", [
+          ["ev", "str", "^Take the dog home", "/str", "/ev", {
+            "*": "0.c-2",
+            "flg": 20
+          }],
+          ["ev", "str", "^Call animal services", "/str", "/ev", {
+            "*": "0.c-3",
+            "flg": 20
+          }]
+        ], null
       ],
-      "nop": true
-    }],
-    ["ev", "str", "^Keep walking", "/str", "/ev", {
-      "c": [
-        [
-          {
-            "->": ".^.b"
-          },
-          {
-            "b": [
-              "\n",
-              "^You decide to keep walking, trying to ignore the pitiful sounds. That night, you have trouble sleeping, haunted by thoughts of what might have happened to the dog.",
-              "\n",
-              {
-                "->": "ghost_dog"
-              },
-              null
-            ]
-          }
-        ],
-        [
-          {
-            "->": ".^.b"
-          },
-          {
-            "b": [
-              "done",
-              null
-            ]
-          }
-        ]
+      "c-1": [
+        "\n", "^You decide to keep walking, trying to ignore the pitiful sounds. That night, you have trouble sleeping, haunted by thoughts of what might have happened to the dog.", "\n", [
+          ["ev", "str", "^Apologize to the universe", "/str", "/ev", {
+            "*": "0.c-4",
+            "flg": 20
+          }],
+          ["ev", "str", "^Hide under the covers", "/str", "/ev", {
+            "*": "0.c-5",
+            "flg": 20
+          }]
+        ], null
       ],
-      "nop": true
-    }],
-    [
-      "done",
-      {
-        "#f": 5,
-        "#n": "g-0"
-      }
-    ],
-    null,
-    ["dn", "dog_found", {
-      "#f": 5,
-      "#n": "g-1"
-    }],
-    ["^You need to decide what to do with the injured dog.", "\n", [
-      "ev",
-      "str",
-      "^Take the dog home",
-      "/str",
-      "/ev",
-      {
-        "*": "take_dog_home",
-        "flg": 20
-      }
-    ], [
-      "ev",
-      "str",
-      "^Call animal services",
-      "/str",
-      "/ev",
-      {
-        "*": "call_services",
-        "flg": 20
-      }
-    ], {
-      "#f": 5
-    }],
-    ["dn", "ghost_dog", {
-      "#f": 5,
-      "#n": "g-2"
-    }],
-    ["^As you finally drift off to sleep, you're awakened by an ethereal barking. At the foot of your bed stands the translucent figure of a dog, its eyes glowing with a mix of sadness and reproach.", "\n", [
-      "ev",
-      "str",
-      "^Apologize",
-      "/str",
-      "/ev",
-      {
-        "*": "apologize",
-        "flg": 20
-      }
-    ], [
-      "ev",
-      "str",
-      "^Hide under the covers",
-      "/str",
-      "/ev",
-      {
-        "*": "hide",
-        "flg": 20
-      }
-    ], {
-      "#f": 5
-    }],
-    ["dn", "take_dog_home", {
-      "#f": 5,
-      "#n": "g-3"
-    }],
-    ["^You take the dog home, clean its wounds, and nurse it back to health. Over time, you and your new friend become inseparable. Years later, people still smile seeing you two walking together in the park, the happiest duo in the neighborhood.", "\n", "end", {
-      "#f": 5
-    }],
-    ["dn", "call_services", {
-      "#f": 5,
-      "#n": "g-4"
-    }],
-    ["^Animal services arrives quickly. Though it's hard to say goodbye, you know you did the right thing. Months later, you receive a photo of the dog, now healthy and happy with its new family. You smile, knowing you helped give it a second chance.", "\n", "end", {
-      "#f": 5
-    }],
-    ["dn", "apologize", {
-      "#f": 5,
-      "#n": "g-5"
-    }],
-    ["^Your sincere apology seems to touch the ghost dog's heart. It approaches, and you feel a cold but gentle forgiveness. From that day forward, you become a dedicated volunteer at the local animal shelter, determined to help other animals in need.", "\n", "end", {
-      "#f": 5
-    }],
-    ["dn", "hide", {
-      "#f": 5,
-      "#n": "g-6"
-    }],
-    ["^You hide, but the ghost dog's presence persists. Night after night, it returns - a spectral reminder of your choice. You realize some decisions will haunt us forever, their consequences echoing in the dark hours of the night.", "\n", "end", {
-      "#f": 5
+      "c-2": [
+        "\n", "^You take the dog home, clean its wounds, and nurse it back to health. Over time, you and your new friend become inseparable. Years later, people still smile seeing you two walking together in the park, the happiest duo in the neighborhood.", "\n", "end", null
+      ],
+      "c-3": [
+        "\n", "^Animal services arrives quickly. Though it's hard to say goodbye, you know you did the right thing. Months later, you receive a photo of the dog, now healthy and happy with its new family. You smile, knowing you helped give it a second chance.", "\n", "end", null
+      ],
+      "c-4": [
+        "\n", "^Your sincere apology seems to touch the universe. The next day, you become a dedicated volunteer at the local animal shelter, determined to help other animals in need.", "\n", "end", null
+      ],
+      "c-5": [
+        "\n", "^You hide, but your conscience persists. Night after night, the memory returns - a reminder of your choice. You realize some decisions will haunt us forever, their consequences echoing in the dark hours of the night.", "\n", "end", null
+      ]
     }]
   ],
   "#f": 1
