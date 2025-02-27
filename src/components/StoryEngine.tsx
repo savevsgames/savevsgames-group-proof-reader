@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { Story } from 'inkjs';
 import dogStory from '../stories/dog-story.ink.json';
 import darkEyeStory from '../stories/dark-eye-story.ink.json';
+import { useToast } from '@/hooks/use-toast';
 import '@fontsource/playfair-display/400.css';
 import '@fontsource/playfair-display/500.css';
 import '@fontsource/playfair-display/600.css';
@@ -25,6 +26,7 @@ export const StoryEngine = () => {
   const [error, setError] = useState<string | null>(null);
   const [storyHistory, setStoryHistory] = useState<string[]>([]);
   const [canGoBack, setCanGoBack] = useState(false);
+  const { toast } = useToast();
 
   // Initialize the story
   useEffect(() => {
@@ -35,25 +37,40 @@ export const StoryEngine = () => {
         return;
       }
 
-      const newStory = new Story(storyMap[storyId]);
-      setStory(newStory);
+      // Create a new story instance with the imported JSON
+      const storyData = storyMap[storyId];
+      console.log("Loading story:", storyId);
       
-      // Continue the story until we get to the first choice
-      const text: string[] = [];
-      while (newStory.canContinue) {
-        const nextText = newStory.Continue();
-        text.push(nextText);
+      try {
+        const newStory = new Story(storyData);
+        setStory(newStory);
+        
+        // Continue the story until we get to the first choice
+        const text: string[] = [];
+        while (newStory.canContinue) {
+          const nextText = newStory.Continue();
+          text.push(nextText);
+        }
+        
+        setCurrentText(text);
+        setCurrentChoices(newStory.currentChoices);
+        setIsLoading(false);
+      } catch (storyError) {
+        console.error('Error initializing story:', storyError);
+        setError(`Error loading story: ${storyError.message}`);
+        toast({
+          title: "Story Error",
+          description: "There was an issue loading the story. Please try another story.",
+          variant: "destructive"
+        });
+        setIsLoading(false);
       }
-      
-      setCurrentText(text);
-      setCurrentChoices(newStory.currentChoices);
-      setIsLoading(false);
     } catch (error) {
-      console.error('Error initializing story:', error);
+      console.error('General error:', error);
       setError('Failed to load story data');
       setIsLoading(false);
     }
-  }, [storyId]);
+  }, [storyId, toast]);
 
   const handleChoice = (index: number) => {
     if (!story) return;
