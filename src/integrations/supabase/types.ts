@@ -9,7 +9,68 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      comments: {
+        Row: {
+          comment_type: Database["public"]["Enums"]["comment_type"]
+          created_at: string | null
+          id: string
+          story_id: string
+          story_position: string
+          text: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          comment_type?: Database["public"]["Enums"]["comment_type"]
+          created_at?: string | null
+          id?: string
+          story_id: string
+          story_position: string
+          text: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          comment_type?: Database["public"]["Enums"]["comment_type"]
+          created_at?: string | null
+          id?: string
+          story_id?: string
+          story_position?: string
+          text?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          first_name: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +79,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      comment_type: "edit" | "suggestion" | "spelling" | "error" | "other"
     }
     CompositeTypes: {
       [_ in never]: never
