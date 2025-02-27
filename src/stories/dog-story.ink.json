@@ -16,7 +16,7 @@
         }, "pop", "/ev", "\n", "^You approach carefully and find a small, injured dog huddled in the corner. Its leg appears to be hurt, but its tail wags slightly when it sees you.", "\n", {
           "->": "$.c_dog_options"
         }, "\n"]
-      }],
+      }]],
       [["ev", {
         "f()": "presentChoice"
       }, {
@@ -42,8 +42,8 @@
             "c": ["ev", {
               "f()": "chooseChoice"
             }, "pop", "/ev", "\n", "^You take the dog home, clean its wounds, and nurse it back to health. Over time, you and your new friend become inseparable. Years later, people still smile seeing you two walking together in the park, the happiest duo in the neighborhood.", "\n", "end", "\n"]
-          }],
-          ["ev", {
+          }]],
+          [["ev", {
             "f()": "presentChoice"
           }, {
             "->": "$.c_call_services"
@@ -83,8 +83,8 @@
             "c": ["ev", {
               "f()": "chooseChoice"
             }, "pop", "/ev", "\n", "^Your sincere apology seems to touch the ghost dog's heart. It approaches, and you feel a cold but gentle forgiveness. From that day forward, you become a dedicated volunteer at the local animal shelter, determined to help other animals in need.", "\n", "end", "\n"]
-          }],
-          ["ev", {
+          }]],
+          [["ev", {
             "f()": "presentChoice"
           }, {
             "->": "$.c_hide"
