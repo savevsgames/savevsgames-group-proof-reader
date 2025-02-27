@@ -23,38 +23,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => {
-    // Check for session on load
-    const getSession = async () => {
-      setLoading(true);
-      const { data, error } = await supabase.auth.getSession();
-      
-      if (!error && data.session) {
-        setSession(data.session);
-        setUser(data.session.user as User);
-      }
-      
-      setLoading(false);
-    };
-
-    getSession();
-
-    // Listen for auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`Auth state changed: ${event}`);
-      setSession(session);
-      setUser(session?.user as User || null);
-      setLoading(false);
-    });
-
     // Check if user was a guest before
     const storedGuest = localStorage.getItem('isGuest');
     if (storedGuest === 'true') {
       setIsGuest(true);
     }
 
-    return () => {
-      authListener.subscription.unsubscribe();
+    // Check for session on load
+    const getSession = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (!error && data.session) {
+          setSession(data.session);
+          setUser(data.session.user as User);
+        }
+      } catch (err) {
+        console.error('Failed to get session:', err);
+      } finally {
+        setLoading(false);
+      }
     };
+
+    getSession();
+
+    // Listen for auth changes
+    try {
+      const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log(`Auth state changed: ${event}`);
+        setSession(session);
+        setUser(session?.user as User || null);
+        setLoading(false);
+      });
+
+      return () => {
+        if (authListener?.subscription) {
+          authListener.subscription.unsubscribe();
+        }
+      };
+    } catch (err) {
+      console.error('Failed to setup auth listener:', err);
+      setLoading(false);
+      return () => {};
+    }
   }, []);
 
   const signIn = async (email: string, password: string) => {
