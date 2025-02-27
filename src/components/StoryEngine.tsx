@@ -2,17 +2,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Story } from 'inkjs';
-import darkEyeStoryJson from '../stories/ShadowtideEndTestJSON.json';
+import darkEyeStoryJson from '../stories/dark-eye-story.ink.json';
 import { useToast } from '@/hooks/use-toast';
 import '@fontsource/playfair-display/400.css';
 import '@fontsource/playfair-display/500.css';
 import '@fontsource/playfair-display/600.css';
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/500.css';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, ChevronRight } from 'lucide-react';
 import { CommentModal } from './CommentModal';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
+import { Button } from './ui/button';
 
 // Define interfaces for the custom story format
 interface StoryChoice {
@@ -41,7 +42,7 @@ export const StoryEngine = () => {
   const [customStory, setCustomStory] = useState<CustomStory | null>(null);
   const [usingCustomFormat, setUsingCustomFormat] = useState(false);
   const [currentNode, setCurrentNode] = useState<string>('start');
-  const [currentText, setCurrentText] = useState<string[]>([]);
+  const [currentText, setCurrentText] = useState<string>('');
   const [currentChoices, setCurrentChoices] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,12 +55,15 @@ export const StoryEngine = () => {
   // Book info state
   const [bookTitle, setBookTitle] = useState('Shadowtide');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(16); // Estimated from the story content
+  const [totalPages, setTotalPages] = useState(16); // There are 16 distinct sections in this story
   
   // Comment state
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [commentCount, setCommentCount] = useState(0);
   const [currentStoryPosition, setCurrentStoryPosition] = useState<string>('');
+  
+  // State to track if the story can continue
+  const [canContinue, setCanContinue] = useState(false);
 
   // Initialize the story
   useEffect(() => {
@@ -80,7 +84,7 @@ export const StoryEngine = () => {
         setUsingCustomFormat(true);
         setCustomStory(storyData);
         setCurrentNode('start');
-        setCurrentText([storyData.start.text]);
+        setCurrentText(storyData.start.text);
         setCurrentChoices(storyData.start.choices);
         setCurrentStoryPosition('start');
         fetchCommentCount(storyId, 'start');
@@ -93,15 +97,19 @@ export const StoryEngine = () => {
           setStory(newStory);
           setUsingCustomFormat(false);
           
-          // Continue the story until we get to the first choice
-          const text: string[] = [];
-          while (newStory.canContinue) {
+          // Get the first piece of text
+          if (newStory.canContinue) {
             const nextText = newStory.Continue();
-            text.push(nextText);
+            setCurrentText(nextText);
+            setCanContinue(newStory.canContinue);
           }
           
-          setCurrentText(text);
-          setCurrentChoices(newStory.currentChoices);
+          // Only show choices if we can't continue
+          if (!newStory.canContinue) {
+            setCurrentChoices(newStory.currentChoices);
+          } else {
+            setCurrentChoices([]);
+          }
           
           // Save current story position for comments
           if (newStory.state) {
@@ -147,6 +155,38 @@ export const StoryEngine = () => {
     }
   };
 
+  // Handle the "Continue" button for inkjs format
+  const handleContinue = () => {
+    if (!story) return;
+    
+    // Save current state before continuing
+    const currentState = story.state.toJson();
+    setStoryHistory(prev => [...prev, currentState]);
+    setCanGoBack(true);
+    
+    // Get the next section of text
+    const nextText = story.Continue();
+    setCurrentText(nextText);
+    setCanContinue(story.canContinue);
+    
+    // Update current page
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+    
+    // Only show choices if we can't continue
+    if (!story.canContinue) {
+      setCurrentChoices(story.currentChoices);
+    } else {
+      setCurrentChoices([]);
+    }
+    
+    // Update current story position for comments
+    if (story.state) {
+      const position = story.state.toJson();
+      setCurrentStoryPosition(position);
+      fetchCommentCount(storyId || '', position);
+    }
+  };
+
   // Handle choice for custom story format
   const handleCustomChoice = (nextNode: string) => {
     if (!customStory) return;
@@ -159,7 +199,7 @@ export const StoryEngine = () => {
     const nextStoryNode = customStory[nextNode];
     if (nextStoryNode) {
       setCurrentNode(nextNode);
-      setCurrentText([nextStoryNode.text]);
+      setCurrentText(nextStoryNode.text);
       setCurrentChoices(nextStoryNode.choices);
       setCurrentStoryPosition(nextNode);
       setCurrentPage(prev => Math.min(prev + 1, totalPages));
@@ -179,17 +219,26 @@ export const StoryEngine = () => {
     setStoryHistory(prev => [...prev, currentState]);
     setCanGoBack(true);
 
-    // Make the choice and continue the story
+    // Make the choice
     story.ChooseChoiceIndex(index);
     
-    const text: string[] = [];
-    while (story.canContinue) {
+    // Get the next section of text if available
+    if (story.canContinue) {
       const nextText = story.Continue();
-      text.push(nextText);
+      setCurrentText(nextText);
+      setCanContinue(story.canContinue);
+      
+      // Only show choices if we can't continue
+      if (!story.canContinue) {
+        setCurrentChoices(story.currentChoices);
+      } else {
+        setCurrentChoices([]);
+      }
+    } else {
+      setCurrentChoices(story.currentChoices);
+      setCanContinue(false);
     }
-
-    setCurrentText(text);
-    setCurrentChoices(story.currentChoices);
+    
     setCurrentPage(prev => Math.min(prev + 1, totalPages));
     
     // Update current story position for comments
@@ -228,7 +277,7 @@ export const StoryEngine = () => {
         const prevNode = customStory[previousState];
         if (prevNode) {
           setCurrentNode(previousState);
-          setCurrentText([prevNode.text]);
+          setCurrentText(prevNode.text);
           setCurrentChoices(prevNode.choices);
           setCurrentStoryPosition(previousState);
           fetchCommentCount(storyId || '', previousState);
@@ -237,15 +286,19 @@ export const StoryEngine = () => {
         // For inkjs format
         story.state.LoadJson(previousState);
         
-        // Update current text and choices
-        const text: string[] = [];
-        while (story.canContinue) {
-          const nextText = story.Continue();
-          text.push(nextText);
+        // Get the current text
+        if (story.canContinue) {
+          const text = story.Continue();
+          setCurrentText(text);
+          setCanContinue(story.canContinue);
         }
         
-        setCurrentText(text);
-        setCurrentChoices(story.currentChoices);
+        // Only show choices if we can't continue
+        if (!story.canContinue) {
+          setCurrentChoices(story.currentChoices);
+        } else {
+          setCurrentChoices([]);
+        }
         
         // Update current story position for comments
         if (story.state) {
@@ -266,7 +319,7 @@ export const StoryEngine = () => {
     if (usingCustomFormat && customStory) {
       // Reset to start node for custom format
       setCurrentNode('start');
-      setCurrentText([customStory.start.text]);
+      setCurrentText(customStory.start.text);
       setCurrentChoices(customStory.start.choices);
       setCurrentStoryPosition('start');
       fetchCommentCount(storyId || '', 'start');
@@ -274,14 +327,19 @@ export const StoryEngine = () => {
       // Reset inkjs story
       story.ResetState();
       
-      const text: string[] = [];
-      while (story.canContinue) {
-        const nextText = story.Continue();
-        text.push(nextText);
+      // Get the first piece of text
+      if (story.canContinue) {
+        const text = story.Continue();
+        setCurrentText(text);
+        setCanContinue(story.canContinue);
       }
       
-      setCurrentText(text);
-      setCurrentChoices(story.currentChoices);
+      // Only show choices if we can't continue
+      if (!story.canContinue) {
+        setCurrentChoices(story.currentChoices);
+      } else {
+        setCurrentChoices([]);
+      }
       
       // Update current story position for comments
       if (story.state) {
@@ -326,7 +384,7 @@ export const StoryEngine = () => {
     );
   }
 
-  const isEnding = currentChoices.length === 0;
+  const isEnding = currentChoices.length === 0 && !canContinue;
 
   return (
     <div className="min-h-screen bg-[#3A2618] py-8 px-4 flex items-center justify-center">
@@ -381,10 +439,8 @@ export const StoryEngine = () => {
           {/* Left page */}
           <div className="w-1/2 bg-[#E8DCC4] p-6 md:p-10 min-h-[600px] relative book-page">
             <div className="prose prose-lg max-w-none prose-headings:font-serif prose-p:font-serif">
-              <div className="story-text mb-16 text-[#3A2618] font-serif leading-relaxed text-lg space-y-4">
-                {currentText.map((text, index) => (
-                  <p key={index}>{text}</p>
-                ))}
+              <div className="story-text mb-16 text-[#3A2618] font-serif leading-relaxed text-lg">
+                <p>{currentText}</p>
               </div>
             </div>
           </div>
@@ -393,19 +449,32 @@ export const StoryEngine = () => {
           <div className="w-1/2 bg-[#E8DCC4] p-6 md:p-10 min-h-[600px] flex flex-col justify-end book-page">
             {!isEnding ? (
               <div className="space-y-6 mb-10">
-                <p className="text-[#3A2618] font-serif text-center italic">What would you like to do?</p>
-                <div className="flex flex-col space-y-6">
-                  {currentChoices.map((choice, index) => (
-                    <div key={index} className="text-center">
-                      <button
-                        onClick={() => handleChoice(index)}
-                        className="font-serif text-[#3A2618] hover:text-[#F97316] transition-colors border-b border-[#3A2618] hover:border-[#F97316] px-4 py-1 italic"
-                      >
-                        {choice.text}
-                      </button>
+                {canContinue ? (
+                  <div className="flex justify-center">
+                    <Button 
+                      onClick={handleContinue}
+                      className="bg-[#F97316] text-[#E8DCC4] hover:bg-[#E86305] transition-colors flex items-center gap-2"
+                    >
+                      Continue Reading <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : currentChoices.length > 0 ? (
+                  <>
+                    <p className="text-[#3A2618] font-serif text-center italic">What would you like to do?</p>
+                    <div className="flex flex-col space-y-6">
+                      {currentChoices.map((choice, index) => (
+                        <div key={index} className="text-center">
+                          <button
+                            onClick={() => handleChoice(index)}
+                            className="font-serif text-[#3A2618] hover:text-[#F97316] transition-colors border-b border-[#3A2618] hover:border-[#F97316] px-4 py-1 italic"
+                          >
+                            {choice.text}
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </>
+                ) : null}
               </div>
             ) : (
               <div className="text-center mt-8 mb-10">
