@@ -3,98 +3,62 @@
   "inkVersion": 19,
   "root": [
     ["^Walking home one rainy evening, you hear whimpering coming from a dark alley. The sound seems to be coming from behind some trash cans.", "\n"],
-    ["ev", {
-      "f()": "choicePoint"
-    }, "pop", "/ev", "\n", [
-      [["ev", {
-        "f()": "presentChoice"
-      }, {
-        "->": "$.c_investigate"
-      }, "str", "^Investigate the sound", "/str", "/ev", {
-        "c": ["ev", {
-          "f()": "chooseChoice"
-        }, "pop", "/ev", "\n", "^You approach carefully and find a small, injured dog huddled in the corner. Its leg appears to be hurt, but its tail wags slightly when it sees you.", "\n", {
-          "->": "$.c_dog_options"
-        }, "\n"]
-      }]],
-      [["ev", {
-        "f()": "presentChoice"
-      }, {
-        "->": "$.c_ignore"
-      }, "str", "^Keep walking", "/str", "/ev", {
-        "c": ["ev", {
-          "f()": "chooseChoice"
-        }, "pop", "/ev", "\n", "^You decide to keep walking, trying to ignore the pitiful sounds. That night, you have trouble sleeping, haunted by thoughts of what might have happened to the dog.", "\n", {
-          "->": "$.c_continue"
-        }, "\n"]
-      }]]
-    ]],
-    {
-      "c_dog_options": [
-        ["ev", {
-          "f()": "choicePoint"
-        }, "pop", "/ev", "\n", [
-          [["ev", {
-            "f()": "presentChoice"
-          }, {
-            "->": "$.c_take_home"
-          }, "str", "^Take the dog home", "/str", "/ev", {
-            "c": ["ev", {
-              "f()": "chooseChoice"
-            }, "pop", "/ev", "\n", "^You take the dog home, clean its wounds, and nurse it back to health. Over time, you and your new friend become inseparable. Years later, people still smile seeing you two walking together in the park, the happiest duo in the neighborhood.", "\n", "end", "\n"]
-          }]],
-          [["ev", {
-            "f()": "presentChoice"
-          }, {
-            "->": "$.c_call_services"
-          }, "str", "^Call animal services", "/str", "/ev", {
-            "c": ["ev", {
-              "f()": "chooseChoice"
-            }, "pop", "/ev", "\n", "^Animal services arrives quickly. Though it's hard to say goodbye, you know you did the right thing. Months later, you receive a photo of the dog, now healthy and happy with its new family. You smile, knowing you helped give it a second chance.", "\n", "end", "\n"]
-          }]]
-        ]]
+    ["ev", "str", "^Investigate the sound", "/str", "/ev", {
+      "->": "investigate",
+      "line": 0
+    }],
+    ["ev", "str", "^Keep walking", "/str", "/ev", {
+      "->": "ignore",
+      "line": 0
+    }],
+    ["done", {
+      "investigate": [
+        "^You approach carefully and find a small, injured dog huddled in the corner. Its leg appears to be hurt, but its tail wags slightly when it sees you.", "\n",
+        ["ev", "str", "^Take the dog home", "/str", "/ev", {
+          "->": "take_home",
+          "line": 0
+        }],
+        ["ev", "str", "^Call animal services", "/str", "/ev", {
+          "->": "call_services",
+          "line": 0
+        }],
+        ["done", {
+          "take_home": [
+            "^You take the dog home, clean its wounds, and nurse it back to health. Over time, you and your new friend become inseparable. Years later, people still smile seeing you two walking together in the park, the happiest duo in the neighborhood.", "\n", "done"
+          ],
+          "call_services": [
+            "^Animal services arrives quickly. Though it's hard to say goodbye, you know you did the right thing. Months later, you receive a photo of the dog, now healthy and happy with its new family. You smile, knowing you helped give it a second chance.", "\n", "done"
+          ]
+        }]
       ],
-      "c_continue": [
-        ["ev", {
-          "f()": "choicePoint"
-        }, "pop", "/ev", "\n", [
-          [["ev", {
-            "f()": "presentChoice"
-          }, {
-            "->": "$.c_ghost_appears"
-          }, "str", "^Continue", "/str", "/ev", {
-            "c": ["ev", {
-              "f()": "chooseChoice"
-            }, "pop", "/ev", "\n", "^As you finally drift off to sleep, you're awakened by an ethereal barking. At the foot of your bed stands the translucent figure of a dog, its eyes glowing with a mix of sadness and reproach.", "\n", {
-              "->": "$.c_ghost_options"
-            }, "\n"]
-          }]]
-        ]]
-      ],
-      "c_ghost_options": [
-        ["ev", {
-          "f()": "choicePoint"
-        }, "pop", "/ev", "\n", [
-          [["ev", {
-            "f()": "presentChoice"
-          }, {
-            "->": "$.c_apologize"
-          }, "str", "^Apologize", "/str", "/ev", {
-            "c": ["ev", {
-              "f()": "chooseChoice"
-            }, "pop", "/ev", "\n", "^Your sincere apology seems to touch the ghost dog's heart. It approaches, and you feel a cold but gentle forgiveness. From that day forward, you become a dedicated volunteer at the local animal shelter, determined to help other animals in need.", "\n", "end", "\n"]
-          }]],
-          [["ev", {
-            "f()": "presentChoice"
-          }, {
-            "->": "$.c_hide"
-          }, "str", "^Hide under the covers", "/str", "/ev", {
-            "c": ["ev", {
-              "f()": "chooseChoice"
-            }, "pop", "/ev", "\n", "^You hide, but the ghost dog's presence persists. Night after night, it returns - a spectral reminder of your choice. You realize some decisions will haunt us forever, their consequences echoing in the dark hours of the night.", "\n", "end", "\n"]
-          }]]
-        ]]
+      "ignore": [
+        "^You decide to keep walking, trying to ignore the pitiful sounds. That night, you have trouble sleeping, haunted by thoughts of what might have happened to the dog.", "\n",
+        ["ev", "str", "^Continue", "/str", "/ev", {
+          "->": "ghost_appears",
+          "line": 0
+        }],
+        ["done", {
+          "ghost_appears": [
+            "^As you finally drift off to sleep, you're awakened by an ethereal barking. At the foot of your bed stands the translucent figure of a dog, its eyes glowing with a mix of sadness and reproach.", "\n",
+            ["ev", "str", "^Apologize", "/str", "/ev", {
+              "->": "apologize",
+              "line": 0
+            }],
+            ["ev", "str", "^Hide under the covers", "/str", "/ev", {
+              "->": "hide",
+              "line": 0
+            }],
+            ["done", {
+              "apologize": [
+                "^Your sincere apology seems to touch the ghost dog's heart. It approaches, and you feel a cold but gentle forgiveness. From that day forward, you become a dedicated volunteer at the local animal shelter, determined to help other animals in need.", "\n", "done"
+              ],
+              "hide": [
+                "^You hide, but the ghost dog's presence persists. Night after night, it returns - a spectral reminder of your choice. You realize some decisions will haunt us forever, their consequences echoing in the dark hours of the night.", "\n", "done"
+              ]
+            }]
+          ]
+        }]
       ]
-    }
+    }]
   ]
 }
