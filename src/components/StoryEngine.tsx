@@ -136,14 +136,14 @@ export const StoryEngine = () => {
           {/* Right page */}
           <div className="w-1/2 bg-[#E8DCC4] p-6 md:p-10 min-h-[600px] flex flex-col justify-end book-page">
             {!isEnding ? (
-              <div className="space-y-4 mb-10">
-                <p className="text-[#3A2618] font-serif mb-4">What would you like to do?</p>
-                <div className="flex flex-col space-y-4">
+              <div className="space-y-6 mb-10">
+                <p className="text-[#3A2618] font-serif text-center italic">What would you like to do?</p>
+                <div className="flex flex-col space-y-6">
                   {nodeContent.choices.map((choice, index) => (
                     <div key={index} className="text-center">
                       <button
                         onClick={() => handleChoice(choice.nextNode)}
-                        className="choice-text font-serif text-[#3A2618] hover:text-[#8B2E2E] transition-colors inline-block border-b border-[#3A2618] hover:border-[#8B2E2E] px-4 py-1"
+                        className="font-serif text-[#3A2618] hover:text-[#8B2E2E] transition-colors border-b border-[#3A2618] hover:border-[#8B2E2E] px-4 py-1 italic"
                       >
                         {choice.text}
                       </button>
