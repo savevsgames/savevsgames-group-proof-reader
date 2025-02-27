@@ -1,28 +1,86 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Book, LogOut, User } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
-// This is sample data - in a real app, you'd fetch this from Supabase
-const sampleBooks = [
-  {
-    id: 'dark-eye-story',
-    title: 'Shadowtide',
-    description: 'A mystical tale about love, sacrifice, and the meaning of existence.',
-    coverImage: '/shadowtidecover1.png',
-    isFree: true,
-    category: 'Fantasy',
-    lastUpdated: '2025-02-22',
-  }
-];
+// Define the book type
+interface BookType {
+  id: string;
+  title: string;
+  description: string;
+  coverImage?: string;
+  cover_url?: string; // From Supabase
+  isFree: boolean;
+  category: string;
+  lastUpdated: string;
+}
 
 const Dashboard = () => {
   const { user, isGuest, signOut } = useAuth();
-  const [selectedBook, setSelectedBook] = useState<typeof sampleBooks[0] | null>(null);
+  const [selectedBook, setSelectedBook] = useState<BookType | null>(null);
+  const [books, setBooks] = useState<BookType[]>([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  const handleBookClick = (book: typeof sampleBooks[0]) => {
+  // Fetch books from Supabase
+  useEffect(() => {
+    const fetchBooks = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('books')
+          .select('*');
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data && data.length > 0) {
+          // Map Supabase data to our book format
+          const mappedBooks = data.map(book => ({
+            id: book.id || 'dark-eye-story',
+            title: book.title || 'Shadowtide',
+            description: 'A mystical tale about love, sacrifice, and the meaning of existence.',
+            cover_url: book.cover_url,
+            isFree: true,
+            category: 'Fantasy',
+            lastUpdated: book.updated_at ? new Date(book.updated_at).toISOString().split('T')[0] : '2025-02-22',
+          }));
+          setBooks(mappedBooks);
+        } else {
+          // Fallback to sample data if no books in database
+          setBooks([{
+            id: 'dark-eye-story',
+            title: 'Shadowtide',
+            description: 'A mystical tale about love, sacrifice, and the meaning of existence.',
+            coverImage: '/shadowtidecover1.webp',
+            isFree: true,
+            category: 'Fantasy',
+            lastUpdated: '2025-02-22',
+          }]);
+        }
+      } catch (error) {
+        console.error('Error fetching books:', error);
+        // Fallback to sample data on error
+        setBooks([{
+          id: 'dark-eye-story',
+          title: 'Shadowtide',
+          description: 'A mystical tale about love, sacrifice, and the meaning of existence.',
+          coverImage: '/shadowtidecover1.webp',
+          isFree: true,
+          category: 'Fantasy',
+          lastUpdated: '2025-02-22',
+        }]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBooks();
+  }, []);
+
+  const handleBookClick = (book: BookType) => {
     setSelectedBook(book);
   };
 
@@ -34,6 +92,36 @@ const Dashboard = () => {
 
   const handleCloseDetails = () => {
     setSelectedBook(null);
+  };
+
+  // Function to get the appropriate category color
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case 'Fantasy':
+        return 'text-[#8B5CF6] bg-[#8B5CF6]/10';
+      case 'Adventure':
+        return 'text-[#F97316] bg-[#F97316]/10';
+      case 'Horror':
+        return 'text-[#2E3A18] bg-[#2E3A18]/10';
+      case 'Sci-Fi':
+        return 'text-[#1A3A5A] bg-[#1A3A5A]/10';
+      default:
+        return 'text-[#5A3A28] bg-[#5A3A28]/10';
+    }
+  };
+
+  // Function to get the book cover image URL
+  const getBookCoverUrl = (book: BookType) => {
+    // First try to use the Supabase URL if available
+    if (book.cover_url) {
+      return book.cover_url;
+    }
+    // Then try to use the coverImage from our local data
+    if (book.coverImage) {
+      return book.coverImage;
+    }
+    // Fallback to default image in public folder
+    return '/shadowtidecover1.webp';
   };
 
   return (
@@ -84,39 +172,48 @@ const Dashboard = () => {
             {isGuest ? 'Browse as Guest' : 'Your Library'}
           </h2>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {sampleBooks.map((book) => (
-              <div 
-                key={book.id} 
-                className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => handleBookClick(book)}
-              >
-                <div className="h-48 bg-gray-200">
-                  {/* Book cover backgrounds based on category */}
-                  <div className={`h-full w-full flex items-center justify-center ${
-                    book.category === 'Fantasy' ? 'bg-[#8B5CF6]' : 
-                    book.category === 'Adventure' ? 'bg-[#F97316]' :
-                    book.category === 'Horror' ? 'bg-[#2E3A18]' :
-                    book.category === 'Sci-Fi' ? 'bg-[#1A3A5A]' :
-                    'bg-[#5A3A28]'
-                  }`}>
-                    <Book className="h-16 w-16 text-white" />
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[#F97316] border-r-transparent"></div>
+              <p className="mt-2 text-[#3A2618]">Loading books...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {books.map((book) => (
+                <div 
+                  key={book.id} 
+                  className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+                  onClick={() => handleBookClick(book)}
+                >
+                  <div className="h-48 bg-gray-200 relative">
+                    {/* Book cover image */}
+                    <img 
+                      src={getBookCoverUrl(book)}
+                      alt={`${book.title} cover`}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        // Fallback if image fails to load
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/shadowtidecover1.webp';
+                      }}
+                    />
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-serif font-bold text-lg text-[#3A2618] mb-1">{book.title}</h3>
+                    <p className={`text-sm px-2 py-1 rounded-full inline-block ${getCategoryColor(book.category)}`}>
+                      {book.category}
+                    </p>
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="text-xs text-gray-500">Updated: {book.lastUpdated}</span>
+                      <span className="text-xs font-medium bg-green-100 text-green-800 px-2 py-1 rounded">
+                        Free
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <div className="p-4">
-                  <h3 className="font-serif font-bold text-lg text-[#3A2618] mb-1">{book.title}</h3>
-                  <p className="text-sm text-gray-600 mb-2">{book.category}</p>
-                  <div><img src='./shadowtidecover1.webp'></img></div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">Updated: {book.lastUpdated}</span>
-                    <span className="text-xs font-medium bg-green-100 text-green-800 px-2 py-1 rounded">
-                      Free
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </main>
 
@@ -132,21 +229,27 @@ const Dashboard = () => {
             </button>
             
             <div className="flex flex-col md:flex-row">
-              <div className={`md:w-1/3 p-6 flex items-center justify-center ${
-                selectedBook.category === 'Fantasy' ? 'bg-[#8B5CF6]' : 
-                selectedBook.category === 'Adventure' ? 'bg-[#F97316]' :
-                selectedBook.category === 'Horror' ? 'bg-[#2E3A18]' :
-                selectedBook.category === 'Sci-Fi' ? 'bg-[#1A3A5A]' :
-                'bg-[#5A3A28]'
-              }`}>
-                <Book className="h-24 w-24 text-white" />
+              <div className="md:w-1/3 p-6 flex items-center justify-center bg-gray-200">
+                {/* Book cover in the modal */}
+                <img 
+                  src={getBookCoverUrl(selectedBook)}
+                  alt={`${selectedBook.title} cover`}
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    // Fallback if image fails to load
+                    const target = e.target as HTMLImageElement;
+                    target.src = '/shadowtidecover1.webp';
+                  }}
+                />
               </div>
               
               <div className="md:w-2/3 p-6">
                 <h2 className="text-2xl font-serif font-bold text-[#3A2618] mb-2">
                   {selectedBook.title}
                 </h2>
-                <p className="text-sm font-medium text-[#F97316] mb-4">{selectedBook.category}</p>
+                <p className={`text-sm px-2 py-1 rounded-full inline-block mb-4 ${getCategoryColor(selectedBook.category)}`}>
+                  {selectedBook.category}
+                </p>
                 <p className="text-gray-700 mb-6">{selectedBook.description}</p>
                 
                 <div className="flex items-center justify-between mb-6">
