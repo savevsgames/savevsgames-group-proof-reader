@@ -9,6 +9,36 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      books: {
+        Row: {
+          cover_url: string | null
+          created_at: string | null
+          id: string
+          story_file: string
+          title: string
+          total_pages: number
+          updated_at: string | null
+        }
+        Insert: {
+          cover_url?: string | null
+          created_at?: string | null
+          id?: string
+          story_file: string
+          title: string
+          total_pages: number
+          updated_at?: string | null
+        }
+        Update: {
+          cover_url?: string | null
+          created_at?: string | null
+          id?: string
+          story_file?: string
+          title?: string
+          total_pages?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       comments: {
         Row: {
           comment_type: Database["public"]["Enums"]["comment_type"]
