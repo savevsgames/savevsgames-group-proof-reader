@@ -47,8 +47,8 @@ export const StoryEngine = () => {
 
   if (isLoading || !nodeContent) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-fade-in">Loading story...</div>
+      <div className="min-h-screen flex items-center justify-center bg-[#3A2618]">
+        <div className="animate-fade-in text-[#E8DCC4] font-serif">Loading story...</div>
       </div>
     );
   }
@@ -56,37 +56,64 @@ export const StoryEngine = () => {
   const isEnding = nodeContent.isEnding || nodeContent.choices.length === 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 py-12">
-      <div className="max-w-2xl mx-auto px-4">
-        <div className="prose prose-lg max-w-none">
-          <div className="story-text animate-fade-in mb-8">
-            {nodeContent.text}
+    <div className="min-h-screen bg-[#3A2618] py-8 px-4 flex items-center justify-center">
+      <div className="max-w-5xl w-full relative book-container">
+        {/* Close button */}
+        <button 
+          onClick={handleRestart} 
+          className="absolute right-2 top-2 z-10 bg-[#8B2E2E] text-[#E8DCC4] w-10 h-10 flex items-center justify-center"
+          style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%)' }}
+        >
+          ✕
+        </button>
+        
+        {/* Book binding */}
+        <div className="absolute left-1/2 top-0 bottom-0 w-4 -ml-2 bg-[#2E1D11] z-10"></div>
+        
+        {/* Book shadow */}
+        <div className="absolute inset-0 shadow-xl rounded-lg"></div>
+        
+        {/* Book pages */}
+        <div className="flex rounded-lg overflow-hidden">
+          {/* Left page */}
+          <div className="w-1/2 bg-[#E8DCC4] p-6 md:p-10 min-h-[600px] relative book-page">
+            <div className="prose prose-lg max-w-none prose-headings:font-serif prose-p:font-serif">
+              <div className="story-text mb-16 text-[#3A2618] font-serif leading-relaxed text-lg">
+                {nodeContent.text}
+              </div>
+            </div>
           </div>
           
-          {!isEnding ? (
-            <div className="choices-container space-y-4">
-              {nodeContent.choices.map((choice, index) => (
+          {/* Right page */}
+          <div className="w-1/2 bg-[#E8DCC4] p-6 md:p-10 min-h-[600px] flex flex-col justify-end book-page">
+            {!isEnding ? (
+              <div className="space-y-4 mb-10">
+                <p className="text-[#3A2618] font-serif mb-4">What would you like to do?</p>
+                <div className="flex flex-col space-y-4">
+                  {nodeContent.choices.map((choice, index) => (
+                    <div key={index} className="text-center">
+                      <button
+                        onClick={() => handleChoice(choice.nextNode)}
+                        className="choice-text font-serif text-[#3A2618] hover:text-[#8B2E2E] transition-colors inline-block border-b border-[#3A2618] hover:border-[#8B2E2E] px-4 py-1"
+                      >
+                        {choice.text}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center mt-8 mb-10">
+                <p className="text-[#3A2618] font-serif mb-6">The story has ended.</p>
                 <button
-                  key={index}
-                  onClick={() => handleChoice(choice.nextNode)}
-                  className="choice-button w-full text-left px-6 py-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors animate-fade-in"
-                  style={{ animationDelay: `${index * 0.1}s` }}
+                  onClick={handleRestart}
+                  className="px-6 py-3 bg-[#8B2E2E] text-[#E8DCC4] font-serif rounded hover:bg-[#6A2424] transition-colors"
                 >
-                  {choice.text}
+                  Start Over
                 </button>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center mt-8 animate-fade-in">
-              <p className="text-gray-600 mb-4">The story has ended.</p>
-              <button
-                onClick={handleRestart}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Start Over
-              </button>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
