@@ -49,7 +49,7 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
   onPageChange
 }) => {
   return (
-    <div className="max-w-5xl w-full relative book-container mt-6 px-4 md:px-0 overflow-x-hidden">
+    <div className="max-w-6xl w-full relative book-container mt-6 px-4 md:px-0 overflow-x-hidden">
       <BookHeader 
         bookTitle={bookTitle}
         currentPage={currentPage}
