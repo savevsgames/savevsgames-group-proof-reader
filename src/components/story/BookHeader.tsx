@@ -28,8 +28,8 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
 
   return (
     <>
-      {/* Controls - Positioned higher */}
-      <div className="absolute right-4 -top-6 z-10 flex gap-3">
+      {/* Controls - Positioned absolutely relative to the page */}
+      <div className="fixed top-20 right-6 md:absolute md:top-[-70px] md:right-6 z-50 flex gap-3">
         {canGoBack && (
           <button 
             onClick={onBack}
@@ -65,7 +65,7 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
         </div>
       </div>
       
-      {/* Book Title and Page Number - Also moved up with more space */}
+      {/* Book Title and Page Number */}
       <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-10 bg-[#F97316] text-[#E8DCC4] px-6 py-2 rounded-full z-10 whitespace-nowrap shadow-md">
         <span className="font-serif">{bookTitle} - Page {currentPage} of {totalPages}</span>
       </div>
