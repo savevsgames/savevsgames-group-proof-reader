@@ -111,7 +111,7 @@ export const StoryEngine = () => {
   const isEnding = currentChoices.length === 0 && !canContinue;
 
   return (
-    <div className="min-h-screen bg-[#3A2618] py-8 px-4 flex items-center justify-center">
+    <div className="min-h-screen bg-[#3A2618] py-4 md:py-8 flex items-start md:items-center justify-center overflow-x-hidden">
       <BookLayout 
         bookTitle={bookTitle}
         currentPage={currentPage}

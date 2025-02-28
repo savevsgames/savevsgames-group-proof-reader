@@ -29,16 +29,16 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({
     ));
 
   return (
-    <div className="w-1/2 bg-[#E8DCC4] p-6 md:p-10 min-h-[600px] relative book-page">
+    <div className="w-full md:w-1/2 bg-[#E8DCC4] p-4 md:p-6 lg:p-10 min-h-[400px] md:min-h-[600px] relative book-page">
       <div className="prose prose-lg max-w-none prose-headings:font-serif prose-p:font-serif">
-        <div className="story-text mb-16 text-[#3A2618] font-serif leading-relaxed text-lg">
+        <div className="story-text mb-8 md:mb-16 text-[#3A2618] font-serif leading-relaxed text-base md:text-lg">
           {formattedText}
         </div>
         
         {/* Story Controls - now on the left page */}
-        <div className="mt-8">
+        <div className="mt-4 md:mt-8">
           {!isEnding ? (
-            <div className="space-y-6">
+            <div className="space-y-4 md:space-y-6">
               {canContinue ? (
                 <div className="flex justify-center">
                   <Button 
@@ -51,7 +51,7 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({
               ) : choices.length > 0 ? (
                 <>
                   <p className="text-[#3A2618] font-serif text-center italic">What would you like to do?</p>
-                  <div className="flex flex-col space-y-6">
+                  <div className="flex flex-col space-y-4 md:space-y-6">
                     {choices.map((choice, index) => (
                       <div key={index} className="text-center">
                         <button

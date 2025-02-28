@@ -9,7 +9,7 @@ const StoryPage = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[#3A2618]">
+    <div className="min-h-screen bg-[#3A2618] overflow-x-hidden">
       <div className="max-w-7xl mx-auto px-4 py-4">
         <button 
           onClick={() => navigate('/dashboard')}

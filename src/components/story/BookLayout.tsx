@@ -47,7 +47,7 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
   onOpenComments
 }) => {
   return (
-    <div className="max-w-5xl w-full relative book-container mt-6">
+    <div className="max-w-5xl w-full relative book-container mt-6 px-4 md:px-0 overflow-x-hidden">
       <BookHeader 
         bookTitle={bookTitle}
         currentPage={currentPage}
@@ -59,14 +59,14 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
         onOpenComments={onOpenComments}
       />
       
-      {/* Book binding */}
-      <div className="absolute left-1/2 top-0 bottom-0 w-4 -ml-2 bg-[#2E1D11] z-10"></div>
+      {/* Book binding - only show on md screens and up */}
+      <div className="absolute left-1/2 top-0 bottom-0 w-4 -ml-2 bg-[#2E1D11] z-10 hidden md:block"></div>
       
       {/* Book shadow - enhanced */}
       <div className="absolute inset-0 shadow-2xl rounded-lg"></div>
       
-      {/* Book pages */}
-      <div className="flex rounded-lg overflow-hidden">
+      {/* Book pages - stack on mobile, side-by-side on tablet and up */}
+      <div className="flex flex-col md:flex-row rounded-lg overflow-hidden">
         <StoryDisplay 
           text={currentText} 
           canContinue={canContinue}
