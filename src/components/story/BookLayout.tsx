@@ -70,16 +70,20 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
       
       {/* Book pages - stack on mobile, side-by-side on tablet and up */}
       <div className="flex flex-col md:flex-row rounded-lg overflow-hidden">
-        <StoryDisplay 
-          text={currentText} 
-          canContinue={canContinue}
-          choices={choices}
-          isEnding={isEnding}
-          onContinue={onContinue}
-          onChoice={onChoice}
-        />
-        {/* Added mb-4 for mobile view to create space between story and comments */}
-        <div className="mb-4 md:mb-0 md:flex-1">
+        {/* Story page - takes 40% on medium screens, 45% on large screens */}
+        <div className="w-full md:w-2/5 lg:w-[45%]">
+          <StoryDisplay 
+            text={currentText} 
+            canContinue={canContinue}
+            choices={choices}
+            isEnding={isEnding}
+            onContinue={onContinue}
+            onChoice={onChoice}
+          />
+        </div>
+        
+        {/* Comments page - takes 60% on medium screens, 55% on large screens */}
+        <div className="w-full md:w-3/5 lg:w-[55%] mb-4 md:mb-0">
           <StoryControls 
             isEnding={isEnding}
             comments={comments}

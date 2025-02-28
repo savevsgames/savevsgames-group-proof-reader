@@ -29,7 +29,7 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({
     ));
 
   return (
-    <div className="w-full md:w-1/2 bg-[#E8DCC4] p-4 md:p-6 lg:p-10 min-h-[400px] md:min-h-[600px] relative book-page rounded-lg md:rounded-none shadow-md md:shadow-none">
+    <div className="w-full bg-[#E8DCC4] p-4 md:p-6 lg:p-10 min-h-[400px] md:min-h-[600px] relative book-page rounded-lg md:rounded-none shadow-md md:shadow-none">
       <div className="prose prose-lg max-w-none prose-headings:font-serif prose-p:font-serif">
         <div className="story-text mb-8 md:mb-16 text-[#3A2618] font-serif leading-relaxed text-base md:text-lg">
           {formattedText}
