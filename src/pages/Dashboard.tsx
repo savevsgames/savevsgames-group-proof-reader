@@ -45,6 +45,7 @@ const Dashboard = () => {
               book.description ||
               "A mystical tale about love, sacrifice, and the meaning of existence.",
             cover_url: book.cover_url,
+            story_url: book.story_url,
             isFree: true,
             category: book.category || "Fantasy",
             lastUpdated: book.updated_at

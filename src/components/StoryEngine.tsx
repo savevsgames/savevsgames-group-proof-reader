@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Story } from 'inkjs';
-import darkEyeStoryJson from '../stories/dark-eye-story.ink.json';
 import { useToast } from '@/hooks/use-toast';
 import '@fontsource/playfair-display/400.css';
 import '@fontsource/playfair-display/500.css';
@@ -31,11 +30,6 @@ interface CustomStory {
   [key: string]: StoryNode;
 }
 
-// Map story IDs to their respective story data files
-const storyMap: Record<string, any> = {
-  'dark-eye-story': darkEyeStoryJson
-};
-
 // Map to track story sections for page counting
 const storyNodeToPageMap: Record<string, number> = {
   'root': 1,
@@ -56,6 +50,13 @@ const storyNodeToPageMap: Record<string, number> = {
   'final_blast': 16,
   'story_ending': 17
 };
+
+// Define an interface for book data
+interface BookData {
+  id: string;
+  title: string;
+  story_url?: string;
+}
 
 export const StoryEngine = () => {
   const { storyId } = useParams<{ storyId: string }>();
@@ -89,30 +90,87 @@ export const StoryEngine = () => {
   // Track current story path for page counting
   const [currentPath, setCurrentPath] = useState<string>('root');
 
-  // Initialize the story
+  // First, fetch the book details and story URL
   useEffect(() => {
-    try {
-      if (!storyId || !storyMap[storyId]) {
-        setError(`Story not found: ${storyId}`);
+    const fetchBookDetails = async () => {
+      if (!storyId) {
+        setError('No story ID provided');
         setIsLoading(false);
         return;
       }
 
-      // Get the story data
-      const storyData = storyMap[storyId];
-      console.log("Loading story:", storyId);
+      try {
+        const { data, error } = await supabase
+          .from('books')
+          .select('*')
+          .eq('id', storyId)
+          .single();
+
+        if (error) {
+          console.error("Error fetching book:", error);
+          throw new Error(`Failed to fetch book details: ${error.message}`);
+        }
+
+        if (!data) {
+          throw new Error('Book not found');
+        }
+
+        console.log("Fetched book data:", data);
+        
+        // Set book title for display
+        if (data.title) {
+          setBookTitle(data.title);
+        }
+        
+        // Determine if we need to set total pages
+        if (data.total_pages) {
+          setTotalPages(data.total_pages);
+        }
+
+        // Now attempt to load the story content from the URL
+        if (data.story_url) {
+          await fetchStoryContent(data.story_url);
+        } else {
+          throw new Error('This book has no story content URL');
+        }
+      } catch (err) {
+        console.error("Error in fetchBookDetails:", err);
+        setError(err.message || 'Failed to load story');
+        setIsLoading(false);
+        toast({
+          title: "Error",
+          description: err.message || "Failed to load story",
+          variant: "destructive"
+        });
+      }
+    };
+
+    fetchBookDetails();
+  }, [storyId, toast]);
+
+  // Function to fetch story content from URL
+  const fetchStoryContent = async (storyUrl: string) => {
+    try {
+      console.log("Fetching story from URL:", storyUrl);
+      const response = await fetch(storyUrl);
       
-      // Check if it's a custom format (has a "start" node) or an inkjs format
-      if (storyData.start) {
+      if (!response.ok) {
+        throw new Error(`Failed to fetch story content: ${response.statusText}`);
+      }
+      
+      const storyData = await response.json();
+      console.log("Story data loaded successfully");
+
+      // Check if it's a custom format (has node structure) or inkjs format
+      if (storyData.start || (storyData.root && typeof storyData.root === 'object')) {
         console.log("Using custom story format");
         setUsingCustomFormat(true);
         setCustomStory(storyData);
         setCurrentNode('start');
-        setCurrentText(storyData.start.text);
-        setCurrentChoices(storyData.start.choices);
+        setCurrentText(storyData.start ? storyData.start.text : "Story begins...");
+        setCurrentChoices(storyData.start ? storyData.start.choices : []);
         setCurrentStoryPosition('start');
-        fetchCommentCount(storyId, 'start');
-        setIsLoading(false);
+        fetchCommentCount(storyId || '', 'start');
       } else {
         // It's an inkjs format
         console.log("Using inkjs story format");
@@ -139,26 +197,126 @@ export const StoryEngine = () => {
           if (newStory.state) {
             const position = newStory.state.toJson();
             setCurrentStoryPosition(position);
-            fetchCommentCount(storyId, position);
+            fetchCommentCount(storyId || '', position);
           }
         } catch (storyError) {
           console.error('Error initializing inkjs story:', storyError);
-          setError(`Error loading story: ${storyError.message}`);
-          toast({
-            title: "Story Error",
-            description: "There was an issue loading the story. Please try another story or check if you've replaced the placeholder JSON files with properly compiled Ink stories.",
-            variant: "destructive"
-          });
+          
+          // Check if we have inkjs format but need to parse manually
+          if (storyData.inkVersion) {
+            console.log("Trying to parse as Ink JSON format manually");
+            setUsingCustomFormat(true);
+            
+            // Try to extract structure from inkJSON
+            const extractedStory = extractCustomStoryFromInkJSON(storyData);
+            setCustomStory(extractedStory);
+            setCurrentNode('root');
+            
+            if (extractedStory && extractedStory.root) {
+              setCurrentText(extractedStory.root.text || "Story begins...");
+              setCurrentChoices(extractedStory.root.choices || []);
+            } else {
+              setCurrentText("Story begins...");
+              setCurrentChoices([]);
+            }
+            
+            setCurrentStoryPosition('root');
+            fetchCommentCount(storyId || '', 'root');
+          } else {
+            throw new Error(`Error loading story: ${storyError.message}`);
+          }
         }
       }
       
       setIsLoading(false);
     } catch (error) {
-      console.error('General error:', error);
-      setError('Failed to load story data');
+      console.error('Error fetching story content:', error);
+      setError(`Failed to load story content: ${error.message}`);
       setIsLoading(false);
+      toast({
+        title: "Story Error",
+        description: `There was an issue loading the story: ${error.message}`,
+        variant: "destructive"
+      });
     }
-  }, [storyId, toast]);
+  };
+
+  // Helper function to extract a custom story format from ink JSON
+  const extractCustomStoryFromInkJSON = (inkJSON: any): CustomStory => {
+    try {
+      const customStory: CustomStory = {};
+      
+      // Extract the root node text
+      if (inkJSON.root && Array.isArray(inkJSON.root) && inkJSON.root.length > 0) {
+        const rootText = inkJSON.root
+          .filter(item => typeof item === 'string' && item.startsWith('^'))
+          .map(item => (item as string).substring(1))
+          .join(' ');
+        
+        customStory.root = {
+          text: rootText || "Story begins...",
+          choices: [{
+            text: "Continue",
+            nextNode: "vault_description"
+          }]
+        };
+        
+        // Try to extract other nodes from the structure
+        if (inkJSON.vault_description) {
+          extractNodesRecursively(inkJSON, customStory, "vault_description");
+        }
+      }
+      
+      return customStory;
+    } catch (e) {
+      console.error("Error extracting custom story from Ink JSON:", e);
+      return {
+        root: {
+          text: "Failed to parse story format.",
+          choices: []
+        }
+      };
+    }
+  };
+  
+  // Helper to recursively extract nodes
+  const extractNodesRecursively = (inkJSON: any, customStory: CustomStory, nodeName: string) => {
+    if (!inkJSON[nodeName]) return;
+    
+    try {
+      // Extract text from the node
+      const nodeText = Array.isArray(inkJSON[nodeName][0]) 
+        ? inkJSON[nodeName][0]
+            .filter(item => typeof item === 'string' && item.startsWith('^'))
+            .map(item => (item as string).substring(1))
+            .join(' ')
+        : "Continue the story...";
+      
+      // Find the next node reference if any
+      let nextNode = "";
+      if (Array.isArray(inkJSON[nodeName][0])) {
+        const lastItem = inkJSON[nodeName][0][inkJSON[nodeName][0].length - 1];
+        if (lastItem && typeof lastItem === 'object' && lastItem["^->"]) {
+          nextNode = lastItem["^->"];
+        }
+      }
+      
+      customStory[nodeName] = {
+        text: nodeText,
+        choices: nextNode ? [{
+          text: "Continue",
+          nextNode: nextNode
+        }] : []
+      };
+      
+      // If we found a next node, recursively process it
+      if (nextNode && !customStory[nextNode]) {
+        extractNodesRecursively(inkJSON, customStory, nextNode);
+      }
+    } catch (e) {
+      console.error(`Error extracting node ${nodeName}:`, e);
+    }
+  };
 
   // Fetch comment count for the current position
   const fetchCommentCount = async (sid: string, position: string) => {
@@ -178,31 +336,6 @@ export const StoryEngine = () => {
       console.error('Error fetching comment count:', error);
     }
   };
-
-  // Use a fallback JSON format for the story
-  useEffect(() => {
-    if (storyId === 'dark-eye-story' && error) {
-      console.log("Falling back to custom story format");
-      // Fall back to the custom JSON format
-      import('../stories/dark-eye-story.json')
-        .then((storyData) => {
-          setUsingCustomFormat(true);
-          setCustomStory(storyData.default);
-          setCurrentNode('start');
-          setCurrentText(storyData.default.start.text);
-          setCurrentChoices(storyData.default.start.choices);
-          setCurrentStoryPosition('start');
-          fetchCommentCount(storyId, 'start');
-          setError(null);
-          setIsLoading(false);
-        })
-        .catch((error) => {
-          console.error('Error loading fallback story:', error);
-          setError('Failed to load story data');
-          setIsLoading(false);
-        });
-    }
-  }, [error, storyId]);
 
   // Handle the "Continue" button for inkjs format
   const handleContinue = () => {
@@ -451,8 +584,8 @@ export const StoryEngine = () => {
     if (usingCustomFormat && customStory) {
       // Reset to start node for custom format
       setCurrentNode('start');
-      setCurrentText(customStory.start.text);
-      setCurrentChoices(customStory.start.choices);
+      setCurrentText(customStory.start ? customStory.start.text : "Story begins...");
+      setCurrentChoices(customStory.start ? customStory.start.choices : []);
       setCurrentStoryPosition('start');
       fetchCommentCount(storyId || '', 'start');
     } else if (story) {
