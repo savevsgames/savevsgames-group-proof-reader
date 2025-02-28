@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  isGuest: boolean; // Added this property
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, username: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isGuest, setIsGuest] = useState(false); // Added state for guest mode
   const { toast } = useToast();
 
   useEffect(() => {
@@ -27,6 +29,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (session?.user) {
           setUser(session.user as User);
+          setIsGuest(false); // Not a guest if logged in
         }
       } catch (error) {
         console.error('Error checking initial auth session:', error);
@@ -42,6 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       async (_event, session) => {
         if (session?.user) {
           setUser(session.user as User);
+          setIsGuest(false); // Not a guest if logged in
         } else {
           setUser(null);
         }
@@ -68,6 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (data?.user) {
         setUser(data.user as User);
+        setIsGuest(false); // Not a guest when signed in
         toast({
           title: "Signed in successfully",
           description: `Welcome back${data.user.email ? ', ' + data.user.email : ''}!`,
@@ -116,6 +121,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await supabase.auth.signOut();
       setUser(null);
+      setIsGuest(false); // Reset guest status on sign out
       toast({
         title: "Signed out",
         description: "You have been signed out successfully.",
@@ -132,6 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const continueAsGuest = () => {
     setUser(null);
+    setIsGuest(true); // Set guest mode to true
     toast({
       title: "Guest mode",
       description: "You're browsing as a guest. Some features may be limited.",
@@ -143,6 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         isLoading,
+        isGuest, // Include isGuest in the context value
         signIn,
         signUp,
         signOut,
