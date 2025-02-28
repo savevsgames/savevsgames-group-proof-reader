@@ -62,9 +62,6 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
         onPageChange={onPageChange}
       />
       
-      {/* Book binding - only show on md screens and up */}
-      <div className="absolute left-1/2 top-0 bottom-0 w-4 -ml-2 bg-[#2E1D11] z-10 hidden md:block"></div>
-      
       {/* Book shadow - enhanced */}
       <div className="absolute inset-0 shadow-2xl rounded-lg"></div>
       
