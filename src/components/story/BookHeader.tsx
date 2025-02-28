@@ -28,8 +28,8 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
 
   return (
     <>
-      {/* Controls - Moved to align with Comments header */}
-      <div className="absolute top-0 md:top-4 right-4 z-30 flex gap-3">
+      {/* Controls - Positioned to stay with comments section on both mobile and desktop */}
+      <div className="md:absolute md:top-4 md:right-4 md:z-30 flex gap-3 absolute right-4 top-4 z-30">
         {canGoBack && (
           <button 
             onClick={onBack}
