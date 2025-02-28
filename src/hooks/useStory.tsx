@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Story } from 'inkjs';
 import { useToast } from '@/hooks/use-toast';
@@ -194,8 +195,9 @@ export const useStory = (storyId: string | undefined) => {
     setStoryHistory(prev => [...prev, currentState]);
     setCanGoBack(true);
     
+    // Key change: set text directly instead of appending
     const nextText = story.Continue();
-    setCurrentText(prevText => prevText + '\n' + nextText);
+    setCurrentText(nextText);
     setCanContinue(story.canContinue);
     
     setCurrentPage(prev => Math.min(prev + 1, totalPages));
@@ -223,6 +225,7 @@ export const useStory = (storyId: string | undefined) => {
     const nextStoryNode = customStory[nextNode];
     if (nextStoryNode) {
       setCurrentNode(nextNode);
+      // Set text directly for the new node
       setCurrentText(nextStoryNode.text);
       setCurrentChoices(nextStoryNode.choices || []);
       setCurrentStoryPosition(nextNode);
@@ -246,10 +249,9 @@ export const useStory = (storyId: string | undefined) => {
 
     story.ChooseChoiceIndex(index);
     
-    let newText = '';
-    
+    // Set text directly for the new choice
     if (story.canContinue) {
-      newText = story.Continue();
+      const newText = story.Continue();
       setCurrentText(newText);
       setCanContinue(story.canContinue);
       
@@ -310,11 +312,13 @@ export const useStory = (storyId: string | undefined) => {
       } else if (story) {
         story.state.LoadJson(previousState);
         
+        // Reset text and rebuild from the beginning of this state
         setCurrentText('');
         
-        while (story.canContinue) {
+        // Get the text for this state
+        if (story.canContinue) {
           const text = story.Continue();
-          setCurrentText(prev => prev ? prev + '\n' + text : text);
+          setCurrentText(text);
         }
         
         setCanContinue(story.canContinue);

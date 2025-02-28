@@ -4,6 +4,8 @@ import { StoryDisplay } from './StoryDisplay';
 import { StoryControls } from './StoryControls';
 import { BookHeader } from './BookHeader';
 import { StoryChoice } from '@/lib/storyUtils';
+import { Comment } from '../CommentModal';
+import { User } from '@/lib/supabase';
 
 interface BookLayoutProps {
   bookTitle: string;
@@ -15,6 +17,9 @@ interface BookLayoutProps {
   isEnding: boolean;
   canGoBack: boolean;
   commentCount: number;
+  comments: Comment[];
+  currentUser: User | null;
+  storyId: string;
   onContinue: () => void;
   onChoice: (index: number) => void;
   onBack: () => void;
@@ -32,6 +37,9 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
   isEnding,
   canGoBack,
   commentCount,
+  comments,
+  currentUser,
+  storyId,
   onContinue,
   onChoice,
   onBack,
@@ -59,13 +67,20 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
       
       {/* Book pages */}
       <div className="flex rounded-lg overflow-hidden">
-        <StoryDisplay text={currentText} />
-        <StoryControls 
+        <StoryDisplay 
+          text={currentText} 
           canContinue={canContinue}
           choices={choices}
           isEnding={isEnding}
           onContinue={onContinue}
           onChoice={onChoice}
+        />
+        <StoryControls 
+          isEnding={isEnding}
+          comments={comments}
+          currentUser={currentUser}
+          storyId={storyId}
+          onOpenCommentModal={onOpenComments}
           onRestart={onRestart}
         />
       </div>

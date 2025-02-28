@@ -1,10 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStory } from '@/hooks/useStory';
 import { useAuth } from '@/context/AuthContext';
 import { CommentModal } from './CommentModal';
 import { BookLayout } from './story/BookLayout';
+import { supabase } from '@/lib/supabase';
+import { Comment } from './CommentModal';
 
 // Import font styles
 import '@fontsource/playfair-display/400.css';
@@ -18,6 +20,7 @@ export const StoryEngine = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
+  const [comments, setComments] = useState<Comment[]>([]);
   
   const {
     isLoading,
@@ -38,13 +41,42 @@ export const StoryEngine = () => {
     updateCommentCount
   } = useStory(storyId);
 
+  // Load comments when story position changes
+  useEffect(() => {
+    if (storyId && currentStoryPosition) {
+      fetchComments();
+    }
+  }, [storyId, currentStoryPosition]);
+
+  const fetchComments = async () => {
+    if (!storyId || !currentStoryPosition) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('comments')
+        .select('*, profile:profiles(first_name, email)')
+        .eq('story_id', storyId)
+        .eq('story_position', currentStoryPosition)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      setComments(data || []);
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+    }
+  };
+
   // Handle the comment modal open state change
   const handleCommentModalOpenChange = (open: boolean) => {
     setIsCommentModalOpen(open);
     
-    // Refresh comment count when modal closes (in case comments were added/deleted)
+    // Refresh comment count and comments when modal closes (in case comments were added/deleted)
     if (!open) {
       updateCommentCount();
+      fetchComments();
     }
   };
 
@@ -86,6 +118,9 @@ export const StoryEngine = () => {
         isEnding={isEnding}
         canGoBack={canGoBack}
         commentCount={commentCount}
+        comments={comments}
+        currentUser={user}
+        storyId={storyId || ''}
         onContinue={handleContinue}
         onChoice={handleChoice}
         onBack={handleBack}

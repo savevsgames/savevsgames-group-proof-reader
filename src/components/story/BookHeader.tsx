@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { MessageSquare } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface BookHeaderProps {
   bookTitle: string;
@@ -23,6 +24,8 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
   onRestart,
   onOpenComments
 }) => {
+  const navigate = useNavigate();
+
   return (
     <>
       {/* Book Title and Page Number */}
@@ -43,10 +46,10 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
           </button>
         )}
         <button 
-          onClick={onRestart} 
+          onClick={() => navigate('/dashboard')}
           className="bg-[#F97316] text-[#E8DCC4] w-10 h-10 flex items-center justify-center hover:bg-[#E86305] transition-colors"
           style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%)' }}
-          title="Reset story"
+          title="Back to Library"
         >
           ✕
         </button>
