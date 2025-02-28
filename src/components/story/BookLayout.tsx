@@ -25,6 +25,7 @@ interface BookLayoutProps {
   onBack: () => void;
   onRestart: () => void;
   onOpenComments: () => void;
+  onPageChange: (pageNumber: number) => void;
 }
 
 export const BookLayout: React.FC<BookLayoutProps> = ({
@@ -44,7 +45,8 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
   onChoice,
   onBack,
   onRestart,
-  onOpenComments
+  onOpenComments,
+  onPageChange
 }) => {
   return (
     <div className="max-w-5xl w-full relative book-container mt-6 px-4 md:px-0 overflow-x-hidden">
@@ -57,6 +59,7 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
         onBack={onBack}
         onRestart={onRestart}
         onOpenComments={onOpenComments}
+        onPageChange={onPageChange}
       />
       
       {/* Book binding - only show on md screens and up */}

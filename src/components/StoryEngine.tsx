@@ -1,26 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useStory } from '@/hooks/useStory';
-import { useAuth } from '@/context/AuthContext';
 import { CommentModal } from './CommentModal';
 import { BookLayout } from './story/BookLayout';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
+import { fetchComments } from '@/lib/storyUtils';
 import { Comment } from './CommentModal';
 
-// Import font styles
-import '@fontsource/playfair-display/400.css';
-import '@fontsource/playfair-display/500.css';
-import '@fontsource/playfair-display/600.css';
-import '@fontsource/inter/400.css';
-import '@fontsource/inter/500.css';
-
-export const StoryEngine = () => {
+export const StoryEngine: React.FC = () => {
   const { storyId } = useParams<{ storyId: string }>();
-  const navigate = useNavigate();
   const { user } = useAuth();
-  const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
-  const [comments, setComments] = useState<Comment[]>([]);
   
   const {
     isLoading,
@@ -38,88 +29,102 @@ export const StoryEngine = () => {
     handleChoice,
     handleBack,
     handleRestart,
-    updateCommentCount
+    updateCommentCount,
   } = useStory(storyId);
 
-  // Load comments when story position changes
+  const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
+  const [comments, setComments] = useState<Comment[]>([]);
+
+  // Fetch comments for current story position
   useEffect(() => {
-    if (storyId && currentStoryPosition) {
-      fetchComments();
-    }
+    const getComments = async () => {
+      if (storyId && currentStoryPosition !== undefined) {
+        try {
+          const commentsData = await fetchComments(storyId, currentStoryPosition);
+          setComments(commentsData);
+        } catch (error) {
+          console.error('Error fetching comments:', error);
+        }
+      }
+    };
+    
+    getComments();
   }, [storyId, currentStoryPosition]);
 
-  const fetchComments = async () => {
-    if (!storyId || !currentStoryPosition) return;
-    
-    try {
-      // Updated query to join with profiles table to get usernames
-      const { data, error } = await supabase
-        .from('comments')
-        .select(`
-          *,
-          profile:profiles(username)
-        `)
-        .eq('story_id', storyId)
-        .eq('story_position', currentStoryPosition)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        throw error;
-      }
-
-      setComments(data || []);
-    } catch (error) {
-      console.error('Error fetching comments:', error);
+  // Refresh comments when modal closes
+  const handleCommentModalOpenChange = (open: boolean) => {
+    setIsCommentModalOpen(open);
+    if (!open) {
+      // Slightly delayed refresh to allow for any new comments to be saved
+      setTimeout(() => {
+        if (storyId && currentStoryPosition !== undefined) {
+          fetchComments(storyId, currentStoryPosition).then(commentsData => {
+            setComments(commentsData);
+            updateCommentCount();
+          });
+        }
+      }, 300);
     }
   };
 
-  // Handle the comment modal open state change
-  const handleCommentModalOpenChange = (open: boolean) => {
-    setIsCommentModalOpen(open);
+  // Handle direct page navigation
+  const handlePageChange = (pageNumber: number) => {
+    // Since page numbers are 1-indexed but positions might be different,
+    // we need to translate between them
+    const steps = pageNumber - currentPage;
     
-    // Refresh comment count and comments when modal closes (in case comments were added/deleted)
-    if (!open) {
-      updateCommentCount();
-      fetchComments();
+    if (steps === 0) return;
+    
+    if (steps < 0) {
+      // Go back multiple steps
+      for (let i = 0; i > steps; i--) {
+        handleBack();
+      }
+    } else {
+      // If trying to go forward, we need to simulate user continuing
+      // Note: This works best with linear stories. For branching stories with choices,
+      // it might not always work perfectly
+      for (let i = 0; i < steps; i++) {
+        if (canContinue) {
+          handleContinue();
+        } else if (currentChoices.length > 0) {
+          // Always choose the first option if at a choice point
+          handleChoice(0);
+        } else {
+          break; // Can't go forward anymore
+        }
+      }
     }
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#3A2618]">
-        <div className="animate-fade-in text-[#E8DCC4] font-serif">Loading story...</div>
+      <div className="flex justify-center items-center h-[60vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8DCC4]"></div>
+        <p className="ml-4 text-[#E8DCC4]">Loading story...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#3A2618]">
-        <div className="text-[#E8DCC4] font-serif">
-          <p className="text-xl mb-4">Error: {error}</p>
-          <button 
-            onClick={() => navigate('/dashboard')}
-            className="px-6 py-3 bg-[#F97316] text-[#E8DCC4] font-serif rounded hover:bg-[#E86305] transition-colors"
-          >
-            Go Back
-          </button>
-        </div>
+      <div className="text-center p-8 text-[#E8DCC4]">
+        <h2 className="text-2xl font-bold mb-4">Error Loading Story</h2>
+        <p>{error}</p>
       </div>
     );
   }
 
-  const isEnding = currentChoices.length === 0 && !canContinue;
-
   return (
-    <div className="min-h-screen bg-[#3A2618] py-4 md:py-8 flex items-start md:items-center justify-center overflow-x-hidden">
-      <BookLayout 
+    <div className="flex justify-center items-center w-full">
+      <BookLayout
         bookTitle={bookTitle}
         currentPage={currentPage}
         totalPages={totalPages}
         currentText={currentText}
         canContinue={canContinue}
         choices={currentChoices}
-        isEnding={isEnding}
+        isEnding={!canContinue && currentChoices.length === 0}
         canGoBack={canGoBack}
         commentCount={commentCount}
         comments={comments}
@@ -130,9 +135,9 @@ export const StoryEngine = () => {
         onBack={handleBack}
         onRestart={handleRestart}
         onOpenComments={() => setIsCommentModalOpen(true)}
+        onPageChange={handlePageChange}
       />
-      
-      {/* Comment Modal */}
+
       <CommentModal
         isOpen={isCommentModalOpen}
         onOpenChange={handleCommentModalOpenChange}
