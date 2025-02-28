@@ -48,6 +48,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
   const navigate = useNavigate();
 
   // Fetch comments when the modal opens or story position changes
+  //TODO: Make sure that all visitors can see usernames of commenters but only the commenters can edit or delete their comments.
   useEffect(() => {
     if (isOpen && storyId && storyPosition) {
       fetchComments();
