@@ -14,7 +14,7 @@ export interface Comment {
   id: string;
   user_id: string;
   story_id: string;
-  story_position: string;
+  story_position: number; // Changed to number
   text: string;
   comment_type: CommentType;
   created_at: string;
@@ -28,7 +28,7 @@ interface CommentModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   storyId: string;
-  storyPosition: string;
+  storyPosition: number; // Changed to number
   currentUser: User | null;
 }
 

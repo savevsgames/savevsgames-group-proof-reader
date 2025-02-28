@@ -39,6 +39,15 @@ export const storyNodeToPageMap: Record<string, number> = {
   'story_ending': 17
 };
 
+// Reverse map to look up node names from page numbers
+export const pageToStoryNodeMap: Record<number, string> = Object.entries(storyNodeToPageMap).reduce(
+  (acc, [node, page]) => {
+    acc[page] = node;
+    return acc;
+  },
+  {} as Record<number, string>
+);
+
 // Define an interface for book data
 export interface BookData {
   id: string;
@@ -135,8 +144,8 @@ export const extractNodesRecursively = (inkJSON: any, customStory: CustomStory, 
   }
 };
 
-// Fetch comment count for a position
-export const fetchCommentCount = async (storyId: string, position: string) => {
+// Fetch comment count for a position - updated to use page number
+export const fetchCommentCount = async (storyId: string, position: number) => {
   const { count, error } = await supabase
     .from('comments')
     .select('*', { count: 'exact', head: true })

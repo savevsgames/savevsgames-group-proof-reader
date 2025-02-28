@@ -7,7 +7,8 @@ import {
   CustomStory,
   fetchBookDetails,
   fetchCommentCount,
-  fetchStoryContent
+  fetchStoryContent,
+  storyNodeToPageMap
 } from '@/lib/storyUtils';
 
 export const useStory = (storyId: string | undefined) => {
@@ -25,7 +26,7 @@ export const useStory = (storyId: string | undefined) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(17);
   const [commentCount, setCommentCount] = useState(0);
-  const [currentStoryPosition, setCurrentStoryPosition] = useState<string>('');
+  const [currentStoryPosition, setCurrentStoryPosition] = useState<number>(1); // Changed to number
   const [canContinue, setCanContinue] = useState(false);
   const { toast } = useToast();
 
@@ -130,12 +131,13 @@ export const useStory = (storyId: string | undefined) => {
             setCurrentChoices([]);
           }
           
-          if (newStory.state) {
-            const position = newStory.state.toJson();
-            setCurrentStoryPosition(position);
-            const count = await fetchCommentCount(sid, position);
-            setCommentCount(count);
-          }
+          // Use page 1 as the initial position
+          setCurrentStoryPosition(1);
+          setCurrentPage(1);
+          
+          // Fetch comment count for page 1
+          const count = await fetchCommentCount(sid, 1);
+          setCommentCount(count);
           
           setIsLoading(false);
         } catch (storyError: any) {
@@ -150,8 +152,12 @@ export const useStory = (storyId: string | undefined) => {
         setCurrentNode('start');
         setCurrentText(storyData.start.text);
         setCurrentChoices(storyData.start.choices || []);
-        setCurrentStoryPosition('start');
-        const count = await fetchCommentCount(sid, 'start');
+        
+        // Use page 1 for start node
+        setCurrentStoryPosition(1);
+        setCurrentPage(1);
+        
+        const count = await fetchCommentCount(sid, 1);
         setCommentCount(count);
         setIsLoading(false);
       }
@@ -169,8 +175,11 @@ export const useStory = (storyId: string | undefined) => {
           setCurrentChoices([]);
         }
         
-        setCurrentStoryPosition('root');
-        const count = await fetchCommentCount(sid, 'root');
+        // Use page 1 for root node
+        setCurrentStoryPosition(1);
+        setCurrentPage(1);
+        
+        const count = await fetchCommentCount(sid, 1);
         setCommentCount(count);
         setIsLoading(false);
       } else {
@@ -200,7 +209,10 @@ export const useStory = (storyId: string | undefined) => {
     setCurrentText(nextText);
     setCanContinue(story.canContinue);
     
-    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+    // Update page number and use it as the position
+    const newPage = Math.min(currentPage + 1, totalPages);
+    setCurrentPage(newPage);
+    setCurrentStoryPosition(newPage);
     
     if (!story.canContinue) {
       setCurrentChoices(story.currentChoices);
@@ -208,12 +220,9 @@ export const useStory = (storyId: string | undefined) => {
       setCurrentChoices([]);
     }
     
-    if (story.state) {
-      const position = story.state.toJson();
-      setCurrentStoryPosition(position);
-      const count = await fetchCommentCount(storyId, position);
-      setCommentCount(count);
-    }
+    // Fetch comments for the new page number
+    const count = await fetchCommentCount(storyId, newPage);
+    setCommentCount(count);
   };
 
   const handleCustomChoice = async (nextNode: string) => {
@@ -228,11 +237,13 @@ export const useStory = (storyId: string | undefined) => {
       // Set text directly for the new node
       setCurrentText(nextStoryNode.text);
       setCurrentChoices(nextStoryNode.choices || []);
-      setCurrentStoryPosition(nextNode);
       
-      setCurrentPage(prev => Math.min(prev + 1, totalPages));
+      // Update page based on node mapping or increment by 1
+      const newPage = storyNodeToPageMap[nextNode] || (currentPage + 1);
+      setCurrentPage(newPage);
+      setCurrentStoryPosition(newPage);
       
-      const count = await fetchCommentCount(storyId, nextNode);
+      const count = await fetchCommentCount(storyId, newPage);
       setCommentCount(count);
     } else {
       console.error(`Node "${nextNode}" not found in story`);
@@ -265,14 +276,14 @@ export const useStory = (storyId: string | undefined) => {
       setCanContinue(false);
     }
     
-    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+    // Update page and use it as position
+    const newPage = Math.min(currentPage + 1, totalPages);
+    setCurrentPage(newPage);
+    setCurrentStoryPosition(newPage);
     
-    if (story.state) {
-      const position = story.state.toJson();
-      setCurrentStoryPosition(position);
-      const count = await fetchCommentCount(storyId, position);
-      setCommentCount(count);
-    }
+    // Fetch comments for the new page
+    const count = await fetchCommentCount(storyId, newPage);
+    setCommentCount(count);
   };
 
   const handleChoice = (index: number) => {
@@ -302,11 +313,13 @@ export const useStory = (storyId: string | undefined) => {
           setCurrentNode(previousState);
           setCurrentText(prevNode.text);
           setCurrentChoices(prevNode.choices || []);
-          setCurrentStoryPosition(previousState);
           
-          setCurrentPage(prev => Math.max(prev - 1, 1));
+          // Update page based on node mapping or decrement
+          const newPage = storyNodeToPageMap[previousState] || Math.max(currentPage - 1, 1);
+          setCurrentPage(newPage);
+          setCurrentStoryPosition(newPage);
           
-          const count = await fetchCommentCount(storyId, previousState);
+          const count = await fetchCommentCount(storyId, newPage);
           setCommentCount(count);
         }
       } else if (story) {
@@ -329,14 +342,14 @@ export const useStory = (storyId: string | undefined) => {
           setCurrentChoices([]);
         }
         
-        setCurrentPage(prev => Math.max(prev - 1, 1));
+        // Update page and use it as position
+        const newPage = Math.max(currentPage - 1, 1);
+        setCurrentPage(newPage);
+        setCurrentStoryPosition(newPage);
         
-        if (story.state) {
-          const position = story.state.toJson();
-          setCurrentStoryPosition(position);
-          const count = await fetchCommentCount(storyId, position);
-          setCommentCount(count);
-        }
+        // Fetch comments for the new page
+        const count = await fetchCommentCount(storyId, newPage);
+        setCommentCount(count);
       }
     }
   };
@@ -346,14 +359,17 @@ export const useStory = (storyId: string | undefined) => {
     
     setStoryHistory([]);
     setCanGoBack(false);
+    
+    // Reset to page 1
     setCurrentPage(1);
+    setCurrentStoryPosition(1);
     
     if (usingCustomFormat && customStory) {
       setCurrentNode('start');
       setCurrentText(customStory.start ? customStory.start.text : "Story begins...");
       setCurrentChoices(customStory.start ? customStory.start.choices : []);
-      setCurrentStoryPosition('start');
-      const count = await fetchCommentCount(storyId, 'start');
+      
+      const count = await fetchCommentCount(storyId, 1);
       setCommentCount(count);
     } else if (story) {
       story.ResetState();
@@ -371,12 +387,8 @@ export const useStory = (storyId: string | undefined) => {
         setCurrentChoices([]);
       }
       
-      if (story.state) {
-        const position = story.state.toJson();
-        setCurrentStoryPosition(position);
-        const count = await fetchCommentCount(storyId, position);
-        setCommentCount(count);
-      }
+      const count = await fetchCommentCount(storyId, 1);
+      setCommentCount(count);
     }
   };
 
