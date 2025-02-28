@@ -52,9 +52,13 @@ export const StoryEngine = () => {
     if (!storyId || !currentStoryPosition) return;
     
     try {
+      // Updated query to join with profiles table to get usernames
       const { data, error } = await supabase
-        .from('user_comments')
-        .select('*')
+        .from('comments')
+        .select(`
+          *,
+          profile:profiles(username)
+        `)
         .eq('story_id', storyId)
         .eq('story_position', currentStoryPosition)
         .order('created_at', { ascending: false });

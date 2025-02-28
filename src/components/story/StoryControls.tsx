@@ -37,11 +37,13 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
     return currentUser && comment.user_id === currentUser.id;
   };
 
-  // Display either username or "Anonymous" based on ownership
+  // Display either username or "Anonymous" based on ownership and available data
   const getDisplayName = (comment: Comment) => {
     if (isOwnComment(comment)) {
       return "You";
     }
+    
+    // Return the username from the profile if available, otherwise show "Anonymous"
     return comment.profile?.username || "Anonymous";
   };
 

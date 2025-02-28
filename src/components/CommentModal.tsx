@@ -48,7 +48,6 @@ export const CommentModal: React.FC<CommentModalProps> = ({
   const navigate = useNavigate();
 
   // Fetch comments when the modal opens or story position changes
-  //TODO: Make sure that all visitors can see usernames of commenters but only the commenters can edit or delete their comments.
   useEffect(() => {
     if (isOpen && storyId && storyPosition) {
       fetchComments();
@@ -58,9 +57,13 @@ export const CommentModal: React.FC<CommentModalProps> = ({
   const fetchComments = async () => {
     setIsLoading(true);
     try {
+      // Updated query to join with profiles table to get usernames
       const { data, error } = await supabase
-        .from('user_comments')
-        .select('*')
+        .from('comments')
+        .select(`
+          *,
+          profile:profiles(username)
+        `)
         .eq('story_id', storyId)
         .eq('story_position', storyPosition)
         .order('created_at', { ascending: false });
@@ -246,11 +249,13 @@ export const CommentModal: React.FC<CommentModalProps> = ({
     return currentUser && comment.user_id === currentUser.id;
   };
 
-  // Display either username or "Anonymous" based on ownership
+  // Display either username or "Anonymous" based on ownership and available data
   const getDisplayName = (comment: Comment) => {
     if (isOwnComment(comment)) {
       return "You";
     }
+    
+    // Return the username from the profile if available, otherwise show "Anonymous"
     return comment.profile?.username || "Anonymous";
   };
 
