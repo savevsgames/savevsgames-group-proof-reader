@@ -1,10 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Comment } from '../CommentModal';
 import { User } from '@/lib/supabase';
 import { commentTypeColors } from '@/lib/commentTypes';
-import { MessageSquare, Pencil, Trash, AlertTriangle } from 'lucide-react';
+import { MessageSquare, Pencil, Trash, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -34,6 +34,38 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
   const { toast } = useToast();
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isModerator, setIsModerator] = useState(false);
+  
+  // Check if current user is a comment moderator
+  useEffect(() => {
+    const checkModerator = async () => {
+      if (!currentUser) {
+        setIsModerator(false);
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('comment_moderators')
+          .select('id')
+          .eq('user_id', currentUser.id)
+          .single();
+          
+        if (error) {
+          console.error('Error checking moderator status:', error);
+          setIsModerator(false);
+          return;
+        }
+        
+        setIsModerator(data !== null);
+      } catch (error) {
+        console.error('Exception checking moderator status:', error);
+        setIsModerator(false);
+      }
+    };
+    
+    checkModerator();
+  }, [currentUser]);
   
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('en-US', {
@@ -60,6 +92,11 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
     return comment.profile?.username || "Anonymous";
   };
 
+  // Check if user can modify this comment (as owner or moderator)
+  const canModifyComment = (comment: Comment) => {
+    return isOwnComment(comment) || isModerator;
+  };
+
   // Handle edit comment (open modal with comment data)
   const handleEditComment = (comment: Comment) => {
     // Store comment data in session storage so the modal can access it
@@ -78,11 +115,17 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
     
     setIsDeleting(true);
     try {
-      const { error } = await supabase
+      let query = supabase
         .from('comments')
         .delete()
-        .eq('id', commentToDelete.id)
-        .eq('user_id', currentUser.id);
+        .eq('id', commentToDelete.id);
+        
+      // Only apply user_id filter if not a moderator
+      if (!isModerator) {
+        query = query.eq('user_id', currentUser.id);
+      }
+      
+      const { error } = await query;
 
       if (error) {
         throw error;
@@ -94,7 +137,7 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
       
       toast({
         title: "Comment deleted",
-        description: "Your comment has been deleted successfully.",
+        description: "The comment has been deleted successfully.",
       });
 
       // Refresh the page to show updated comments
@@ -154,7 +197,15 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
 
       {/* Comments Header with Controls */}
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-[#3A2618] font-serif text-xl">Comments</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-[#3A2618] font-serif text-xl">Comments</h3>
+          {isModerator && (
+            <div className="flex items-center text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
+              <ShieldCheck className="h-3 w-3 mr-1" />
+              Moderator
+            </div>
+          )}
+        </div>
         
         {/* Controls for both mobile and desktop */}
         <div className="flex gap-3">
@@ -207,20 +258,20 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
                 className="p-3 md:p-4 rounded-md border border-[#3A2618]/20 relative"
                 style={{ backgroundColor: `${commentTypeColors[comment.comment_type]}20` }}
               >
-                {/* Edit/Delete buttons for user's own comments */}
-                {isOwnComment(comment) && (
+                {/* Edit/Delete buttons for user's own comments or moderators */}
+                {canModifyComment(comment) && (
                   <div className="absolute top-3 right-3 flex space-x-2">
                     <button
                       onClick={() => handleEditComment(comment)}
                       className="p-1.5 rounded-full bg-[#3A2618]/10 hover:bg-[#3A2618]/20 text-[#3A2618] transition-colors"
-                      title="Edit comment"
+                      title={isOwnComment(comment) ? "Edit your comment" : "Edit this comment (moderator)"}
                     >
                       <Pencil size={14} />
                     </button>
                     <button
                       onClick={() => handleDeleteComment(comment)}
                       className="p-1.5 rounded-full bg-red-100 hover:bg-red-200 text-red-500 transition-colors"
-                      title="Delete comment"
+                      title={isOwnComment(comment) ? "Delete your comment" : "Delete this comment (moderator)"}
                     >
                       <Trash size={14} />
                     </button>

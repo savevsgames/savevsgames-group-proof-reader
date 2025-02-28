@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Send, X } from 'lucide-react';
+import { MessageSquare, Send, X, ShieldCheck } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { CommentType, commentTypeColors, commentTypeLabels } from "@/lib/commentTypes";
@@ -44,8 +44,40 @@ export const CommentModal: React.FC<CommentModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCommentType, setSelectedCommentType] = useState<CommentType>('edit');
   const [editingComment, setEditingComment] = useState<Comment | null>(null);
+  const [isModerator, setIsModerator] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Check if current user is a comment moderator
+  useEffect(() => {
+    const checkModerator = async () => {
+      if (!currentUser) {
+        setIsModerator(false);
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('comment_moderators')
+          .select('id')
+          .eq('user_id', currentUser.id)
+          .single();
+          
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" which is expected
+          console.error('Error checking moderator status:', error);
+          setIsModerator(false);
+          return;
+        }
+        
+        setIsModerator(data !== null);
+      } catch (error) {
+        console.error('Exception checking moderator status:', error);
+        setIsModerator(false);
+      }
+    };
+    
+    checkModerator();
+  }, [currentUser]);
 
   // Fetch comments when the modal opens or story position changes
   useEffect(() => {
@@ -123,20 +155,26 @@ export const CommentModal: React.FC<CommentModalProps> = ({
     try {
       if (editingComment) {
         // Update existing comment
-        const { error } = await supabase
+        let query = supabase
           .from('comments')
           .update({ 
             text: commentText,
             comment_type: selectedCommentType
           })
-          .eq('id', editingComment.id)
-          .eq('user_id', currentUser.id); // Ensure only the owner can update
+          .eq('id', editingComment.id);
+          
+        // Only apply user_id filter if not a moderator
+        if (!isModerator) {
+          query = query.eq('user_id', currentUser.id);
+        }
+        
+        const { error } = await query;
 
         if (error) throw error;
 
         toast({
           title: "Comment Updated",
-          description: "Your comment has been updated successfully.",
+          description: "The comment has been updated successfully.",
         });
       } else {
         // Create new comment
@@ -167,15 +205,15 @@ export const CommentModal: React.FC<CommentModalProps> = ({
       // Close the modal after successful submission
       setTimeout(() => {
         onOpenChange(false);
-        // Refresh the page to show the updated comments
+        // Refresh the page to show updated comments
         window.location.reload();
       }, 1500);
     } catch (error) {
       console.error('Error saving comment:', error);
       toast({
-        title: "Failed to save comment",
-        description: "There was an error saving your comment. Please try again.",
         variant: "destructive",
+        title: "Error",
+        description: "Failed to save comment. Please try again.",
       });
     } finally {
       setIsLoading(false);
@@ -226,12 +264,23 @@ export const CommentModal: React.FC<CommentModalProps> = ({
       <DialogContent className="bg-[#E8DCC4] text-[#3A2618] border-none max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-[#3A2618] font-serif text-xl flex items-center">
-            <MessageSquare className="mr-2 h-5 w-5" />
-            {editingComment ? "Edit Comment" : "Add Comment"}
+            <div className="flex items-center">
+              <MessageSquare className="mr-2 h-5 w-5" />
+              {editingComment ? "Edit Comment" : "Add Comment"}
+              
+              {isModerator && (
+                <div className="flex items-center text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full ml-2">
+                  <ShieldCheck className="h-3 w-3 mr-1" />
+                  Moderator
+                </div>
+              )}
+            </div>
           </DialogTitle>
           <DialogDescription className="text-[#3A2618]/70 font-serif">
             {editingComment 
-              ? "Edit your comment below" 
+              ? (isOwnComment(editingComment) 
+                  ? "Edit your comment below" 
+                  : "Edit this comment (moderator mode)")
               : "Leave feedback or notes for the author about this part of the story."}
           </DialogDescription>
         </DialogHeader>
@@ -324,7 +373,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
                 
                 <div>
                   <label className="block text-sm font-medium text-[#3A2618] mb-1">
-                    {editingComment ? "Edit Your Comment" : "Your Comment"}
+                    {editingComment ? "Edit Comment" : "Your Comment"}
                   </label>
                   <Textarea
                     placeholder="Add your comment or feedback here..."

@@ -45,6 +45,24 @@ export type Database = {
         }
         Relationships: []
       }
+      comment_moderators: {
+        Row: {
+          created_at: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       comments: {
         Row: {
           comment_type: Database["public"]["Enums"]["comment_type"]
@@ -136,7 +154,18 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      add_comment_moderator: {
+        Args: {
+          moderator_email: string
+        }
+        Returns: undefined
+      }
+      is_comment_moderator: {
+        Args: {
+          user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       comment_type: "edit" | "suggestion" | "spelling" | "error" | "other"
