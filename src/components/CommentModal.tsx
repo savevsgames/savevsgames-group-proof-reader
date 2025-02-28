@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Send, Pencil, Trash2 } from 'lucide-react';
+import { MessageSquare, Send, X } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { CommentType, commentTypeColors, commentTypeLabels } from "@/lib/commentTypes";
@@ -51,6 +51,18 @@ export const CommentModal: React.FC<CommentModalProps> = ({
   useEffect(() => {
     if (isOpen && storyId && storyPosition) {
       fetchComments();
+      
+      // Check if there's an editing comment in sessionStorage
+      const storedEditingComment = sessionStorage.getItem('editingComment');
+      if (storedEditingComment) {
+        const parsedComment = JSON.parse(storedEditingComment);
+        setEditingComment(parsedComment);
+        setCommentText(parsedComment.text);
+        setSelectedCommentType(parsedComment.comment_type);
+        
+        // Clear the stored comment
+        sessionStorage.removeItem('editingComment');
+      }
     }
   }, [isOpen, storyId, storyPosition]);
 
@@ -151,76 +163,18 @@ export const CommentModal: React.FC<CommentModalProps> = ({
       setSelectedCommentType('edit');
       setEditingComment(null);
       fetchComments();
+      
+      // Close the modal after successful submission
+      setTimeout(() => {
+        onOpenChange(false);
+        // Refresh the page to show the updated comments
+        window.location.reload();
+      }, 1500);
     } catch (error) {
       console.error('Error saving comment:', error);
       toast({
         title: "Failed to save comment",
         description: "There was an error saving your comment. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleEdit = (comment: Comment) => {
-    if (comment.user_id !== currentUser?.id) {
-      toast({
-        title: "Permission denied",
-        description: "You can only edit your own comments.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setEditingComment(comment);
-    setCommentText(comment.text);
-    setSelectedCommentType(comment.comment_type);
-  };
-
-  const handleDelete = async (comment: Comment) => {
-    if (comment.user_id !== currentUser?.id) {
-      toast({
-        title: "Permission denied",
-        description: "You can only delete your own comments.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!confirm("Are you sure you want to delete this comment?")) {
-      return;
-    }
-
-    setIsLoading(true);
-    
-    try {
-      const { error } = await supabase
-        .from('comments')
-        .delete()
-        .eq('id', comment.id)
-        .eq('user_id', currentUser.id); // Ensure only the owner can delete
-
-      if (error) throw error;
-
-      toast({
-        title: "Comment Deleted",
-        description: "Your comment has been deleted successfully.",
-      });
-      
-      // Reset form if deleting the comment being edited
-      if (editingComment?.id === comment.id) {
-        setCommentText('');
-        setSelectedCommentType('edit');
-        setEditingComment(null);
-      }
-      
-      fetchComments();
-    } catch (error) {
-      console.error('Error deleting comment:', error);
-      toast({
-        title: "Failed to delete comment",
-        description: "There was an error deleting your comment. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -273,16 +227,16 @@ export const CommentModal: React.FC<CommentModalProps> = ({
         <DialogHeader>
           <DialogTitle className="text-[#3A2618] font-serif text-xl flex items-center">
             <MessageSquare className="mr-2 h-5 w-5" />
-            Comments
+            {editingComment ? "Edit Comment" : "Add Comment"}
           </DialogTitle>
           <DialogDescription className="text-[#3A2618]/70 font-serif">
             {editingComment 
-              ? "Edit your comment" 
+              ? "Edit your comment below" 
               : "Leave feedback or notes for the author about this part of the story."}
           </DialogDescription>
         </DialogHeader>
 
-        {isLoading && (
+        {isLoading && !editingComment && (
           <div className="text-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3A2618] mx-auto"></div>
             <p className="mt-2 text-[#3A2618]/70">Loading comments...</p>
@@ -291,6 +245,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
 
         {!isLoading && (
           <>
+            {/* Only show comments list when not editing */}
             {!editingComment && (
               <div className="max-h-[300px] overflow-y-auto mb-4">
                 {comments.length === 0 ? (
@@ -305,25 +260,6 @@ export const CommentModal: React.FC<CommentModalProps> = ({
                         className="p-4 rounded-md border border-[#3A2618]/20 relative"
                         style={{ backgroundColor: `${commentTypeColors[comment.comment_type]}20` }}
                       >
-                        <div className="absolute top-2 right-2 flex space-x-1">
-                          {currentUser && comment.user_id === currentUser.id && (
-                            <>
-                              <button 
-                                onClick={() => handleEdit(comment)}
-                                className="text-[#3A2618]/60 hover:text-[#3A2618] transition-colors p-1"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                              <button 
-                                onClick={() => handleDelete(comment)}
-                                className="text-[#3A2618]/60 hover:text-red-500 transition-colors p-1"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                        
                         <div 
                           className="inline-block px-2 py-1 rounded text-xs font-medium mb-2"
                           style={{ 
@@ -388,7 +324,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
                 
                 <div>
                   <label className="block text-sm font-medium text-[#3A2618] mb-1">
-                    Your Comment
+                    {editingComment ? "Edit Your Comment" : "Your Comment"}
                   </label>
                   <Textarea
                     placeholder="Add your comment or feedback here..."
@@ -405,6 +341,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
                       onClick={cancelEdit}
                       className="border-[#3A2618]/20 text-[#3A2618]"
                     >
+                      <X className="mr-2 h-4 w-4" />
                       Cancel
                     </Button>
                   )}
@@ -414,7 +351,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
                     className="bg-[#F97316] hover:bg-[#E86305] text-[#E8DCC4] ml-auto"
                   >
                     <Send className="mr-2 h-4 w-4" />
-                    {editingComment ? "Update Comment" : "Submit Comment"}
+                    {editingComment ? "Save Changes" : "Submit Comment"}
                   </Button>
                 </DialogFooter>
               </div>
