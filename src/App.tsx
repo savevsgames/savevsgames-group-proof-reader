@@ -8,6 +8,7 @@ import StoryPage from "@/pages/StoryPage";
 import NotFound from "@/pages/NotFound";
 import FAQ from "@/pages/FAQ";
 import Auth from "@/pages/Auth";
+import EmailConfirmation from "@/components/EmailConfirmation";
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
           <Route path="/story/:storyId" element={<StoryPage />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/verify" element={<EmailConfirmation />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
