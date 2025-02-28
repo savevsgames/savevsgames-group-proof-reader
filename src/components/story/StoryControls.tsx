@@ -161,7 +161,7 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
   };
 
   return (
-    <div className="w-full md:w-1/2 bg-[#E8DCC4] p-4 md:p-6 lg:p-10 min-h-[300px] md:min-h-[600px] flex flex-col book-page border-t md:border-t-0 border-[#3A2618]/20">
+    <div className="w-full md:w-1/2 bg-[#E8DCC4] p-4 md:p-6 lg:p-10 min-h-[300px] md:min-h-[600px] flex flex-col book-page border-0 rounded-lg md:rounded-none shadow-md md:shadow-none">
       {/* Delete Confirmation Dialog */}
       {commentToDelete && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">

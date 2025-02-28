@@ -75,16 +75,19 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
           onContinue={onContinue}
           onChoice={onChoice}
         />
-        <StoryControls 
-          isEnding={isEnding}
-          comments={comments}
-          currentUser={currentUser}
-          storyId={storyId}
-          onOpenCommentModal={onOpenComments}
-          onRestart={onRestart}
-          canGoBack={canGoBack}
-          onBack={onBack}
-        />
+        {/* Added mb-4 for mobile view to create space between story and comments */}
+        <div className="mb-4 md:mb-0 md:flex-1">
+          <StoryControls 
+            isEnding={isEnding}
+            comments={comments}
+            currentUser={currentUser}
+            storyId={storyId}
+            onOpenCommentModal={onOpenComments}
+            onRestart={onRestart}
+            canGoBack={canGoBack}
+            onBack={onBack}
+          />
+        </div>
       </div>
     </div>
   );
