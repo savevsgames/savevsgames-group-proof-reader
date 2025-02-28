@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, AlertCircle } from 'lucide-react';
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -15,12 +15,36 @@ const Auth = () => {
   const { signIn, signUp, continueAsGuest } = useAuth();
   const navigate = useNavigate();
 
+  const validateEmail = (email: string) => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
+      // Basic validation
+      if (!email || !password) {
+        setError('Email and password are required');
+        setLoading(false);
+        return;
+      }
+
+      if (!validateEmail(email)) {
+        setError('Please enter a valid email address');
+        setLoading(false);
+        return;
+      }
+
+      if (password.length < 6) {
+        setError('Password must be at least 6 characters');
+        setLoading(false);
+        return;
+      }
+
       if (isSignUp) {
         if (!username) {
           setError('Username is required');
@@ -28,10 +52,23 @@ const Auth = () => {
           return;
         }
         
+        if (username.length < 3) {
+          setError('Username must be at least 3 characters');
+          setLoading(false);
+          return;
+        }
+        
         const { error } = await signUp(email, password, username);
         
         if (error) {
-          setError(error.message || 'An error occurred during sign up');
+          // Handle specific error cases
+          if (error.message.includes('email')) {
+            setError('This email is already in use. Please try another one or sign in.');
+          } else if (error.message.includes('username')) {
+            setError('This username is already taken. Please choose another one.');
+          } else {
+            setError(error.message || 'An error occurred during sign up');
+          }
         } else {
           navigate('/dashboard');
         }
@@ -39,7 +76,11 @@ const Auth = () => {
         const { error } = await signIn(email, password);
         
         if (error) {
-          setError(error.message || 'Invalid email or password');
+          if (error.message.includes('Invalid login credentials')) {
+            setError('Invalid email or password');
+          } else {
+            setError(error.message || 'Invalid email or password');
+          }
         } else {
           navigate('/dashboard');
         }
@@ -78,8 +119,9 @@ const Auth = () => {
           </h2>
 
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-              {error}
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 flex items-center">
+              <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
@@ -95,8 +137,12 @@ const Auth = () => {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full px-3 py-2 border border-[#3A2618]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F97316]"
+                  placeholder="Choose a unique username"
                   required
                 />
+                <p className="mt-1 text-xs text-[#3A2618]/70">
+                  Must be at least 3 characters long and will be visible to other users
+                </p>
               </div>
             )}
 
@@ -110,6 +156,7 @@ const Auth = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2 border border-[#3A2618]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F97316]"
+                placeholder="your@email.com"
                 required
               />
             </div>
@@ -124,16 +171,29 @@ const Auth = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-3 py-2 border border-[#3A2618]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F97316]"
+                placeholder={isSignUp ? "Create a secure password" : "Enter your password"}
                 required
               />
+              {isSignUp && (
+                <p className="mt-1 text-xs text-[#3A2618]/70">
+                  Must be at least 6 characters long
+                </p>
+              )}
             </div>
 
             <button
               type="submit"
-              className="w-full bg-[#F97316] text-[#E8DCC4] py-2 rounded-md font-medium hover:bg-[#E86305] transition-colors duration-200 mt-6"
+              className="w-full bg-[#F97316] text-[#E8DCC4] py-2 rounded-md font-medium hover:bg-[#E86305] transition-colors duration-200 mt-6 flex items-center justify-center"
               disabled={loading}
             >
-              {loading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Sign In'}
+              {loading ? (
+                <>
+                  <span className="mr-2">Loading...</span>
+                  <span className="animate-spin h-4 w-4 border-2 border-[#E8DCC4] border-t-transparent rounded-full"></span>
+                </>
+              ) : (
+                isSignUp ? 'Sign Up' : 'Sign In'
+              )}
             </button>
           </form>
 
