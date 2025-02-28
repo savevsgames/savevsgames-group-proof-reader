@@ -159,7 +159,7 @@ const Dashboard = () => {
     <div className="min-h-screen bg-[#F5F1E8]">
       {/* Header */}
       <header className="bg-[#3A2618] text-[#E8DCC4] py-4 px-6 shadow-md">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
+        <div className="max-w-7xl mx-auto flex flex-col xs:flex-row justify-between items-center gap-4 xs:gap-0">
           <div className="flex items-center space-x-3">
             <img
               src="/lovable-uploads/2386c015-8e81-4433-9997-ae0f0b94bb6a.png"
@@ -175,7 +175,7 @@ const Dashboard = () => {
               </p>
             </div>
           </div>
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-4">
             <div className="text-sm">
               {isGuest ? (
                 <span className="flex items-center gap-2">
