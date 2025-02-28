@@ -159,6 +159,30 @@ export const fetchCommentCount = async (storyId: string, position: number) => {
   return count || 0;
 };
 
+// Fetch comments for a specific story position
+export const fetchComments = async (storyId: string, position: number) => {
+  try {
+    const { data, error } = await supabase
+      .from('comments')
+      .select(`
+        *,
+        profile:profiles(username)
+      `)
+      .eq('story_id', storyId)
+      .eq('story_position', position)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    throw new Error('Failed to fetch comments');
+  }
+};
+
 // Fetch book details from database
 export const fetchBookDetails = async (storyId: string) => {
   const { data, error } = await supabase
