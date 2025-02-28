@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Story } from 'inkjs';
 import { useToast } from '@/hooks/use-toast';
@@ -7,9 +6,7 @@ import {
   CustomStory,
   fetchBookDetails,
   fetchCommentCount,
-  fetchStoryContent,
-  extractCustomStoryFromInkJSON,
-  storyNodeToPageMap
+  fetchStoryContent
 } from '@/lib/storyUtils';
 
 export const useStory = (storyId: string | undefined) => {
@@ -29,10 +26,43 @@ export const useStory = (storyId: string | undefined) => {
   const [commentCount, setCommentCount] = useState(0);
   const [currentStoryPosition, setCurrentStoryPosition] = useState<string>('');
   const [canContinue, setCanContinue] = useState(false);
-  const [currentPath, setCurrentPath] = useState<string>('root');
   const { toast } = useToast();
 
-  // Load book and story data
+  const estimateTotalPagesFromInkStory = (storyObj: Story): number => {
+    let count = 1;
+    
+    try {
+      const originalState = storyObj.state.toJson();
+      
+      storyObj.ResetState();
+      
+      const visitedStates = new Set<string>();
+      
+      while (storyObj.canContinue) {
+        storyObj.Continue();
+        count++;
+        
+        const currentState = storyObj.state.toJson();
+        if (visitedStates.has(currentState)) {
+          break;
+        }
+        visitedStates.add(currentState);
+        
+        if (storyObj.currentChoices.length > 0) {
+          count += 1;
+          break;
+        }
+      }
+      
+      storyObj.state.LoadJson(originalState);
+      
+      return count;
+    } catch (e) {
+      console.error("Error estimating pages:", e);
+      return 17;
+    }
+  };
+
   useEffect(() => {
     const initializeStory = async () => {
       if (!storyId) {
@@ -42,22 +72,14 @@ export const useStory = (storyId: string | undefined) => {
       }
 
       try {
-        // Fetch book details
         const bookData = await fetchBookDetails(storyId);
         
         console.log("Fetched book data:", bookData);
         
-        // Set book title for display
         if (bookData.title) {
           setBookTitle(bookData.title);
         }
-        
-        // Determine if we need to set total pages
-        if (bookData.total_pages) {
-          setTotalPages(bookData.total_pages);
-        }
 
-        // Now attempt to load the story content from the URL
         if (bookData.story_url) {
           await loadStoryContent(bookData.story_url, storyId);
         } else {
@@ -78,84 +100,81 @@ export const useStory = (storyId: string | undefined) => {
     initializeStory();
   }, [storyId, toast]);
 
-  // Load story content from URL
   const loadStoryContent = async (storyUrl: string, sid: string) => {
     try {
       console.log("Fetching story from URL:", storyUrl);
       const storyData = await fetchStoryContent(storyUrl);
       console.log("Story data loaded successfully");
 
-      // Check if it's a custom format (has node structure) or inkjs format
-      if (storyData.start || (storyData.root && typeof storyData.root === 'object')) {
-        console.log("Using custom story format");
-        setUsingCustomFormat(true);
-        setCustomStory(storyData);
-        setCurrentNode('start');
-        setCurrentText(storyData.start ? storyData.start.text : "Story begins...");
-        setCurrentChoices(storyData.start ? storyData.start.choices : []);
-        setCurrentStoryPosition('start');
-        const count = await fetchCommentCount(sid, 'start');
-        setCommentCount(count);
-      } else {
-        // It's an inkjs format
-        console.log("Using inkjs story format");
+      if (storyData.inkVersion) {
+        console.log("Detected Ink.js story format (version:", storyData.inkVersion, ")");
         try {
           const newStory = new Story(storyData);
           setStory(newStory);
           setUsingCustomFormat(false);
           
-          // Get the first piece of text
+          const estimatedPages = estimateTotalPagesFromInkStory(newStory);
+          console.log("Estimated total pages:", estimatedPages);
+          setTotalPages(estimatedPages);
+          
           if (newStory.canContinue) {
             const nextText = newStory.Continue();
             setCurrentText(nextText);
             setCanContinue(newStory.canContinue);
           }
           
-          // Only show choices if we can't continue
           if (!newStory.canContinue) {
             setCurrentChoices(newStory.currentChoices);
           } else {
             setCurrentChoices([]);
           }
           
-          // Save current story position for comments
           if (newStory.state) {
             const position = newStory.state.toJson();
             setCurrentStoryPosition(position);
             const count = await fetchCommentCount(sid, position);
             setCommentCount(count);
           }
+          
+          setIsLoading(false);
         } catch (storyError: any) {
           console.error('Error initializing inkjs story:', storyError);
-          
-          // Check if we have inkjs format but need to parse manually
-          if (storyData.inkVersion) {
-            console.log("Trying to parse as Ink JSON format manually");
-            setUsingCustomFormat(true);
-            
-            // Try to extract structure from inkJSON
-            const extractedStory = extractCustomStoryFromInkJSON(storyData);
-            setCustomStory(extractedStory);
-            setCurrentNode('root');
-            
-            if (extractedStory && extractedStory.root) {
-              setCurrentText(extractedStory.root.text || "Story begins...");
-              setCurrentChoices(extractedStory.root.choices || []);
-            } else {
-              setCurrentText("Story begins...");
-              setCurrentChoices([]);
-            }
-            
-            setCurrentStoryPosition('root');
-            const count = await fetchCommentCount(sid, 'root');
-            setCommentCount(count);
-          } else {
-            throw new Error(`Error loading story: ${storyError.message}`);
-          }
+          throw new Error(`Error loading story: ${storyError.message}`);
         }
+      } 
+      else if (storyData.start && storyData.start.text) {
+        console.log("Using custom story format with start node");
+        setUsingCustomFormat(true);
+        setCustomStory(storyData);
+        setCurrentNode('start');
+        setCurrentText(storyData.start.text);
+        setCurrentChoices(storyData.start.choices || []);
+        setCurrentStoryPosition('start');
+        const count = await fetchCommentCount(sid, 'start');
+        setCommentCount(count);
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
+      else if (storyData.root && typeof storyData.root === 'object') {
+        console.log("Using root-based custom story format");
+        setUsingCustomFormat(true);
+        setCustomStory(storyData);
+        setCurrentNode('root');
+        
+        if (storyData.root.text) {
+          setCurrentText(storyData.root.text);
+          setCurrentChoices(storyData.root.choices || []);
+        } else {
+          setCurrentText("Story begins...");
+          setCurrentChoices([]);
+        }
+        
+        setCurrentStoryPosition('root');
+        const count = await fetchCommentCount(sid, 'root');
+        setCommentCount(count);
+        setIsLoading(false);
+      } else {
+        throw new Error('Unsupported story format');
+      }
     } catch (error: any) {
       console.error('Error loading story content:', error);
       setError(`Failed to load story content: ${error.message}`);
@@ -168,53 +187,25 @@ export const useStory = (storyId: string | undefined) => {
     }
   };
 
-  // Handle the "Continue" button for inkjs format
   const handleContinue = async () => {
     if (!story || !storyId) return;
     
-    // Save current state before continuing
     const currentState = story.state.toJson();
     setStoryHistory(prev => [...prev, currentState]);
     setCanGoBack(true);
     
-    // Get the next section of text
     const nextText = story.Continue();
-    setCurrentText(nextText);
+    setCurrentText(prevText => prevText + '\n' + nextText);
     setCanContinue(story.canContinue);
     
-    // Try to determine the current path for page tracking
-    try {
-      // This is a heuristic approach - we're looking at the state to guess which section we're in
-      const stateObj = JSON.parse(story.state.toJson());
-      if (stateObj && stateObj.currentPath && stateObj.currentPath.length > 0) {
-        const pathComponent = stateObj.currentPath[stateObj.currentPath.length - 1];
-        const pathName = typeof pathComponent === 'string' ? pathComponent : 
-                         (pathComponent.component || '');
-        
-        if (pathName && storyNodeToPageMap[pathName]) {
-          setCurrentPage(storyNodeToPageMap[pathName]);
-          setCurrentPath(pathName);
-        } else {
-          // Fallback - just increment the page
-          setCurrentPage(prev => Math.min(prev + 1, totalPages));
-        }
-      } else {
-        // Fallback - just increment the page
-        setCurrentPage(prev => Math.min(prev + 1, totalPages));
-      }
-    } catch (e) {
-      // If we can't parse the state, just increment the page
-      setCurrentPage(prev => Math.min(prev + 1, totalPages));
-    }
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
     
-    // Only show choices if we can't continue
     if (!story.canContinue) {
       setCurrentChoices(story.currentChoices);
     } else {
       setCurrentChoices([]);
     }
     
-    // Update current story position for comments
     if (story.state) {
       const position = story.state.toJson();
       setCurrentStoryPosition(position);
@@ -223,28 +214,20 @@ export const useStory = (storyId: string | undefined) => {
     }
   };
 
-  // Handle choice for custom story format
   const handleCustomChoice = async (nextNode: string) => {
     if (!customStory || !storyId) return;
 
-    // Save current node to history for "back" functionality
     setStoryHistory(prev => [...prev, currentNode]);
     setCanGoBack(true);
 
-    // Navigate to the next node
     const nextStoryNode = customStory[nextNode];
     if (nextStoryNode) {
       setCurrentNode(nextNode);
       setCurrentText(nextStoryNode.text);
-      setCurrentChoices(nextStoryNode.choices);
+      setCurrentChoices(nextStoryNode.choices || []);
       setCurrentStoryPosition(nextNode);
       
-      // Update page based on the node mapping
-      if (storyNodeToPageMap[nextNode]) {
-        setCurrentPage(storyNodeToPageMap[nextNode]);
-      } else {
-        setCurrentPage(prev => Math.min(prev + 1, totalPages));
-      }
+      setCurrentPage(prev => Math.min(prev + 1, totalPages));
       
       const count = await fetchCommentCount(storyId, nextNode);
       setCommentCount(count);
@@ -254,25 +237,22 @@ export const useStory = (storyId: string | undefined) => {
     }
   };
 
-  // Handle choice for inkjs format
   const handleInkChoice = async (index: number) => {
     if (!story || !storyId) return;
 
-    // Save current state before making choice
     const currentState = story.state.toJson();
     setStoryHistory(prev => [...prev, currentState]);
     setCanGoBack(true);
 
-    // Make the choice
     story.ChooseChoiceIndex(index);
     
-    // Get the next section of text if available
+    let newText = '';
+    
     if (story.canContinue) {
-      const nextText = story.Continue();
-      setCurrentText(nextText);
+      newText = story.Continue();
+      setCurrentText(newText);
       setCanContinue(story.canContinue);
       
-      // Only show choices if we can't continue
       if (!story.canContinue) {
         setCurrentChoices(story.currentChoices);
       } else {
@@ -283,31 +263,8 @@ export const useStory = (storyId: string | undefined) => {
       setCanContinue(false);
     }
     
-    // Update page based on current state
-    try {
-      const stateObj = JSON.parse(story.state.toJson());
-      if (stateObj && stateObj.currentPath && stateObj.currentPath.length > 0) {
-        const pathComponent = stateObj.currentPath[stateObj.currentPath.length - 1];
-        const pathName = typeof pathComponent === 'string' ? pathComponent : 
-                         (pathComponent.component || '');
-        
-        if (pathName && storyNodeToPageMap[pathName]) {
-          setCurrentPage(storyNodeToPageMap[pathName]);
-          setCurrentPath(pathName);
-        } else {
-          // Fallback - just increment the page
-          setCurrentPage(prev => Math.min(prev + 1, totalPages));
-        }
-      } else {
-        // Fallback - just increment the page
-        setCurrentPage(prev => Math.min(prev + 1, totalPages));
-      }
-    } catch (e) {
-      // If we can't parse the state, just decrement the page
-      setCurrentPage(prev => Math.min(prev + 1, totalPages));
-    }
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
     
-    // Update current story position for comments
     if (story.state) {
       const position = story.state.toJson();
       setCurrentStoryPosition(position);
@@ -316,21 +273,20 @@ export const useStory = (storyId: string | undefined) => {
     }
   };
 
-  // Combined choice handler
   const handleChoice = (index: number) => {
     if (usingCustomFormat) {
       const choice = currentChoices[index];
-      handleCustomChoice(choice.nextNode);
+      if (choice && choice.nextNode) {
+        handleCustomChoice(choice.nextNode);
+      }
     } else {
       handleInkChoice(index);
     }
   };
 
-  // Back functionality
   const handleBack = async () => {
     if (!storyId || storyHistory.length === 0) return;
 
-    // Pop the last state from history
     const newHistory = [...storyHistory];
     const previousState = newHistory.pop();
     
@@ -339,67 +295,38 @@ export const useStory = (storyId: string | undefined) => {
       setCanGoBack(newHistory.length > 0);
       
       if (usingCustomFormat && customStory) {
-        // For custom format, previousState is the node name
         const prevNode = customStory[previousState];
         if (prevNode) {
           setCurrentNode(previousState);
           setCurrentText(prevNode.text);
-          setCurrentChoices(prevNode.choices);
+          setCurrentChoices(prevNode.choices || []);
           setCurrentStoryPosition(previousState);
           
-          // Update page based on the node mapping
-          if (storyNodeToPageMap[previousState]) {
-            setCurrentPage(storyNodeToPageMap[previousState]);
-          } else {
-            setCurrentPage(prev => Math.max(prev - 1, 1));
-          }
+          setCurrentPage(prev => Math.max(prev - 1, 1));
           
           const count = await fetchCommentCount(storyId, previousState);
           setCommentCount(count);
         }
       } else if (story) {
-        // For inkjs format
         story.state.LoadJson(previousState);
         
-        // Get the current text
-        if (story.canContinue) {
+        setCurrentText('');
+        
+        while (story.canContinue) {
           const text = story.Continue();
-          setCurrentText(text);
-          setCanContinue(story.canContinue);
+          setCurrentText(prev => prev ? prev + '\n' + text : text);
         }
         
-        // Only show choices if we can't continue
+        setCanContinue(story.canContinue);
+        
         if (!story.canContinue) {
           setCurrentChoices(story.currentChoices);
         } else {
           setCurrentChoices([]);
         }
         
-        // Update page based on current state
-        try {
-          const stateObj = JSON.parse(story.state.toJson());
-          if (stateObj && stateObj.currentPath && stateObj.currentPath.length > 0) {
-            const pathComponent = stateObj.currentPath[stateObj.currentPath.length - 1];
-            const pathName = typeof pathComponent === 'string' ? pathComponent : 
-                            (pathComponent.component || '');
-            
-            if (pathName && storyNodeToPageMap[pathName]) {
-              setCurrentPage(storyNodeToPageMap[pathName]);
-              setCurrentPath(pathName);
-            } else {
-              // Fallback - just decrement the page
-              setCurrentPage(prev => Math.max(prev - 1, 1));
-            }
-          } else {
-            // Fallback - just decrement the page
-            setCurrentPage(prev => Math.max(prev - 1, 1));
-          }
-        } catch (e) {
-          // If we can't parse the state, just decrement the page
-          setCurrentPage(prev => Math.max(prev - 1, 1));
-        }
+        setCurrentPage(prev => Math.max(prev - 1, 1));
         
-        // Update current story position for comments
         if (story.state) {
           const position = story.state.toJson();
           setCurrentStoryPosition(position);
@@ -410,17 +337,14 @@ export const useStory = (storyId: string | undefined) => {
     }
   };
 
-  // Reset functionality
   const handleRestart = async () => {
     if (!storyId) return;
     
     setStoryHistory([]);
     setCanGoBack(false);
     setCurrentPage(1);
-    setCurrentPath('root');
     
     if (usingCustomFormat && customStory) {
-      // Reset to start node for custom format
       setCurrentNode('start');
       setCurrentText(customStory.start ? customStory.start.text : "Story begins...");
       setCurrentChoices(customStory.start ? customStory.start.choices : []);
@@ -428,24 +352,21 @@ export const useStory = (storyId: string | undefined) => {
       const count = await fetchCommentCount(storyId, 'start');
       setCommentCount(count);
     } else if (story) {
-      // Reset inkjs story
       story.ResetState();
+      setCurrentText('');
       
-      // Get the first piece of text
       if (story.canContinue) {
         const text = story.Continue();
         setCurrentText(text);
         setCanContinue(story.canContinue);
       }
       
-      // Only show choices if we can't continue
       if (!story.canContinue) {
         setCurrentChoices(story.currentChoices);
       } else {
         setCurrentChoices([]);
       }
       
-      // Update current story position for comments
       if (story.state) {
         const position = story.state.toJson();
         setCurrentStoryPosition(position);
@@ -455,7 +376,6 @@ export const useStory = (storyId: string | undefined) => {
     }
   };
 
-  // Update comment count
   const updateCommentCount = async () => {
     if (!storyId) return;
     const count = await fetchCommentCount(storyId, currentStoryPosition);
