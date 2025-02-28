@@ -28,8 +28,8 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
 
   return (
     <>
-      {/* Controls - Positioned absolutely relative to the page */}
-      <div className="fixed top-20 right-6 md:absolute md:top-[-70px] md:right-6 z-50 flex gap-3">
+      {/* Controls - Adjusted position to ensure visibility */}
+      <div className="absolute top-[-50px] right-4 z-30 flex gap-3">
         {canGoBack && (
           <button 
             onClick={onBack}
