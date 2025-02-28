@@ -47,7 +47,7 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
   onOpenComments
 }) => {
   return (
-    <div className="max-w-5xl w-full relative book-container">
+    <div className="max-w-5xl w-full relative book-container mt-6">
       <BookHeader 
         bookTitle={bookTitle}
         currentPage={currentPage}
@@ -62,8 +62,8 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
       {/* Book binding */}
       <div className="absolute left-1/2 top-0 bottom-0 w-4 -ml-2 bg-[#2E1D11] z-10"></div>
       
-      {/* Book shadow */}
-      <div className="absolute inset-0 shadow-xl rounded-lg"></div>
+      {/* Book shadow - enhanced */}
+      <div className="absolute inset-0 shadow-2xl rounded-lg"></div>
       
       {/* Book pages */}
       <div className="flex rounded-lg overflow-hidden">
