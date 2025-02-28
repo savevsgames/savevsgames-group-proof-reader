@@ -82,6 +82,8 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
           storyId={storyId}
           onOpenCommentModal={onOpenComments}
           onRestart={onRestart}
+          canGoBack={canGoBack}
+          onBack={onBack}
         />
       </div>
     </div>

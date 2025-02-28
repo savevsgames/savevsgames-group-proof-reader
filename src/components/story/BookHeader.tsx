@@ -28,8 +28,13 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
 
   return (
     <>
-      {/* Controls - Positioned to stay with comments section on both mobile and desktop */}
-      <div className="md:absolute md:top-4 md:right-4 md:z-30 flex gap-3 absolute right-4 top-4 z-30">
+      {/* Book Title and Page Number */}
+      <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-10 bg-[#F97316] text-[#E8DCC4] px-6 py-2 rounded-full z-10 whitespace-nowrap shadow-md">
+        <span className="font-serif">{bookTitle} - Page {currentPage} of {totalPages}</span>
+      </div>
+      
+      {/* Controls for mobile view when comments are not shown */}
+      <div className="md:hidden absolute right-4 top-4 z-30 flex gap-3">
         {canGoBack && (
           <button 
             onClick={onBack}
@@ -58,16 +63,16 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
             <MessageSquare className="h-6 w-6" />
           </button>
           
-          {/* Fixed comment count badge positioning */}
           <div className="absolute -top-3 -right-3 bg-white text-[#3A2618] rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-sm border border-[#3A2618]/20 z-20">
             {commentCount}
           </div>
         </div>
       </div>
-      
-      {/* Book Title and Page Number */}
-      <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-10 bg-[#F97316] text-[#E8DCC4] px-6 py-2 rounded-full z-10 whitespace-nowrap shadow-md">
-        <span className="font-serif">{bookTitle} - Page {currentPage} of {totalPages}</span>
+
+      {/* We now export the comment count for StoryControls to use */}
+      <div className="hidden">
+        {/* This is invisible - just to make the data available to StoryControls component */}
+        <span id="comment-count-data" data-count={commentCount}></span>
       </div>
     </>
   );
