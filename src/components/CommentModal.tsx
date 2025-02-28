@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { CommentType, commentTypeColors, commentTypeLabels } from "@/lib/commentTypes";
 import { User } from "@/lib/supabase";
+import { useNavigate } from 'react-router-dom';
 
 export interface Comment {
   id: string;
@@ -19,8 +20,7 @@ export interface Comment {
   created_at: string;
   updated_at: string;
   profile?: {
-    first_name: string;
-    email: string;
+    username: string;
   };
 }
 
@@ -45,6 +45,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
   const [selectedCommentType, setSelectedCommentType] = useState<CommentType>('edit');
   const [editingComment, setEditingComment] = useState<Comment | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Fetch comments when the modal opens or story position changes
   useEffect(() => {
@@ -57,8 +58,8 @@ export const CommentModal: React.FC<CommentModalProps> = ({
     setIsLoading(true);
     try {
       const { data, error } = await supabase
-        .from('comments')
-        .select('*, profile:profiles(first_name, email)')
+        .from('user_comments')
+        .select('*')
         .eq('story_id', storyId)
         .eq('story_position', storyPosition)
         .order('created_at', { ascending: false });
@@ -96,6 +97,8 @@ export const CommentModal: React.FC<CommentModalProps> = ({
         description: "You must be logged in to add comments.",
         variant: "destructive",
       });
+      onOpenChange(false);
+      navigate('/auth');
       return;
     }
 
@@ -237,6 +240,19 @@ export const CommentModal: React.FC<CommentModalProps> = ({
     });
   };
 
+  // Check if a comment is owned by current user
+  const isOwnComment = (comment: Comment) => {
+    return currentUser && comment.user_id === currentUser.id;
+  };
+
+  // Display either username or "Anonymous" based on ownership
+  const getDisplayName = (comment: Comment) => {
+    if (isOwnComment(comment)) {
+      return "You";
+    }
+    return comment.profile?.username || "Anonymous";
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
       onOpenChange(open);
@@ -315,7 +331,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
                         <p className="text-[#3A2618] mb-2">{comment.text}</p>
                         
                         <div className="flex justify-between items-center text-[#3A2618]/60 text-xs">
-                          <span>{comment.profile?.first_name || 'Anonymous'}</span>
+                          <span>{getDisplayName(comment)}</span>
                           <span>{formatDate(comment.created_at)}</span>
                         </div>
                       </div>
@@ -331,7 +347,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
                 <Button 
                   onClick={() => {
                     onOpenChange(false);
-                    // Navigate to auth page - handle this in the parent component
+                    navigate('/auth');
                   }}
                   className="bg-[#F97316] hover:bg-[#E86305] text-[#E8DCC4]"
                 >

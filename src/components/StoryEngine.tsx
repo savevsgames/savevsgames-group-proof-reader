@@ -53,8 +53,8 @@ export const StoryEngine = () => {
     
     try {
       const { data, error } = await supabase
-        .from('comments')
-        .select('*, profile:profiles(first_name, email)')
+        .from('user_comments')
+        .select('*')
         .eq('story_id', storyId)
         .eq('story_position', currentStoryPosition)
         .order('created_at', { ascending: false });

@@ -118,7 +118,19 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      user_comments: {
+        Row: {
+          comment_type: Database["public"]["Enums"]["comment_type"] | null
+          created_at: string | null
+          id: string | null
+          story_id: string | null
+          story_position: string | null
+          text: string | null
+          updated_at: string | null
+          username: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never

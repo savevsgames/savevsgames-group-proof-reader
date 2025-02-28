@@ -32,6 +32,19 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
     });
   };
 
+  // Check if a comment is owned by current user
+  const isOwnComment = (comment: Comment) => {
+    return currentUser && comment.user_id === currentUser.id;
+  };
+
+  // Display either username or "Anonymous" based on ownership
+  const getDisplayName = (comment: Comment) => {
+    if (isOwnComment(comment)) {
+      return "You";
+    }
+    return comment.profile?.username || "Anonymous";
+  };
+
   return (
     <div className="w-1/2 bg-[#E8DCC4] p-6 md:p-10 min-h-[600px] flex flex-col book-page">
       {/* Comments Section */}
@@ -64,7 +77,7 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
                   <p className="text-[#3A2618] mb-2">{comment.text}</p>
                   
                   <div className="flex justify-between items-center text-[#3A2618]/60 text-xs">
-                    <span>{comment.profile?.first_name || 'Anonymous'}</span>
+                    <span>{getDisplayName(comment)}</span>
                     <span>{formatDate(comment.created_at)}</span>
                   </div>
                 </div>
