@@ -61,8 +61,8 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-[#3A2618] font-serif text-xl">Comments</h3>
         
-        {/* Desktop Controls - Only visible on md screens and up */}
-        <div className="hidden md:flex gap-3">
+        {/* Controls for both mobile and desktop */}
+        <div className="flex gap-3">
           {canGoBack && onBack && (
             <button 
               onClick={onBack}
@@ -81,6 +81,21 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
           >
             <span className="text-lg">✕</span>
           </button>
+          <div className="relative md:hidden">
+            <button 
+              onClick={onOpenCommentModal}
+              className="bg-[#F97316] text-[#E8DCC4] w-10 h-10 flex items-center justify-center hover:bg-[#E86305] transition-colors shadow-md"
+              style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%)' }}
+              title="Comments"
+            >
+              <MessageSquare className="h-5 w-5" />
+            </button>
+            
+            <div className="absolute -top-3 -right-3 bg-white text-[#3A2618] rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-sm border border-[#3A2618]/20 z-20">
+              {/* Get the comment count from the hidden element in the BookHeader */}
+              {document.getElementById('comment-count-data')?.getAttribute('data-count') || 0}
+            </div>
+          </div>
         </div>
       </div>
       
