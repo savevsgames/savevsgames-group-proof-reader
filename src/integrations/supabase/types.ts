@@ -15,6 +15,7 @@ export type Database = {
           created_at: string | null
           id: string
           story_file: string
+          story_url: string | null
           subtitle: string | null
           title: string
           total_pages: number
@@ -25,6 +26,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           story_file: string
+          story_url?: string | null
           subtitle?: string | null
           title: string
           total_pages: number
@@ -35,6 +37,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           story_file?: string
+          story_url?: string | null
           subtitle?: string | null
           title?: string
           total_pages?: number
