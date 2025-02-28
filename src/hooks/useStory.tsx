@@ -8,7 +8,8 @@ import {
   fetchBookDetails,
   fetchCommentCount,
   fetchStoryContent,
-  storyNodeToPageMap
+  storyNodeToPageMap,
+  pageToStoryNodeMap
 } from '@/lib/storyUtils';
 
 export const useStory = (storyId: string | undefined) => {
@@ -308,14 +309,14 @@ export const useStory = (storyId: string | undefined) => {
       setCanGoBack(newHistory.length > 0);
       
       if (usingCustomFormat && customStory) {
-        const prevNode = customStory[previousState];
-        if (prevNode) {
-          setCurrentNode(previousState);
-          setCurrentText(prevNode.text);
-          setCurrentChoices(prevNode.choices || []);
+        const prevNode = previousState;
+        if (customStory[prevNode]) {
+          setCurrentNode(prevNode);
+          setCurrentText(customStory[prevNode].text);
+          setCurrentChoices(customStory[prevNode].choices || []);
           
           // Update page based on node mapping or decrement
-          const newPage = storyNodeToPageMap[previousState] || Math.max(currentPage - 1, 1);
+          const newPage = storyNodeToPageMap[prevNode] || Math.max(currentPage - 1, 1);
           setCurrentPage(newPage);
           setCurrentStoryPosition(newPage);
           
@@ -365,9 +366,9 @@ export const useStory = (storyId: string | undefined) => {
     setCurrentStoryPosition(1);
     
     if (usingCustomFormat && customStory) {
-      setCurrentNode('start');
-      setCurrentText(customStory.start ? customStory.start.text : "Story begins...");
-      setCurrentChoices(customStory.start ? customStory.start.choices : []);
+      setCurrentNode('root');
+      setCurrentText(customStory.root ? customStory.root.text : "Story begins...");
+      setCurrentChoices(customStory.root ? customStory.root.choices : []);
       
       const count = await fetchCommentCount(storyId, 1);
       setCommentCount(count);
@@ -388,6 +389,130 @@ export const useStory = (storyId: string | undefined) => {
       }
       
       const count = await fetchCommentCount(storyId, 1);
+      setCommentCount(count);
+    }
+  };
+
+  // Add direct page navigation function
+  const handlePageChange = async (newPage: number) => {
+    if (!storyId || newPage === currentPage || newPage < 1 || newPage > totalPages) {
+      return;
+    }
+    
+    console.log(`Navigating to page ${newPage} (current: ${currentPage})`);
+    
+    // For custom story format with node mappings
+    if (usingCustomFormat && customStory) {
+      const targetNode = pageToStoryNodeMap[newPage];
+      
+      if (targetNode && customStory[targetNode]) {
+        console.log(`Found node ${targetNode} for page ${newPage}`);
+        
+        // Save current node to history
+        setStoryHistory(prev => [...prev, currentNode]);
+        setCanGoBack(true);
+        
+        // Set the story state to the new node
+        setCurrentNode(targetNode);
+        setCurrentText(customStory[targetNode].text);
+        setCurrentChoices(customStory[targetNode].choices || []);
+        
+        // Update page number and position
+        setCurrentPage(newPage);
+        setCurrentStoryPosition(newPage);
+        
+        // Fetch comments for this page
+        const count = await fetchCommentCount(storyId, newPage);
+        setCommentCount(count);
+      } else {
+        console.error(`No node mapping found for page ${newPage}`);
+        toast({
+          title: "Navigation Error",
+          description: `Could not find content for page ${newPage}`,
+          variant: "destructive"
+        });
+      }
+    } 
+    // For inkjs stories, we need to try to navigate by continuing or choosing
+    else if (story) {
+      // Save current state to history
+      const currentState = story.state.toJson();
+      setStoryHistory(prev => [...prev, currentState]);
+      setCanGoBack(true);
+      
+      if (newPage < currentPage) {
+        // For going back, we need to restart and play forward
+        const originalState = story.state.toJson();
+        story.ResetState();
+        
+        // Simulate continuing to the desired page
+        let currentPageCounter = 1;
+        
+        while (currentPageCounter < newPage && story.canContinue) {
+          story.Continue();
+          currentPageCounter++;
+        }
+        
+        if (currentPageCounter === newPage) {
+          setCurrentText(story.currentText);
+          setCanContinue(story.canContinue);
+          setCurrentChoices(story.canContinue ? [] : story.currentChoices);
+          setCurrentPage(newPage);
+          setCurrentStoryPosition(newPage);
+        } else {
+          // Failed to reach the page, restore original state
+          story.state.LoadJson(originalState);
+          toast({
+            title: "Navigation Error",
+            description: `Could not navigate to page ${newPage}`,
+            variant: "destructive"
+          });
+          return;
+        }
+      } else {
+        // For going forward, we continue from current position
+        let currentPageCounter = currentPage;
+        let success = false;
+        
+        while (currentPageCounter < newPage) {
+          if (story.canContinue) {
+            story.Continue();
+            currentPageCounter++;
+          } else if (story.currentChoices.length > 0) {
+            // Always choose the first option at choice points
+            story.ChooseChoiceIndex(0);
+            if (story.canContinue) {
+              story.Continue();
+            }
+            currentPageCounter++;
+          } else {
+            break;
+          }
+          
+          if (currentPageCounter === newPage) {
+            success = true;
+            break;
+          }
+        }
+        
+        if (success) {
+          setCurrentText(story.currentText);
+          setCanContinue(story.canContinue);
+          setCurrentChoices(story.canContinue ? [] : story.currentChoices);
+          setCurrentPage(newPage);
+          setCurrentStoryPosition(newPage);
+        } else {
+          toast({
+            title: "Navigation Error",
+            description: `Could not navigate to page ${newPage}`,
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+      
+      // Fetch comments for the new page
+      const count = await fetchCommentCount(storyId, newPage);
       setCommentCount(count);
     }
   };
@@ -414,6 +539,7 @@ export const useStory = (storyId: string | undefined) => {
     handleChoice,
     handleBack,
     handleRestart,
+    handlePageChange,
     updateCommentCount,
   };
 };

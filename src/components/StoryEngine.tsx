@@ -29,6 +29,7 @@ export const StoryEngine: React.FC = () => {
     handleChoice,
     handleBack,
     handleRestart,
+    handlePageChange,
     updateCommentCount,
   } = useStory(storyId);
 
@@ -64,36 +65,6 @@ export const StoryEngine: React.FC = () => {
           });
         }
       }, 300);
-    }
-  };
-
-  // Handle direct page navigation
-  const handlePageChange = (pageNumber: number) => {
-    // Since page numbers are 1-indexed but positions might be different,
-    // we need to translate between them
-    const steps = pageNumber - currentPage;
-    
-    if (steps === 0) return;
-    
-    if (steps < 0) {
-      // Go back multiple steps
-      for (let i = 0; i > steps; i--) {
-        handleBack();
-      }
-    } else {
-      // If trying to go forward, we need to simulate user continuing
-      // Note: This works best with linear stories. For branching stories with choices,
-      // it might not always work perfectly
-      for (let i = 0; i < steps; i++) {
-        if (canContinue) {
-          handleContinue();
-        } else if (currentChoices.length > 0) {
-          // Always choose the first option if at a choice point
-          handleChoice(0);
-        } else {
-          break; // Can't go forward anymore
-        }
-      }
     }
   };
 
