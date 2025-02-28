@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, BookOpen, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -63,7 +63,7 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
   };
 
   // Update pageInput when currentPage changes
-  React.useEffect(() => {
+  useEffect(() => {
     setPageInput(currentPage.toString());
   }, [currentPage]);
 
