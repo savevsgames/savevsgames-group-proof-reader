@@ -51,7 +51,8 @@ export type Database = {
           created_at: string | null
           id: string
           story_id: string
-          story_position: string
+          story_position: number
+          story_position_old: string
           text: string
           updated_at: string | null
           user_id: string
@@ -61,7 +62,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           story_id: string
-          story_position: string
+          story_position?: number
+          story_position_old: string
           text: string
           updated_at?: string | null
           user_id: string
@@ -71,7 +73,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           story_id?: string
-          story_position?: string
+          story_position?: number
+          story_position_old?: string
           text?: string
           updated_at?: string | null
           user_id?: string
