@@ -9,12 +9,13 @@ import { supabase } from '@/lib/supabase';
 interface BookType {
   id: string;
   title: string;
-  description: string;
+  subtitle?: string;
+  description?: string;
   coverImage?: string;
-  cover_url?: string; // From Supabase
+  cover_url?: string;
   isFree: boolean;
   category: string;
-  lastUpdated: string;
+  lastUpdated: Date | string;
 }
 
 const Dashboard = () => {
@@ -39,38 +40,43 @@ const Dashboard = () => {
         if (data && data.length > 0) {
           // Map Supabase data to our book format
           const mappedBooks = data.map(book => ({
-            id: book.id || 'dark-eye-story',
-            title: book.title || 'Shadowtide',
-            description: 'A mystical tale about love, sacrifice, and the meaning of existence.',
+            id: book.id,
+            title: book.title || 'Untitled Book',
+            subtitle: book.subtitle,
+            description: book.description || 'A mystical tale about love, sacrifice, and the meaning of existence.',
             cover_url: book.cover_url,
             isFree: true,
-            category: 'Fantasy',
-            lastUpdated: book.updated_at ? new Date(book.updated_at).toISOString().split('T')[0] : '2025-02-22',
+            category: book.category || 'Fantasy',
+            lastUpdated: book.updated_at ? new Date(book.updated_at) : new Date(),
           }));
           setBooks(mappedBooks);
+          console.log('Fetched books:', mappedBooks);
         } else {
           // Fallback to sample data if no books in database
+          console.log('No books found, using fallback data');
           setBooks([{
-            id: 'dark-eye-story',
-            title: 'Shadowtide',
+            id: 'fallback-id',
+            title: 'Shadowtide Island',
+            subtitle: 'The Ending',
             description: 'A mystical tale about love, sacrifice, and the meaning of existence.',
             coverImage: '/shadowtidecover1.webp',
             isFree: true,
             category: 'Fantasy',
-            lastUpdated: '2025-02-22',
+            lastUpdated: new Date(),
           }]);
         }
       } catch (error) {
         console.error('Error fetching books:', error);
         // Fallback to sample data on error
         setBooks([{
-          id: 'dark-eye-story',
-          title: 'Shadowtide',
+          id: 'fallback-id',
+          title: 'Shadowtide Island',
+          subtitle: 'The Ending',
           description: 'A mystical tale about love, sacrifice, and the meaning of existence.',
           coverImage: '/shadowtidecover1.webp',
           isFree: true,
           category: 'Fantasy',
-          lastUpdated: '2025-02-22',
+          lastUpdated: new Date(),
         }]);
       } finally {
         setLoading(false);
@@ -122,6 +128,17 @@ const Dashboard = () => {
     }
     // Fallback to default image in public folder
     return '/shadowtidecover1.webp';
+  };
+
+  // Function to format the date
+  const formatDate = (date: Date | string) => {
+    if (!date) return 'Unknown';
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return d.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
   };
 
   return (
@@ -200,11 +217,14 @@ const Dashboard = () => {
                   </div>
                   <div className="p-4">
                     <h3 className="font-serif font-bold text-lg text-[#3A2618] mb-1">{book.title}</h3>
+                    {book.subtitle && (
+                      <p className="text-sm text-gray-600 mb-2">{book.subtitle}</p>
+                    )}
                     <p className={`text-sm px-2 py-1 rounded-full inline-block ${getCategoryColor(book.category)}`}>
                       {book.category}
                     </p>
                     <div className="flex justify-between items-center mt-2">
-                      <span className="text-xs text-gray-500">Updated: {book.lastUpdated}</span>
+                      <span className="text-xs text-gray-500">Updated: {formatDate(book.lastUpdated)}</span>
                       <span className="text-xs font-medium bg-green-100 text-green-800 px-2 py-1 rounded">
                         Free
                       </span>
@@ -247,13 +267,16 @@ const Dashboard = () => {
                 <h2 className="text-2xl font-serif font-bold text-[#3A2618] mb-2">
                   {selectedBook.title}
                 </h2>
+                {selectedBook.subtitle && (
+                  <p className="text-lg text-gray-700 mb-2">{selectedBook.subtitle}</p>
+                )}
                 <p className={`text-sm px-2 py-1 rounded-full inline-block mb-4 ${getCategoryColor(selectedBook.category)}`}>
                   {selectedBook.category}
                 </p>
                 <p className="text-gray-700 mb-6">{selectedBook.description}</p>
                 
                 <div className="flex items-center justify-between mb-6">
-                  <span className="text-sm text-gray-600">Last updated: {selectedBook.lastUpdated}</span>
+                  <span className="text-sm text-gray-600">Last updated: {formatDate(selectedBook.lastUpdated)}</span>
                   <span className="text-sm font-medium bg-green-100 text-green-800 px-3 py-1 rounded">
                     Free
                   </span>
