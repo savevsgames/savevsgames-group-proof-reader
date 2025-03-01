@@ -16,10 +16,8 @@ enabled = true
 enabled = true
 port = 54323
 
-[[functions]]
-name = "generate-story-content"
+[functions.generate-story-content]
 verify_jwt = true
 
-[[functions]]
-name = "upload-context-file"
+[functions.upload-context-file]
 verify_jwt = true
