@@ -9,6 +9,11 @@ interface CommentContextItem {
   username: string;
 }
 
+interface ModelSettings {
+  model: string;
+  temperature: number;
+}
+
 // Load system prompt from Supabase
 export const loadSystemPrompt = async (storyId: string): Promise<string> => {
   try {
@@ -31,6 +36,31 @@ export const loadSystemPrompt = async (storyId: string): Promise<string> => {
   } catch (err) {
     console.error("Error in loadSystemPrompt:", err);
     return getDefaultSystemPrompt();
+  }
+};
+
+// Load model settings from Supabase
+export const loadModelSettings = async (storyId: string): Promise<ModelSettings | null> => {
+  try {
+    const { data, error } = await supabase
+      .from("book_llm_settings")
+      .select("model_settings")
+      .eq("book_id", storyId)
+      .single();
+
+    if (error) {
+      console.error("Error loading model settings:", error);
+      return null;
+    }
+
+    if (data && data.model_settings) {
+      return data.model_settings;
+    } else {
+      return null;
+    }
+  } catch (err) {
+    console.error("Error in loadModelSettings:", err);
+    return null;
   }
 };
 
@@ -58,6 +88,32 @@ export const saveSystemPrompt = async (storyId: string, systemPrompt: string): P
   }
 };
 
+// Save model settings to Supabase
+export const saveModelSettings = async (
+  storyId: string, 
+  modelSettings: ModelSettings
+): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from("book_llm_settings")
+      .upsert({
+        book_id: storyId,
+        model_settings: modelSettings,
+        updated_at: new Date().toISOString(),
+      })
+      .select();
+
+    if (error) {
+      throw error;
+    }
+
+    return true;
+  } catch (err) {
+    console.error("Error saving model settings:", err);
+    return false;
+  }
+};
+
 // Load comments for the current page
 export const loadComments = async (storyId: string, currentPage: number) => {
   try {
@@ -80,7 +136,9 @@ export const getDefaultSystemPrompt = (): string => {
 export const generateContent = async (
   systemPrompt: string,
   fullPrompt: string,
-  llmType: "node" | "choices"
+  llmType: "node" | "choices",
+  model: string = "gpt-4o-mini",
+  temperature: number = 0.7
 ) => {
   const response = await fetch("/api/generate-story-content", {
     method: "POST",
@@ -91,6 +149,8 @@ export const generateContent = async (
       systemPrompt,
       prompt: fullPrompt,
       contentType: llmType,
+      model,
+      temperature
     }),
   });
 
@@ -119,7 +179,7 @@ export const preparePromptData = (
 
   const commentsText = comments.length > 0
     ? "\nReader comments for this page:\n" + comments.map(c => 
-        `- ${c.profile?.username || 'Anonymous'}: "${c.content}"`
+        `- ${c.profile?.username || 'Anonymous'}: "${c.content || c.text}"`
       ).join("\n")
     : "\nNo reader comments for this page.";
 
@@ -143,12 +203,19 @@ export const preparePromptData = (
   const nextNodeText = nextNodeName && storyData[nextNodeName] ? 
     `\nNext page content: "${storyData[nextNodeName].text}"` : '';
 
-  return `
-Story node: "${currentNode}" (Page ${currentPage})
-Current text: "${nodeData.text}"
-Current choices: ${JSON.stringify(nodeData.choices, null, 2)}
+  // Story context section
+  const storyContextSection = `
+CURRENT STORY CONTEXT:
+Page Number: ${currentPage}
+Node Name: ${currentNode}
+Current Text: "${nodeData.text}"
+Current Choices: ${JSON.stringify(nodeData.choices, null, 2)}
 ${prevNodeText}
 ${nextNodeText}
+`;
+
+  return `
+${storyContextSection}
 ${commentsText}
 ${formattedCommentContext}
 

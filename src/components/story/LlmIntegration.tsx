@@ -9,7 +9,8 @@ import LlmSettings from "./llm/LlmSettings";
 import LlmOutput from "./llm/LlmOutput";
 import { 
   loadSystemPrompt, 
-  loadComments, 
+  loadComments,
+  loadModelSettings,
   preparePromptData,
   generateContent
 } from "@/lib/llmUtils";
@@ -42,17 +43,30 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
   const [llmOutput, setLlmOutput] = useState<string>("");
   const [llmType, setLlmType] = useState<"node" | "choices">("node");
   const [commentContext, setCommentContext] = useState<CommentContextItem[]>([]);
+  const [modelSettings, setModelSettings] = useState({
+    model: "gpt-4o-mini",
+    temperature: 0.7
+  });
   const { user } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
     const initializeData = async () => {
+      // Load system prompt
       const loadedSystemPrompt = await loadSystemPrompt(storyId);
       setSystemPrompt(loadedSystemPrompt);
       
+      // Load model settings
+      const loadedModelSettings = await loadModelSettings(storyId);
+      if (loadedModelSettings) {
+        setModelSettings(loadedModelSettings);
+      }
+      
+      // Load comments
       const loadedComments = await loadComments(storyId, currentPage);
       setComments(loadedComments);
       
+      // Set default prompt based on LLM type
       if (!prompt || prompt === "") {
         setPrompt(
           `Integrate all reader comments with the current page context to offer suggestions that can be integrated into the JSON file. Focus on improving ${
@@ -79,7 +93,7 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
     setLlmOutput("");
 
     try {
-      // Prepare full prompt with context
+      // Prepare full prompt with context including story context
       const fullPrompt = preparePromptData(
         storyData,
         currentNode,
@@ -94,10 +108,17 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
         systemPrompt,
         fullPrompt,
         llmType,
+        modelSettings
       });
 
-      // Generate content
-      const data = await generateContent(systemPrompt, fullPrompt, llmType);
+      // Generate content with model settings
+      const data = await generateContent(
+        systemPrompt, 
+        fullPrompt, 
+        llmType, 
+        modelSettings.model, 
+        modelSettings.temperature
+      );
       
       setLlmOutput(data.content);
       
@@ -173,10 +194,17 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
     });
   };
 
+  // Prepare the story context from current node and page
+  const storyContext = {
+    currentNodeName: currentNode,
+    currentPageNumber: currentPage,
+    nodeText: storyData[currentNode]?.text || "No text available for this node."
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="p-4 space-y-4">
+        <Card className="p-4 space-y-4 max-h-[85vh] overflow-y-auto">
           <LlmSettings
             storyId={storyId}
             systemPrompt={systemPrompt}
@@ -189,6 +217,9 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
             isLoading={isLoading}
             commentContext={commentContext}
             onClearCommentContext={clearCommentContext}
+            storyContext={storyContext}
+            modelSettings={modelSettings}
+            setModelSettings={setModelSettings}
           />
         </Card>
         
