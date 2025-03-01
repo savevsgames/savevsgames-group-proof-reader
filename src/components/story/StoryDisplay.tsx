@@ -2,7 +2,8 @@
 import React from 'react';
 import { StoryChoice } from '@/lib/storyUtils';
 import { StoryText } from './StoryText';
-import { StoryControls } from './StoryControls';
+import { StoryContinueButton } from './StoryContinueButton';
+import { StoryChoices } from './StoryChoices';
 import { EmptyStoryContent } from './EmptyStoryContent';
 
 interface StoryDisplayProps {
@@ -29,16 +30,17 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({
           <>
             <StoryText text={text} />
             
-            {/* Story Controls - now on the left page */}
+            {/* Story Controls - simplified for this component */}
             <div className="mt-4 md:mt-8">
-              <StoryControls
-                canContinue={canContinue}
-                choices={choices}
-                isEnding={isEnding}
-                text={text}
-                onContinue={onContinue}
-                onChoice={onChoice}
-              />
+              {isEnding || !text ? null : (
+                <div className="space-y-4 md:space-y-6">
+                  {canContinue ? (
+                    <StoryContinueButton onClick={onContinue} />
+                  ) : choices.length > 0 ? (
+                    <StoryChoices choices={choices} onChoice={onChoice} />
+                  ) : null}
+                </div>
+              )}
             </div>
           </>
         ) : (
