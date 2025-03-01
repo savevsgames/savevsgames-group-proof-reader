@@ -51,7 +51,7 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
   onPageChange
 }) => {
   return (
-    <div className="max-w-6xl w-full relative book-container mt-6 px-4 md:px-0 mx-auto bg-[#3A2618] rounded-lg overflow-hidden">
+    <div className="container mx-auto relative book-container mt-6 px-0 md:px-2 overflow-hidden">
       <BookHeader 
         bookTitle={bookTitle}
         currentPage={currentPage}
@@ -67,11 +67,11 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
       {/* Enhanced book shadow */}
       <div className="absolute inset-0 shadow-2xl rounded-lg"></div>
       
-      {/* Book pages - fix for equal height and preventing horizontal overflow */}
-      <div className="flex flex-col md:flex-row rounded-lg overflow-hidden h-[80vh] max-w-full">
-        {/* Story page */}
-        <div className="w-full md:w-2/5 lg:w-[45%] h-full relative overflow-hidden">
-          <div className="absolute inset-0 bg-[#E8DCC4] p-4 md:p-6 lg:p-10 book-page rounded-lg md:rounded-l-lg md:rounded-r-none overflow-y-auto overflow-x-hidden">
+      {/* Book pages container with fixed height and proper overflow handling */}
+      <div className="flex flex-col md:flex-row rounded-lg overflow-hidden h-[80vh]">
+        {/* Story page - fixed height with scrolling content */}
+        <div className="w-full md:w-2/5 lg:w-[45%] h-full">
+          <div className="h-full bg-[#E8DCC4] p-4 md:p-6 lg:p-8 book-page rounded-lg md:rounded-l-lg md:rounded-r-none overflow-y-auto">
             <StoryDisplay 
               text={currentText} 
               canContinue={canContinue}
@@ -84,9 +84,9 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
           </div>
         </div>
         
-        {/* Comments page - ensure it has the same height and scrolls properly */}
-        <div className="w-full md:w-3/5 lg:w-[55%] h-full relative overflow-hidden">
-          <div className="absolute inset-0 bg-[#E8DCC4] p-4 md:p-6 lg:p-10 book-page rounded-lg md:rounded-l-none md:rounded-r-lg">
+        {/* Comments page - independent scrolling with matched height */}
+        <div className="w-full md:w-3/5 lg:w-[55%] h-full">
+          <div className="h-full bg-[#E8DCC4] p-4 md:p-6 lg:p-8 book-page rounded-lg md:rounded-l-none md:rounded-r-lg">
             <CommentsView 
               storyId={storyId}
               currentNode={currentNode}

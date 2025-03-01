@@ -38,11 +38,11 @@ const CommentsView = ({
   } = useComments(storyId, currentPage, onCommentsUpdate);
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      <h2 className="text-2xl font-serif mb-4 text-[#3A2618]">Reader Comments</h2>
+    <div className="h-full flex flex-col">
+      <h2 className="text-2xl font-serif mb-4 text-[#3A2618] flex-shrink-0">Reader Comments</h2>
       
-      <ScrollArea className="flex-1 -mr-5 pr-5 overflow-y-auto">
-        <div className="flex flex-col">
+      <ScrollArea className="flex-grow overflow-y-auto pr-1">
+        <div className="flex flex-col pb-4">
           {user ? (
             <CommentForm
               user={user}

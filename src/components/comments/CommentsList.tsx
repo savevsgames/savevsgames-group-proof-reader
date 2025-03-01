@@ -45,7 +45,7 @@ const CommentsList: React.FC<CommentsListProps> = ({
   }
 
   return (
-    <div className="max-h-[300px] overflow-y-auto mb-4 space-y-4">
+    <div className="space-y-4">
       {comments.map((comment) => (
         <CommentItem 
           key={comment.id}

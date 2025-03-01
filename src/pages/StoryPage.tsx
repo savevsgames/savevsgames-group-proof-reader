@@ -9,10 +9,10 @@ const StoryPage = () => {
   const { id } = useParams();
 
   return (
-    <div className="min-h-screen bg-[#3A2618] w-screen overflow-x-hidden">
+    <div className="min-h-screen bg-[#3A2618] w-full overflow-x-hidden">
       <Header />
       
-      <div className="max-w-7xl mx-auto px-4">
+      <div className="mx-auto px-4 w-full">
         <StoryEngine />
       </div>
     </div>
