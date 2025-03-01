@@ -10,9 +10,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 interface InkViewProps {
   storyData: CustomStory;
+  currentNode?: string;
 }
 
-const InkView: React.FC<InkViewProps> = ({ storyData }) => {
+const InkView: React.FC<InkViewProps> = ({ storyData, currentNode = "root" }) => {
   const [inkContent, setInkContent] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("code");
   const [previewStory, setPreviewStory] = useState<Story | null>(null);
@@ -31,6 +32,41 @@ const InkView: React.FC<InkViewProps> = ({ storyData }) => {
       }
     }
   }, [storyData]);
+
+  // Highlight the current node in the Ink content
+  useEffect(() => {
+    if (inkContent && currentNode && currentNode !== 'root') {
+      try {
+        // Find the knot declaration line for the current node
+        const knotPattern = new RegExp(`=== ${currentNode} ===`, 'g');
+        
+        // Highlight could be implemented here, but for now we'll just scroll to it
+        setTimeout(() => {
+          const codeElement = document.querySelector('.ink-code-view pre');
+          if (codeElement) {
+            // Find the position of the knot in the content
+            const text = codeElement.textContent || '';
+            const index = text.indexOf(`=== ${currentNode} ===`);
+            
+            if (index >= 0) {
+              // Calculate the line number based on content before the match
+              const beforeText = text.substring(0, index);
+              const lineNumber = beforeText.split('\n').length;
+              
+              // Scroll to that line
+              const lineHeight = 20; // Approximate line height in pixels
+              codeElement.parentElement?.scrollTo({
+                top: lineHeight * (lineNumber - 3), // Scroll a few lines above
+                behavior: 'smooth'
+              });
+            }
+          }
+        }, 100);
+      } catch (e) {
+        console.error("Error highlighting current node:", e);
+      }
+    }
+  }, [inkContent, currentNode, activeTab]);
 
   const handleCopyToClipboard = async () => {
     try {
@@ -140,7 +176,7 @@ const InkView: React.FC<InkViewProps> = ({ storyData }) => {
         </TabsList>
 
         <TabsContent value="code" className="mt-0">
-          <ScrollArea className="h-[500px] border rounded-md p-4 bg-gray-50 font-mono text-sm">
+          <ScrollArea className="h-[500px] border rounded-md p-4 bg-gray-50 font-mono text-sm ink-code-view">
             <pre className="whitespace-pre-wrap">{inkContent}</pre>
           </ScrollArea>
         </TabsContent>

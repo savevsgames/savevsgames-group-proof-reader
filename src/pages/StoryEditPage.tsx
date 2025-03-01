@@ -1,12 +1,15 @@
 
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useCallback } from "react";
+import { useParams, useNavigate, useBeforeUnload } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { CustomStory } from "@/lib/storyUtils";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import StoryTabs from "@/components/story/StoryTabs";
+import { BookHeader } from "@/components/story/BookHeader";
 import { useToast } from "@/hooks/use-toast";
+import { Save, AlertTriangle } from "lucide-react";
 
 const StoryEditPage = () => {
   const { id } = useParams();
@@ -16,8 +19,70 @@ const StoryEditPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [currentNode, setCurrentNode] = useState<string>("root");
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
+  const [navigationPath, setNavigationPath] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Warn the user if they try to close the tab with unsaved changes
+  useBeforeUnload(
+    useCallback(
+      (event) => {
+        if (hasUnsavedChanges) {
+          event.preventDefault();
+          return "You have unsaved changes. Are you sure you want to leave?";
+        }
+      },
+      [hasUnsavedChanges]
+    )
+  );
+
+  // Calculate total pages based on story data
+  useEffect(() => {
+    if (storyData) {
+      const numberOfNodes = Object.keys(storyData).length;
+      setTotalPages(Math.max(numberOfNodes, 1));
+    }
+  }, [storyData]);
+
+  // Handle page change
+  const handlePageChange = (newPage: number) => {
+    // Calculate node name from page number
+    const nodeName = Object.entries(storyData || {})
+      .find(([_, __, index]) => index === newPage - 1)?.[0] || "root";
+      
+    setCurrentNode(nodeName);
+    setCurrentPage(newPage);
+  };
+
+  // Handle node change
+  const handleNodeChange = (nodeName: string) => {
+    setCurrentNode(nodeName);
+    // Calculate page number from node index
+    const nodeIndex = Object.keys(storyData || {}).indexOf(nodeName);
+    setCurrentPage(nodeIndex >= 0 ? nodeIndex + 1 : 1);
+  };
+
+  // Confirmation when navigating away with unsaved changes
+  const handleNavigation = (path: string) => {
+    if (hasUnsavedChanges) {
+      setNavigationPath(path);
+      setIsLeaveDialogOpen(true);
+    } else {
+      navigate(path);
+    }
+  };
+
+  const confirmNavigation = () => {
+    setIsLeaveDialogOpen(false);
+    if (navigationPath) {
+      navigate(navigationPath);
+    }
+  };
 
   useEffect(() => {
     const fetchStory = async () => {
@@ -71,16 +136,25 @@ const StoryEditPage = () => {
           if (storyContent) {
             setStoryData(storyContent);
             setError(null);
+            
+            // Calculate total pages
+            const numberOfNodes = Object.keys(storyContent).length;
+            setTotalPages(Math.max(numberOfNodes, 1));
           } else {
             // Create a default empty story structure as fallback
             console.log("No valid story content found, creating default structure");
-            setStoryData({
+            const defaultStory = {
               root: {
                 text: "Start writing your story here...",
                 choices: [],
               },
-            });
+            };
+            setStoryData(defaultStory);
+            setTotalPages(1);
           }
+          
+          // Reset unsaved changes flag
+          setHasUnsavedChanges(false);
         } else {
           setError("Story not found.");
         }
@@ -115,6 +189,8 @@ const StoryEditPage = () => {
         throw error;
       }
 
+      setHasUnsavedChanges(false);
+      
       toast({
         title: "Success",
         description: "Story saved successfully!",
@@ -138,10 +214,33 @@ return (
     <Header />
     
     <main className="container mx-auto py-8 px-4">
+      {/* Use BookHeader for page navigation */}
+      {story && !loading && (
+        <BookHeader
+          bookTitle={story.title || "Untitled Story"}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          canGoBack={false}
+          commentCount={0}
+          onBack={() => {}}
+          onRestart={() => {}}
+          onOpenComments={() => {}}
+          onPageChange={handlePageChange}
+        />
+      )}
+      
       <div className="mb-6">
         <h1 className="text-3xl font-serif font-bold text-[#3A2618]">Edit Story</h1>
         {story?.title && (
           <h2 className="text-xl text-[#5A3A28] mt-2">{story.title}</h2>
+        )}
+        
+        {/* Unsaved changes indicator */}
+        {hasUnsavedChanges && (
+          <div className="mt-2 flex items-center text-amber-600">
+            <AlertTriangle className="h-4 w-4 mr-1" />
+            <span className="text-sm">You have unsaved changes</span>
+          </div>
         )}
       </div>
 
@@ -168,28 +267,36 @@ return (
               <StoryTabs 
                 storyId={storyId} 
                 storyData={storyData} 
-                onStoryDataChange={handleStoryDataChange} 
+                onStoryDataChange={handleStoryDataChange}
+                onUnsavedChanges={setHasUnsavedChanges}
+                currentNode={currentNode}
+                onNodeChange={handleNodeChange}
               />
               
               <div className="mt-6 flex justify-between items-center">
                 <Button 
                   variant="outline" 
-                  onClick={() => navigate('/dashboard')}
+                  onClick={() => handleNavigation('/dashboard')}
                 >
                   Back to Dashboard
                 </Button>
                 
                 <Button 
                   onClick={handleSave}
-                  disabled={saving}
-                  className="bg-[#F97316] hover:bg-[#E86305] text-white"
+                  disabled={saving || !hasUnsavedChanges}
+                  className={`${hasUnsavedChanges ? 'bg-[#F97316] hover:bg-[#E86305]' : 'bg-gray-400'} text-white`}
                 >
                   {saving ? (
                     <>
                       <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent mr-2"></span>
                       Saving...
                     </>
-                  ) : "Save Changes"}
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Save Changes
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
@@ -207,6 +314,27 @@ return (
           )}
         </>
       )}
+      
+      {/* Navigation confirmation dialog */}
+      <AlertDialog open={isLeaveDialogOpen} onOpenChange={setIsLeaveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes that will be lost if you leave this page.
+              Do you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsLeaveDialogOpen(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmNavigation}>
+              Leave
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   </div>
 );
