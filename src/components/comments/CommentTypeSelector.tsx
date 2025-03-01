@@ -27,7 +27,7 @@ const CommentTypeSelector: React.FC<CommentTypeSelectorProps> = ({
             }`}
             style={{ 
               backgroundColor: commentTypeColors[type as CommentType],
-              color: ['suggestion', 'spelling'].includes(type as CommentType) ? '#3A2618' : 'white'
+              color: ['suggestion', 'spelling', 'praise', 'general'].includes(type as CommentType) ? '#3A2618' : 'white'
             }}
           >
             {label}

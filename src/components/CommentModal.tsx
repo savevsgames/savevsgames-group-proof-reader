@@ -123,14 +123,12 @@ export const CommentModal: React.FC<CommentModalProps> = ({
     setIsSubmitting(true);
 
     try {
-      const safeCommentType = selectedCommentType === 'question' ? 'edit' : selectedCommentType;
-      
       if (editingComment) {
         const { error } = await supabase
           .from('comments')
           .update({
             text: commentText,
-            comment_type: safeCommentType,
+            comment_type: selectedCommentType,
             updated_at: new Date().toISOString(),
           })
           .eq('id', editingComment.id)
@@ -154,7 +152,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
             story_position_old: String(storyPosition),
             story_node: 'modal-comment',
             text: commentText,
-            comment_type: safeCommentType,
+            comment_type: selectedCommentType,
           });
 
         if (error) {

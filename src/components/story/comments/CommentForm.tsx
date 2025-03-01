@@ -46,8 +46,6 @@ const CommentForm = ({
     }
 
     try {
-      const safeCommentType = type === 'question' ? 'edit' : type;
-      
       const { data, error } = await supabase
         .from('comments')
         .insert([{
@@ -56,7 +54,7 @@ const CommentForm = ({
           story_position_old: String(currentPage), // Add the required field
           story_node: currentNode,
           text: text,
-          comment_type: safeCommentType,
+          comment_type: type,
           user_id: user.id
         }])
         .select('*')
@@ -75,13 +73,11 @@ const CommentForm = ({
 
   const updateComment = async (commentId: string, text: string, type: CommentType) => {
     try {
-      const safeCommentType = type === 'question' ? 'edit' : type;
-      
       const { data, error } = await supabase
         .from('comments')
         .update({ 
           text: text, 
-          comment_type: safeCommentType,
+          comment_type: type,
           // Don't update story_node or story_position when editing
         })
         .eq('id', commentId)
