@@ -1,12 +1,11 @@
-
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
-import { StoryStore } from './types';
+import { StoryStore, StoryState, StoryActions } from './types';
 import { generateAndLogNodeMappings, extractStoryContent } from '@/lib/storyEditorUtils';
 import { supabase } from '@/lib/supabase';
 import { fetchCommentCount } from '@/lib/storyUtils';
 
-const initialState: Omit<StoryStore, keyof StoryActions> = {
+const initialState: StoryState = {
   storyId: null,
   story: null,
   storyData: null,
@@ -95,14 +94,6 @@ export const useStoryStore = create<StoryStore>()(
               currentPage: prevPage,
               currentStoryPosition: prevPage
             });
-            
-            // Update comment count
-            const storyId = get().storyId;
-            if (storyId) {
-              fetchCommentCount(storyId, prevPage).then(count => 
-                set({ commentCount: count })
-              );
-            }
           }
         },
         
@@ -145,19 +136,17 @@ export const useStoryStore = create<StoryStore>()(
             currentPage: page,
             currentStoryPosition: page
           });
-          
-          // Update comment count
-          const storyId = get().storyId;
-          if (storyId) {
-            fetchCommentCount(storyId, page).then(count => 
-              set({ commentCount: count })
-            );
-          }
         },
         
         // Compound actions
         initializeStory: async (storyId) => {
           const store = get();
+          
+          // Prevent duplicate initializations
+          if (store.storyId === storyId && !store.loading && store.storyData) {
+            console.log("[StoryStore] Story already initialized, skipping");
+            return;
+          }
           
           console.log("[StoryStore] Initializing story:", storyId);
           set({ loading: true, storyId, error: null });
@@ -436,10 +425,6 @@ export const useStoryStore = create<StoryStore>()(
                   currentStoryPosition: newPage
                 });
               }
-              
-              // Update comment count
-              const count = await fetchCommentCount(storyId, get().currentPage);
-              set({ commentCount: count });
             } else {
               console.error(`[StoryStore] Node "${nextNode}" not found in story`);
             }
@@ -480,10 +465,6 @@ export const useStoryStore = create<StoryStore>()(
               currentChoices: []
             });
           }
-          
-          // Update comment count
-          const count = await fetchCommentCount(storyId, 1);
-          set({ commentCount: count });
         }
       }),
       {

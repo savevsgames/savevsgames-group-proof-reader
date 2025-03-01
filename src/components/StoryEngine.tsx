@@ -35,7 +35,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
     goBack: handleBack,
     handleRestart,
     handlePageChange,
-    updateCommentCount,
+    setCommentCount
   } = useStoryStore(state => ({
     loading: state.loading,
     error: state.error,
@@ -54,17 +54,21 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
     goBack: state.goBack,
     handleRestart: state.handleRestart,
     handlePageChange: state.handlePageChange,
-    updateCommentCount: () => {
-      if (storyId) {
-        fetchCommentCount(storyId, state.currentStoryPosition).then(count => {
-          state.setCommentCount(count);
-        });
-      }
-    }
+    setCommentCount: state.setCommentCount
   }), shallow);
 
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
+
+  // Creating a self-contained function to update comments
+  const updateCommentCount = React.useCallback(() => {
+    if (storyId) {
+      fetchComments(storyId, currentStoryPosition).then(commentsData => {
+        setComments(commentsData);
+        setCommentCount(commentsData.length);
+      });
+    }
+  }, [storyId, currentStoryPosition, setCommentCount]);
 
   // Load comments when modal opens
   const handleCommentModalOpenChange = (open: boolean) => {

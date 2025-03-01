@@ -29,7 +29,6 @@ const StoryEditPage = () => {
     initializeStory,
     handlePageChange,
     handleNodeChange,
-    handleNavigate,
     handleStoryDataChange,
     handleSave,
   } = useStoryStore(
@@ -46,13 +45,6 @@ const StoryEditPage = () => {
       initializeStory: state.initializeStory,
       handlePageChange: state.handlePageChange,
       handleNodeChange: state.handleNodeChange,
-      handleNavigate: (target: string) => {
-        if (target === 'back' && state.canGoBack) {
-          state.goBack();
-        } else if (target === 'restart') {
-          state.handleRestart();
-        }
-      },
       handleStoryDataChange: state.handleStoryDataChange,
       handleSave: state.handleSave,
     }),
@@ -84,6 +76,14 @@ const StoryEditPage = () => {
   
   const confirmNavigation = () => {
     setIsLeaveDialogOpen(false);
+  };
+
+  const handleNavigate = (target: string) => {
+    if (target === 'back' && useStoryStore.getState().canGoBack) {
+      useStoryStore.getState().goBack();
+    } else if (target === 'restart') {
+      useStoryStore.getState().handleRestart();
+    }
   };
 
   return (
