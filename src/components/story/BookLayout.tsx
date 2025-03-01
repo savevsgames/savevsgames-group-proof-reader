@@ -40,6 +40,7 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
   isEnding,
   canGoBack,
   commentCount,
+  comments,
   currentUser,
   storyId,
   onContinue,
@@ -77,6 +78,7 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
             isEnding={isEnding}
             onContinue={onContinue}
             onChoice={onChoice}
+            onRestart={onRestart}
           />
         </div>
         

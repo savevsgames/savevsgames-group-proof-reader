@@ -217,7 +217,7 @@ const CommentsView: React.FC<CommentsViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full book-page px-6 py-4 rounded-lg">
+    <div className="flex flex-col h-full">
       <h2 className="text-2xl font-serif mb-6 text-[#3A2618]">Reader Comments</h2>
       
       {user ? (
