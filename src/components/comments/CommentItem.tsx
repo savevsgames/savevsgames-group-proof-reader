@@ -51,7 +51,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
               className="inline-block px-2 py-0.5 rounded text-xs font-medium my-1"
               style={{ 
                 backgroundColor: commentTypeColor,
-                color: ['suggestion', 'spelling'].includes(commentType) ? '#3A2618' : 'white'
+                color: ['suggestion', 'spelling', 'praise', 'general'].includes(commentType) ? '#3A2618' : 'white'
               }}
             >
               {commentTypeLabel}

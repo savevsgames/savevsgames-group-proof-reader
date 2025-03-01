@@ -247,7 +247,14 @@ export type Database = {
       }
     }
     Enums: {
-      comment_type: "edit" | "suggestion" | "spelling" | "error" | "other"
+      comment_type:
+        | "edit"
+        | "suggestion"
+        | "praise"
+        | "issue"
+        | "spelling"
+        | "general"
+        | "question"
     }
     CompositeTypes: {
       [_ in never]: never
