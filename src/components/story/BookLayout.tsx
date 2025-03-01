@@ -70,7 +70,7 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
       {/* Book pages - side-by-side layout */}
       <div className="flex flex-col md:flex-row rounded-lg overflow-hidden">
         {/* Story page - story content and controls */}
-        <div className="w-full md:w-2/5 lg:w-[45%]">
+        <div className="w-full md:w-2/5 lg:w-[45%] min-h-[600px] max-h-[80vh] overflow-y-auto">
           <StoryDisplay 
             text={currentText} 
             canContinue={canContinue}
@@ -83,8 +83,8 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
         </div>
         
         {/* Comments page - only shows comments */}
-        <div className="w-full md:w-3/5 lg:w-[55%] mb-4 md:mb-0">
-          <div className="w-full bg-[#E8DCC4] p-4 md:p-6 lg:p-8 min-h-[400px] md:min-h-[600px] rounded-lg md:rounded-none book-page">
+        <div className="w-full md:w-3/5 lg:w-[55%] mb-4 md:mb-0 min-h-[600px] max-h-[80vh]">
+          <div className="w-full bg-[#E8DCC4] h-full p-4 md:p-6 lg:p-8 rounded-lg md:rounded-none book-page">
             <CommentsView 
               storyId={storyId}
               currentNode={currentNode}

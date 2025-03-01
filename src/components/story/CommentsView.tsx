@@ -38,28 +38,28 @@ const CommentsView = ({
   } = useComments(storyId, currentPage, onCommentsUpdate);
 
   return (
-    <div className="flex flex-col h-full">
-      <h2 className="text-2xl font-serif mb-4 text-[#3A2618]">Reader Comments</h2>
-      
-      {user ? (
-        <CommentForm
-          user={user}
-          storyId={storyId}
-          currentNode={currentNode}
-          currentPage={currentPage}
-          isEditing={isEditing}
-          editingCommentId={editingCommentId}
-          commentText={commentText}
-          commentType={commentType as CommentType}
-          onCommentTextChange={setCommentText}
-          onCommentTypeChange={setCommentType}
-          onCancelEdit={handleCancelEdit}
-          onCommentsUpdate={onCommentsUpdate}
-          comments={comments}
-        />
-      ) : null}
-      
-      <ScrollArea className="flex-1 min-h-0 overflow-hidden">
+    <ScrollArea className="h-full">
+      <div className="flex flex-col pr-4">
+        <h2 className="text-2xl font-serif mb-4 text-[#3A2618]">Reader Comments</h2>
+        
+        {user ? (
+          <CommentForm
+            user={user}
+            storyId={storyId}
+            currentNode={currentNode}
+            currentPage={currentPage}
+            isEditing={isEditing}
+            editingCommentId={editingCommentId}
+            commentText={commentText}
+            commentType={commentType as CommentType}
+            onCommentTextChange={setCommentText}
+            onCommentTypeChange={setCommentType}
+            onCancelEdit={handleCancelEdit}
+            onCommentsUpdate={onCommentsUpdate}
+            comments={comments}
+          />
+        ) : null}
+        
         <CommentSection
           user={user}
           comments={comments}
@@ -67,8 +67,8 @@ const CommentsView = ({
           onDeleteComment={deleteComment}
           onAddToLlmContext={onAddToLlmContext}
         />
-      </ScrollArea>
-    </div>
+      </div>
+    </ScrollArea>
   );
 };
 
