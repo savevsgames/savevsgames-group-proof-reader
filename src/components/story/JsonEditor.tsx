@@ -100,7 +100,7 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
       
       // Set selection to highlight the node
       textareaRef.current.focus();
-      textareaRef.current.setSelectionRange(position, position + nodeContent.length);
+      textareaRef.current.setSelectionRange(position, closingBracePos);
       
       // Scroll to the node
       const lines = text.substring(0, position).split('\n');
@@ -109,6 +109,19 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
       textareaRef.current.scrollTop = lineHeight * (lineNumber - 5); // Scroll a few lines above
       
       console.log(`Highlighted node ${nodeName} at position ${position}, length ${nodeContent.length}`);
+      
+      // Apply custom CSS to enhance the selection highlight
+      // This adds a left border marker and changes the selection color
+      document.documentElement.style.setProperty('--json-selection-bg', 'rgba(59, 130, 246, 0.2)');
+      textareaRef.current.classList.add('json-node-selected');
+      
+      // Set a timeout to remove the selected class after a delay
+      // This allows the user to click away without losing the highlight immediately
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.classList.remove('json-node-selected');
+        }
+      }, 5000); // Keep highlight active for 5 seconds
     } else {
       console.warn(`Node ${nodeName} not found in JSON text`);
     }
@@ -182,6 +195,29 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
 
   return (
     <div className="flex flex-col h-full space-y-4">
+      <style jsx global>{`
+        /* Custom styling for the JSON editor */
+        .json-editor-textarea {
+          font-family: monospace;
+          font-size: 14px;
+          line-height: 1.5;
+          tab-size: 2;
+          white-space: pre;
+        }
+        
+        .json-editor-textarea::selection {
+          background-color: var(--json-selection-bg, rgba(59, 130, 246, 0.1));
+        }
+        
+        .json-node-selected {
+          border-left: 3px solid #3b82f6 !important;
+        }
+        
+        .json-node-selected::selection {
+          background-color: rgba(59, 130, 246, 0.2);
+        }
+      `}</style>
+      
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4">
           <h3 className="text-lg font-medium">JSON Editor</h3>
@@ -235,7 +271,7 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
           ref={textareaRef}
           value={jsonText}
           onChange={handleTextChange}
-          className="font-mono text-sm min-h-[500px] border-none focus-visible:ring-0"
+          className="json-editor-textarea min-h-[500px] border-none focus-visible:ring-0"
           placeholder="Enter your story JSON here..."
           style={textAreaStyle}
         />
