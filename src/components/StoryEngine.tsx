@@ -10,7 +10,8 @@ import { fetchComments } from '@/lib/storyUtils';
 import { Comment } from './CommentModal';
 
 export const StoryEngine: React.FC = () => {
-  const { storyId } = useParams<{ storyId: string }>();
+  // Changed parameter name from storyId to id to match route parameter
+  const { id: storyId } = useParams<{ id: string }>();
   const { user } = useAuth();
   
   const {
