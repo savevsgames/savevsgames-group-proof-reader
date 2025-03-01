@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, SkipBack, BookOpen } from "lucide-react";
-import { CustomStory, generateNodeMappings } from "@/lib/storyUtils";
+import { CustomStory } from "@/lib/storyUtils";
 import { StoryChoice } from "@/lib/storyUtils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -38,18 +38,12 @@ const ReaderView: React.FC<ReaderViewProps> = ({
   const [mappings, setMappings] = useState(nodeMappings);
   
   useEffect(() => {
-    if (Object.keys(nodeMappings.nodeToPage).length === 0 && storyData) {
-      const generatedMappings = generateNodeMappings(storyData);
-      setMappings({
-        nodeToPage: generatedMappings.storyNodeToPageMap,
-        pageToNode: generatedMappings.pageToStoryNodeMap
-      });
-      console.log("ReaderView: Generated mappings", generatedMappings);
-    } else {
+    // Always update with the latest provided mappings
+    if (nodeMappings) {
       setMappings(nodeMappings);
-      console.log("ReaderView: Using provided mappings", nodeMappings);
+      console.log("ReaderView: Updated with latest mappings", nodeMappings);
     }
-  }, [storyData, nodeMappings]);
+  }, [nodeMappings]);
 
   // Get current page number from node name using provided mappings
   const currentPage = currentNode && mappings.nodeToPage ? mappings.nodeToPage[currentNode] || 1 : 1;
@@ -146,12 +140,29 @@ const ReaderView: React.FC<ReaderViewProps> = ({
       return;
     }
     
+    // Debug output to trace the issue
+    console.log(`Attempting to navigate to page ${pageNumber}`);
+    console.log("Available pageToNode mappings:", mappings.pageToNode);
+    
+    // We need to access the correct node name for this page number
     const nodeName = mappings.pageToNode[pageNumber];
-    if (!nodeName || !storyData[nodeName]) {
-      console.error(`ReaderView: No node found for page ${pageNumber}`, mappings.pageToNode);
+    
+    if (!nodeName) {
+      console.error(`ReaderView: No node mapping found for page ${pageNumber}`);
       toast({
         title: "Navigation Error",
-        description: `Could not find content for page ${pageNumber}`,
+        description: `Could not find node mapping for page ${pageNumber}`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Make sure the node exists in storyData
+    if (!storyData[nodeName]) {
+      console.error(`ReaderView: Node "${nodeName}" not found in storyData for page ${pageNumber}`);
+      toast({
+        title: "Navigation Error",
+        description: `Node "${nodeName}" not found in story data`,
         variant: "destructive"
       });
       return;

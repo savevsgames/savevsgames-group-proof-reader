@@ -1,678 +1,476 @@
 
 import React, { useState, useEffect } from "react";
-import { CustomStory } from "@/lib/storyUtils";
-import { Card } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { 
+  Wand2,
+  Send,
+  Save,
+  FileText,
+  MessageSquare,
+  Settings,
+  AlertCircle
+} from "lucide-react";
+import { CustomStory } from "@/lib/storyUtils";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { fetchComments } from "@/lib/storyUtils";
-import { Loader2, Upload, FileText, AlertCircle, Trash2, MessageSquare } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface LlmIntegrationProps {
   storyId: string;
   storyData: CustomStory;
-  currentNode?: string;
-  currentPage?: number;
+  currentNode: string;
   onStoryUpdate: (updatedStory: CustomStory) => void;
+  currentPage: number;
 }
 
 interface LlmSettings {
   id?: string;
-  book_id: string;
-  model_version: string;
+  bookId?: string;
+  modelVersion: string;
   temperature: number;
-  permanent_context: string;
-}
-
-interface ContextFile {
-  id: string;
-  book_id: string;
-  file_path: string;
-  file_name: string;
-  file_type: string;
-  created_at: string;
+  permanentContext: string;
 }
 
 interface Comment {
   id: string;
-  content: string;
+  text: string;
   created_at: string;
   profile: {
     username: string;
   };
 }
 
-const DEFAULT_SETTINGS = {
-  book_id: "",
-  model_version: "gpt-4o",
-  temperature: 0.7,
-  permanent_context: ""
-};
-
-const MODEL_OPTIONS = [
-  { value: "gpt-4o", label: "GPT-4o" },
-  { value: "gpt-4", label: "GPT-4" },
-  { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" }
-];
-
-const LlmIntegration: React.FC<LlmIntegrationProps> = ({ 
-  storyId, 
-  storyData, 
-  currentNode = "root",
-  currentPage = 1,
-  onStoryUpdate 
+const LlmIntegration: React.FC<LlmIntegrationProps> = ({
+  storyId,
+  storyData,
+  currentNode,
+  onStoryUpdate,
+  currentPage
 }) => {
-  const [settings, setSettings] = useState<any>({ ...DEFAULT_SETTINGS, book_id: storyId });
-  const [contextFiles, setContextFiles] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [generationPrompt, setGenerationPrompt] = useState("");
-  const [generating, setGenerating] = useState(false);
-  const [generatedContent, setGeneratedContent] = useState<string>("");
+  const [prompt, setPrompt] = useState<string>("");
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [settings, setSettings] = useState<LlmSettings>({
+    modelVersion: "gpt-4o",
+    temperature: 0.7,
+    permanentContext: ""
+  });
+  const [activeTab, setActiveTab] = useState<string>("generate");
   const [comments, setComments] = useState<Comment[]>([]);
-  const [loadingComments, setLoadingComments] = useState(false);
+  const [isLoadingComments, setIsLoadingComments] = useState<boolean>(false);
+  const [llmOutput, setLlmOutput] = useState<string>("");
   const { toast } = useToast();
 
+  // Load LLM settings when component mounts
   useEffect(() => {
-    const fetchSettingsAndFiles = async () => {
-      setLoading(true);
+    const loadSettings = async () => {
       try {
-        const { data: settingsData, error: settingsError } = await supabase
+        const { data, error } = await supabase
           .from("book_llm_settings")
           .select("*")
           .eq("book_id", storyId)
           .single();
 
-        if (settingsError && settingsError.code !== "PGRST116") {
-          console.error("Error fetching settings:", settingsError);
-          throw settingsError;
+        if (error) {
+          console.error("Error loading LLM settings:", error);
+          return;
         }
 
-        if (settingsData) {
-          setSettings(settingsData);
-        } else {
-          const { data: newSettings, error: createError } = await supabase
-            .from("book_llm_settings")
-            .insert({ ...DEFAULT_SETTINGS, book_id: storyId })
-            .select()
-            .single();
-
-          if (createError) {
-            console.error("Error creating settings:", createError);
-            throw createError;
-          }
-
-          if (newSettings) {
-            setSettings(newSettings);
-          }
-        }
-
-        const { data: filesData, error: filesError } = await supabase
-          .from("book_context_files")
-          .select("*")
-          .eq("book_id", storyId);
-
-        if (filesError) {
-          console.error("Error fetching context files:", filesError);
-          throw filesError;
-        }
-
-        if (filesData) {
-          setContextFiles(filesData);
+        if (data) {
+          setSettings({
+            id: data.id,
+            bookId: data.book_id,
+            modelVersion: data.model_version || "gpt-4o",
+            temperature: data.temperature || 0.7,
+            permanentContext: data.permanent_context || ""
+          });
         }
       } catch (error) {
-        toast({
-          title: "Error loading LLM settings",
-          description: "Failed to load settings: " + (error as Error).message,
-          variant: "destructive"
-        });
-      } finally {
-        setLoading(false);
+        console.error("Failed to load LLM settings:", error);
       }
     };
 
-    if (storyId) {
-      fetchSettingsAndFiles();
-    }
-  }, [storyId, toast]);
+    loadSettings();
+  }, [storyId]);
 
-  // Fetch comments for the current page
+  // Load comments for the current page
   useEffect(() => {
     const loadComments = async () => {
       if (!storyId || !currentPage) return;
       
-      setLoadingComments(true);
+      setIsLoadingComments(true);
       try {
         const commentsData = await fetchComments(storyId, currentPage);
         setComments(commentsData);
       } catch (error) {
-        console.error('Error fetching comments:', error);
+        console.error("Error loading comments:", error);
         toast({
-          title: "Error loading comments",
-          description: "Failed to load comments for this page",
+          title: "Error",
+          description: "Failed to load comments for this page.",
           variant: "destructive"
         });
       } finally {
-        setLoadingComments(false);
+        setIsLoadingComments(false);
       }
     };
-    
+
     loadComments();
   }, [storyId, currentPage, toast]);
 
-  const saveSettings = async () => {
-    setLoading(true);
+  // Save LLM settings
+  const handleSaveSettings = async () => {
     try {
-      const { error } = await supabase
-        .from("book_llm_settings")
-        .upsert(settings)
-        .eq("book_id", storyId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Settings saved",
-        description: "Your LLM settings have been updated."
-      });
-    } catch (error) {
-      toast({
-        title: "Error saving settings",
-        description: "Failed to save settings: " + (error as Error).message,
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) {
-      return;
-    }
-
-    const file = e.target.files[0];
-    const maxSize = 10 * 1024 * 1024; // 10MB
-
-    if (file.size > maxSize) {
-      toast({
-        title: "File too large",
-        description: "Maximum file size is 10MB",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setUploading(true);
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("No active session");
-      
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("bookId", storyId);
-
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/upload-context-file`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`
-          },
-          body: formData
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Upload failed");
-      }
-
-      const result = await response.json();
-
-      const { data, error } = await supabase
-        .from("book_context_files")
-        .select("*")
-        .eq("book_id", storyId);
-
-      if (error) throw error;
-      setContextFiles(data || []);
-
-      toast({
-        title: "File uploaded",
-        description: `${file.name} has been uploaded successfully.`
-      });
-    } catch (error) {
-      toast({
-        title: "Upload failed",
-        description: (error as Error).message,
-        variant: "destructive"
-      });
-    } finally {
-      setUploading(false);
-      e.target.value = "";
-    }
-  };
-
-  const deleteContextFile = async (fileId: string) => {
-    try {
-      const fileToDelete = contextFiles.find(f => f.id === fileId);
-      if (!fileToDelete) throw new Error("File not found");
-
-      const { error: storageError } = await supabase
-        .storage
-        .from("rag_context_files")
-        .remove([fileToDelete.file_path]);
-
-      if (storageError) throw storageError;
-
-      const { error: dbError } = await supabase
-        .from("book_context_files")
-        .delete()
-        .eq("id", fileId);
-
-      if (dbError) throw dbError;
-
-      setContextFiles(contextFiles.filter(f => f.id !== fileId));
-
-      toast({
-        title: "File deleted",
-        description: `${fileToDelete.file_name} has been deleted.`
-      });
-    } catch (error) {
-      toast({
-        title: "Delete failed",
-        description: (error as Error).message,
-        variant: "destructive"
-      });
-    }
-  };
-
-  const generateContent = async () => {
-    if (!currentNode || !generationPrompt.trim()) {
-      toast({
-        title: "Missing information",
-        description: "Please provide a prompt for generating content.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setGenerating(true);
-    setGeneratedContent("");
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("No active session");
-      
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-story-content`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            bookId: storyId,
-            prompt: generationPrompt,
-            nodeId: currentNode
+      if (settings.id) {
+        // Update existing settings
+        const { error } = await supabase
+          .from("book_llm_settings")
+          .update({
+            model_version: settings.modelVersion,
+            temperature: settings.temperature,
+            permanent_context: settings.permanentContext,
+            updated_at: new Date()
           })
-        }
-      );
+          .eq("id", settings.id);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Generation failed");
+        if (error) throw error;
+      } else {
+        // Create new settings
+        const { error } = await supabase
+          .from("book_llm_settings")
+          .insert({
+            book_id: storyId,
+            model_version: settings.modelVersion,
+            temperature: settings.temperature,
+            permanent_context: settings.permanentContext
+          });
+
+        if (error) throw error;
       }
 
-      const result = await response.json();
-      
-      if (result.success && result.data.content) {
-        // Store the generated content in the state first
-        setGeneratedContent(result.data.content);
-        
-        toast({
-          title: "Content generated",
-          description: "Generated content is available in the output area below."
-        });
-      }
-    } catch (error) {
       toast({
-        title: "Generation failed",
-        description: (error as Error).message,
+        title: "Success",
+        description: "LLM settings saved successfully!",
+        duration: 3000
+      });
+    } catch (error: any) {
+      console.error("Error saving LLM settings:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save LLM settings: " + error.message,
         variant: "destructive"
       });
-    } finally {
-      setGenerating(false);
     }
   };
 
-  const applyGeneratedContent = () => {
-    if (!generatedContent || !currentNode) {
+  // Generate content with LLM
+  const handleGenerate = async () => {
+    if (!prompt.trim()) {
       toast({
-        title: "No content to apply",
-        description: "Please generate content first.",
+        title: "Error",
+        description: "Please enter a prompt.",
         variant: "destructive"
       });
       return;
     }
 
+    setIsGenerating(true);
+    setLlmOutput("");
+
     try {
-      const updatedStory = { ...storyData };
-      if (updatedStory[currentNode]) {
-        updatedStory[currentNode].text = generatedContent;
-        onStoryUpdate(updatedStory);
+      // Prepare the current node text and any context
+      const nodeText = storyData[currentNode]?.text || "No text available for this node.";
+      
+      // Combine comments for context
+      const commentsContext = comments.length > 0 
+        ? "Reader Comments:\n" + comments.map(c => `${c.profile.username}: ${c.text}`).join("\n")
+        : "No reader comments for this section.";
+      
+      // Construct the full prompt with context
+      const fullPrompt = `
+Current Node: ${currentNode} (Page ${currentPage})
+
+Story Text:
+${nodeText}
+
+${commentsContext}
+
+Permanent Context:
+${settings.permanentContext}
+
+Your Task:
+${prompt}`;
+
+      // Sample response for now - in a real app, this would call an API
+      // This is just to simulate the LLM response
+      setTimeout(() => {
+        // Simulate LLM generating a response
+        const sampleResponse = `Based on the current node "${currentNode}" and the reader comments, here's a suggestion for improving this section:
+
+The vault's description could be enhanced with more sensory details to immerse readers in the atmosphere. Consider adding details about:
+- The temperature (cold? unnaturally warm?)
+- Any sounds (distant humming? complete silence?)
+- Smells (metallic? ancient dust?)
+
+This would help readers feel more present in the scene and build tension before the introduction of the Dark Eye entity.
+
+I'd recommend expanding this paragraph to create a stronger sense of foreboding before revealing the central artifact.`;
+        
+        setLlmOutput(sampleResponse);
+        setIsGenerating(false);
         
         toast({
-          title: "Content applied",
-          description: `Content for node "${currentNode}" has been updated.`
+          title: "Generation Complete",
+          description: "LLM has generated content suggestions.",
+          duration: 3000
         });
-      }
-    } catch (error) {
+      }, 2000);
+      
+    } catch (error: any) {
+      console.error("Error generating content:", error);
       toast({
-        title: "Error applying content",
-        description: (error as Error).message,
+        title: "Generation Failed",
+        description: "An error occurred while generating content: " + error.message,
         variant: "destructive"
       });
+      setIsGenerating(false);
     }
+  };
+
+  // Apply LLM changes to the story (placeholder for now)
+  const handleApplyChanges = () => {
+    // In a real implementation, this would parse the LLM output and
+    // apply specific changes to the story data
+    toast({
+      title: "Action Required",
+      description: "Please review the suggestions and update the story text manually.",
+      duration: 5000
+    });
   };
 
   return (
-    <Tabs defaultValue="generate" className="w-full">
-      <TabsList className="mb-4">
-        <TabsTrigger value="generate">Generate Content</TabsTrigger>
-        <TabsTrigger value="settings">Model Settings</TabsTrigger>
-        <TabsTrigger value="context">Context Files</TabsTrigger>
-        <TabsTrigger value="comments">Reader Comments</TabsTrigger>
-      </TabsList>
+    <div className="flex flex-col space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="generate">
+            <Wand2 className="h-4 w-4 mr-2" />
+            Generate
+          </TabsTrigger>
+          <TabsTrigger value="context">
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Comments
+          </TabsTrigger>
+          <TabsTrigger value="settings">
+            <Settings className="h-4 w-4 mr-2" />
+            Settings
+          </TabsTrigger>
+        </TabsList>
 
-      <TabsContent value="generate" className="space-y-4">
-        <Card className="p-4">
-          <h3 className="text-lg font-medium mb-4">Generate Content for Node: {currentNode}</h3>
+        {/* Generate Tab */}
+        <TabsContent value="generate" className="space-y-4">
+          <Card className="p-4 bg-slate-50">
+            <h3 className="text-lg font-semibold mb-2 flex items-center">
+              <FileText className="h-5 w-5 mr-2 text-[#F97316]" />
+              Current Node: {currentNode} (Page {currentPage})
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Enter a prompt to generate content or suggestions for this story node.
+            </p>
+            
+            <Textarea
+              placeholder="Enter your prompt... (e.g., 'Suggest improvements for this scene', 'Make this description more vivid', 'Add more conflict to this dialogue')"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              className="min-h-[120px] mb-4"
+            />
+            
+            <div className="flex justify-end">
+              <Button
+                onClick={handleGenerate}
+                disabled={isGenerating || !prompt.trim()}
+                className={`${isGenerating ? 'bg-gray-400' : 'bg-[#F97316] hover:bg-[#E86305]'} text-white`}
+              >
+                {isGenerating ? (
+                  <>
+                    <span className="animate-spin mr-2">⟳</span>
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-4 w-4 mr-2" />
+                    Generate
+                  </>
+                )}
+              </Button>
+            </div>
+          </Card>
           
-          <div className="space-y-4">
-            <div className="rounded-md bg-blue-50 border border-blue-100 p-3">
-              <p className="text-sm text-blue-800">
-                You are generating content for the story node: <strong>{currentNode}</strong> (Page {currentPage})
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="generation-prompt">Prompt</Label>
-              <Textarea
-                id="generation-prompt"
-                placeholder="Describe what content you want to generate..."
-                value={generationPrompt}
-                onChange={(e) => setGenerationPrompt(e.target.value)}
-                className="min-h-[150px]"
-              />
-              <p className="text-xs text-gray-500">
-                Provide specific instructions about the content you want to generate for this node.
-              </p>
-            </div>
-
-            <Button 
-              onClick={generateContent} 
-              disabled={generating || !generationPrompt.trim()}
-              className="w-full"
-            >
-              {generating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                "Generate Content"
-              )}
-            </Button>
-
-            {/* Generated Content Output Area */}
-            {(generatedContent || generating) && (
-              <div className="mt-6 space-y-4">
-                <div className="flex justify-between items-center">
-                  <h4 className="font-medium">Generated Output</h4>
-                  {generatedContent && (
-                    <Button 
-                      variant="outline" 
-                      onClick={applyGeneratedContent}
-                      className="text-sm"
-                    >
-                      Apply to Story
-                    </Button>
-                  )}
+          {/* LLM Output Section */}
+          <Card className="p-4 bg-white border-t-4 border-[#F97316]">
+            <h3 className="text-lg font-semibold mb-2">LLM Output</h3>
+            
+            {llmOutput ? (
+              <div className="space-y-4">
+                <div className="bg-slate-50 p-4 rounded-md text-gray-800 whitespace-pre-wrap min-h-[200px]">
+                  {llmOutput}
                 </div>
-                <div className="border rounded-md bg-gray-50 p-4 min-h-[200px]">
-                  {generating ? (
-                    <div className="flex justify-center items-center h-[200px]">
-                      <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-                    </div>
-                  ) : generatedContent ? (
-                    <div className="prose prose-sm max-w-none">
-                      {generatedContent.split('\n').map((paragraph, idx) => (
-                        <p key={idx} className="mb-4">{paragraph}</p>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-400 italic text-center">Output will appear here after generation</p>
-                  )}
+                
+                <div className="flex justify-end space-x-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setLlmOutput("")}
+                  >
+                    Clear
+                  </Button>
+                  <Button 
+                    onClick={handleApplyChanges}
+                    className="bg-[#F97316] hover:bg-[#E86305] text-white"
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    Apply Changes
+                  </Button>
                 </div>
+              </div>
+            ) : (
+              <div className="bg-slate-50 p-6 rounded-md flex flex-col items-center justify-center min-h-[200px] text-gray-500">
+                <AlertCircle className="h-12 w-12 mb-4 text-gray-400" />
+                <p>Generate content to see LLM output here.</p>
               </div>
             )}
-          </div>
-        </Card>
-      </TabsContent>
+          </Card>
+        </TabsContent>
 
-      <TabsContent value="settings" className="space-y-4">
-        <Card className="p-4">
-          <h3 className="text-lg font-medium mb-4">LLM Settings</h3>
-          
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="model">Model Version</Label>
-              <Select
-                value={settings.model_version}
-                onValueChange={(value) => setSettings({...settings, model_version: value})}
-                disabled={loading}
+        {/* Comments Context Tab */}
+        <TabsContent value="context" className="space-y-4">
+          <Card className="p-4 bg-slate-50">
+            <h3 className="text-lg font-semibold mb-2 flex items-center">
+              <MessageSquare className="h-5 w-5 mr-2 text-[#F97316]" />
+              Reader Comments for Page {currentPage}
+            </h3>
+            
+            {isLoadingComments ? (
+              <div className="flex justify-center items-center p-8">
+                <span className="animate-spin mr-2">⟳</span>
+                Loading comments...
+              </div>
+            ) : comments.length > 0 ? (
+              <div className="space-y-4 max-h-[400px] overflow-y-auto p-2">
+                {comments.map((comment) => (
+                  <div key={comment.id} className="border rounded-lg p-3 bg-white">
+                    <div className="flex justify-between items-start">
+                      <p className="font-semibold text-[#F97316]">{comment.profile.username}</p>
+                      <span className="text-xs text-gray-500">
+                        {new Date(comment.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-gray-700">{comment.text}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg p-6 text-center text-gray-500">
+                <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>No comments have been added for this page yet.</p>
+              </div>
+            )}
+            
+            <div className="mt-4 flex justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setActiveTab("generate");
+                  const commentSummary = comments.length > 0 
+                    ? `Based on reader comments for page ${currentPage}, suggest improvements to this node.` 
+                    : `Generate improvement suggestions for this node.`;
+                  setPrompt(commentSummary);
+                }}
+                className="text-[#F97316]"
               >
-                <SelectTrigger id="model">
-                  <SelectValue placeholder="Select model" />
-                </SelectTrigger>
-                <SelectContent>
-                  {MODEL_OPTIONS.map((model) => (
-                    <SelectItem key={model.value} value={model.value}>
-                      {model.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <Wand2 className="h-4 w-4 mr-2" />
+                Use Comments in Prompt
+              </Button>
             </div>
+          </Card>
+        </TabsContent>
 
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <Label htmlFor="temperature">Temperature: {settings.temperature.toFixed(1)}</Label>
+        {/* Settings Tab */}
+        <TabsContent value="settings" className="space-y-4">
+          <Card className="p-4 bg-slate-50">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <Settings className="h-5 w-5 mr-2 text-[#F97316]" />
+              LLM Settings
+            </h3>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Model Version
+                </label>
+                <select
+                  value={settings.modelVersion}
+                  onChange={(e) => setSettings({ ...settings, modelVersion: e.target.value })}
+                  className="w-full border rounded p-2"
+                >
+                  <option value="gpt-4o">GPT-4o (Recommended)</option>
+                  <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                  <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                </select>
               </div>
-              <Slider
-                id="temperature"
-                value={[settings.temperature]}
-                min={0}
-                max={1}
-                step={0.1}
-                onValueChange={(value) => setSettings({...settings, temperature: value[0]})}
-                disabled={loading}
-              />
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>More precise (0.0)</span>
-                <span>More creative (1.0)</span>
+              
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Temperature: {settings.temperature.toFixed(1)}
+                </label>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs">0.0</span>
+                  <Slider
+                    value={[settings.temperature]}
+                    min={0}
+                    max={1}
+                    step={0.1}
+                    onValueChange={(value) => setSettings({ ...settings, temperature: value[0] })}
+                    className="flex-1"
+                  />
+                  <span className="text-xs">1.0</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Lower values create more focused, deterministic outputs. Higher values create more creative, varied outputs.
+                </p>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="permanent-context">Permanent Context</Label>
-              <Textarea
-                id="permanent-context"
-                placeholder="Enter permanent context for your LLM requests..."
-                value={settings.permanent_context}
-                onChange={(e) => setSettings({...settings, permanent_context: e.target.value})}
-                className="min-h-[150px]"
-                disabled={loading}
-              />
-              <p className="text-xs text-gray-500">
-                This context will be included in every LLM request for this story.
-              </p>
-            </div>
-
-            <Button 
-              onClick={saveSettings} 
-              disabled={loading}
-              className="w-full"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                "Save Settings"
-              )}
-            </Button>
-          </div>
-        </Card>
-      </TabsContent>
-
-      <TabsContent value="context" className="space-y-4">
-        <Card className="p-4">
-          <h3 className="text-lg font-medium mb-4">Context Files</h3>
-          
-          <div className="space-y-4">
-            <div className="border border-dashed rounded-md p-6 text-center">
-              <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-              <p className="mb-2 text-sm">Upload documentation or reference files for your story</p>
-              <p className="text-xs text-gray-500 mb-4">Max file size: 10MB</p>
-              <div className="relative">
-                <Input
-                  type="file"
-                  onChange={handleFileUpload}
-                  disabled={uploading}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  accept=".txt,.pdf,.doc,.docx,.md"
+              
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Permanent Context
+                </label>
+                <Textarea
+                  placeholder="Enter permanent context to guide the LLM (e.g., 'Maintain a dark fantasy tone', 'Keep characters consistent', 'Follow the hero's journey structure')"
+                  value={settings.permanentContext}
+                  onChange={(e) => setSettings({ ...settings, permanentContext: e.target.value })}
+                  className="min-h-[120px]"
                 />
-                <Button variant="outline" disabled={uploading} className="w-full">
-                  {uploading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    "Select File"
-                  )}
+                <p className="text-xs text-gray-500 mt-1">
+                  This context will be included with every generation request to guide the LLM's responses.
+                </p>
+              </div>
+              
+              <div className="flex justify-end">
+                <Button
+                  onClick={handleSaveSettings}
+                  className="bg-[#F97316] hover:bg-[#E86305] text-white"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Settings
                 </Button>
               </div>
             </div>
-
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium">Uploaded Files</h4>
-              
-              {contextFiles.length === 0 ? (
-                <div className="text-center py-8 border rounded-md bg-gray-50">
-                  <FileText className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                  <p className="text-sm text-gray-500">No files uploaded yet</p>
-                </div>
-              ) : (
-                <ScrollArea className="h-[300px] border rounded-md">
-                  <div className="p-4 space-y-2">
-                    {contextFiles.map((file) => (
-                      <div 
-                        key={file.id}
-                        className="flex items-center justify-between p-3 rounded-md border bg-gray-50 hover:bg-gray-100"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <FileText className="h-5 w-5 text-gray-400" />
-                          <div>
-                            <p className="text-sm font-medium">{file.file_name}</p>
-                            <p className="text-xs text-gray-500">
-                              {new Date(file.created_at).toLocaleString()}
-                            </p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteContextFile(file.id)}
-                          title="Delete file"
-                        >
-                          <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              )}
-            </div>
-          </div>
-        </Card>
-      </TabsContent>
-
-      <TabsContent value="comments" className="space-y-4">
-        <Card className="p-4">
-          <h3 className="text-lg font-medium mb-4">
-            Reader Comments for Page {currentPage}
-          </h3>
-          
-          <div className="space-y-4">
-            <div className="rounded-md bg-amber-50 border border-amber-100 p-3">
-              <p className="text-sm text-amber-800 flex items-center">
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Comments from readers can provide useful feedback for your story generation
-              </p>
-            </div>
-
-            {loadingComments ? (
-              <div className="flex justify-center items-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-              </div>
-            ) : comments.length > 0 ? (
-              <ScrollArea className="h-[300px] border rounded-md">
-                <div className="p-4 space-y-4">
-                  {comments.map((comment) => (
-                    <div 
-                      key={comment.id}
-                      className="p-3 rounded-md border bg-gray-50"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <p className="text-sm font-medium">{comment.profile.username}</p>
-                        <p className="text-xs text-gray-500">
-                          {new Date(comment.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                      <p className="text-sm">{comment.content}</p>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            ) : (
-              <div className="text-center py-8 border rounded-md bg-gray-50">
-                <MessageSquare className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                <p className="text-sm text-gray-500">No comments available for this page</p>
-              </div>
-            )}
-
-            <div className="pt-2">
-              <p className="text-xs text-gray-500">
-                You can suggest readers to add comments on this page for better feedback.
-              </p>
-            </div>
-          </div>
-        </Card>
-      </TabsContent>
-    </Tabs>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 

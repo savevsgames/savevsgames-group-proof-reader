@@ -45,8 +45,10 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
   
   useEffect(() => {
     if (storyData) {
+      // Generate fresh mappings whenever storyData changes
       const { storyNodeToPageMap, pageToStoryNodeMap } = generateNodeMappings(storyData);
       
+      // Update mappings state
       setMappings({
         nodeToPage: storyNodeToPageMap,
         pageToNode: pageToStoryNodeMap

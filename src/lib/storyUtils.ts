@@ -1,3 +1,4 @@
+
 import { Story } from 'inkjs';
 import { supabase } from './supabase';
 
@@ -54,28 +55,47 @@ export const pageToStoryNodeMap: Record<number, string> = Object.entries(storyNo
 export const generateNodeMappings = (storyData: CustomStory) => {
   if (!storyData) return { storyNodeToPageMap, pageToStoryNodeMap };
   
-  const updatedNodeToPageMap = { ...storyNodeToPageMap };
+  // Start with a fresh copy of our base mappings
+  const updatedNodeToPageMap: Record<string, number> = { ...storyNodeToPageMap };
   
-  // Ensure all nodes in story have a page number
-  Object.keys(storyData).forEach((nodeName, index) => {
+  // Collect all nodes from the story data
+  const storyNodes = Object.keys(storyData);
+  
+  // First pass: ensure all known story nodes are in the map
+  let nextPageNumber = Math.max(...Object.values(updatedNodeToPageMap)) + 1;
+  
+  storyNodes.forEach(nodeName => {
+    // Skip meta nodes that aren't actual story nodes
+    if (nodeName === 'inkVersion' || nodeName === 'listDefs') {
+      return;
+    }
+    
     if (!updatedNodeToPageMap[nodeName]) {
-      // Find the highest existing page number
-      const maxPage = Math.max(...Object.values(updatedNodeToPageMap));
-      // Assign the next page number to this node
-      updatedNodeToPageMap[nodeName] = maxPage + 1;
+      updatedNodeToPageMap[nodeName] = nextPageNumber++;
     }
   });
   
-  // Regenerate the reverse mapping
-  const updatedPageToNodeMap = Object.entries(updatedNodeToPageMap).reduce(
-    (acc, [node, page]) => {
-      if (!acc[page] || node !== 'start') {
-        acc[page] = node;
-      }
-      return acc;
-    },
-    {} as Record<number, string>
-  );
+  // Generate the reverse mapping
+  const updatedPageToNodeMap: Record<number, string> = {};
+  
+  // Build pageToNode map, prioritizing actual story nodes over metadata
+  Object.entries(updatedNodeToPageMap).forEach(([nodeName, pageNum]) => {
+    // Skip non-story nodes when building page map
+    if (nodeName === 'inkVersion' || nodeName === 'listDefs') {
+      return;
+    }
+    
+    // Only add if node exists in story data or is a known node
+    if (storyData[nodeName] || storyNodeToPageMap[nodeName]) {
+      updatedPageToNodeMap[pageNum] = nodeName;
+    }
+  });
+  
+  console.log("Generated mappings:", {
+    nodeToPage: updatedNodeToPageMap,
+    pageToNode: updatedPageToNodeMap,
+    nodeCount: storyNodes.length
+  });
   
   return {
     storyNodeToPageMap: updatedNodeToPageMap,
