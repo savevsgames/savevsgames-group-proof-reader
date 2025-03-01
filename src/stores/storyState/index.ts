@@ -8,32 +8,20 @@ import { createEditorSlice } from './editorSlice';
 import { createUiSlice } from './uiSlice';
 import { createCommentsSlice } from './commentsSlice';
 
-// Create the store with all slices combined
+/**
+ * Create the global story store with all slices combined
+ */
 export const useStoryStore = create<StoryStore>()(
   devtools(
     persist(
-      (...params) => {
-        // Create store with all slices
-        const store = {
-          ...createStorySlice(...params),
-          ...createNavigationSlice(...params),
-          ...createEditorSlice(...params),
-          ...createUiSlice(...params),
-          ...createCommentsSlice(...params),
-        };
-        
-        // Only log during development and not during frequent updates
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[StoryStore] Store initialized with:', {
-            storyId: store.storyId,
-            hasTitle: !!store.title,
-            totalPages: store.totalPages || 0,
-            nodeMappingsSize: store.nodeMappings ? Object.keys(store.nodeMappings.nodeToPage || {}).length : 0
-          });
-        }
-        
-        return store;
-      },
+      (...params) => ({
+        // Combine all slices to form the complete store
+        ...createStorySlice(...params),
+        ...createNavigationSlice(...params),
+        ...createEditorSlice(...params),
+        ...createUiSlice(...params),
+        ...createCommentsSlice(...params),
+      }),
       {
         name: 'story-storage',
         // Only persist essential data to avoid update loops
@@ -42,7 +30,6 @@ export const useStoryStore = create<StoryStore>()(
             storyId: state.storyId,
             title: state.title,
             totalPages: state.totalPages 
-            // Do NOT persist currentPage or currentNode to avoid infinite update loops
           };
         }
       }
@@ -50,5 +37,5 @@ export const useStoryStore = create<StoryStore>()(
   )
 );
 
-// Re-export selectors
+// Re-export selectors for convenience
 export * from './selectors';

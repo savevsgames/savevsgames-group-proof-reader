@@ -25,7 +25,7 @@ const StoryPage = () => {
     error: state.error,
     title: state.title,
     totalPages: state.totalPages
-  }), shallow);
+  }));
   
   // Actions selector - separate from state to avoid re-renders
   const initializeStory = useStoryStore(state => state.initializeStory);

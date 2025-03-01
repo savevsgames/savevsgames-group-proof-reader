@@ -1,14 +1,10 @@
 
-import { useState, useEffect, useCallback } from "react";
-import { useStoryStore } from "@/stores/storyState";
-import { shallow } from "zustand/shallow";
+import { useState, useEffect, useCallback } from 'react';
+import { useStoryStore } from '@/stores/storyState';
+import { CustomStory } from '@/types';
 
 export const useStoryEditor = (storyId: string) => {
-  console.log("[StoryEditor] Initializing story editor for ID:", storyId);
-  
-  const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
-  
-  // Get everything we need from the store
+  // Get store state and actions
   const {
     storyData,
     story,
@@ -26,52 +22,46 @@ export const useStoryEditor = (storyId: string) => {
     handleNodeChange,
     handleStoryDataChange,
     handleSave,
-  } = useStoryStore(state => ({
-    storyData: state.storyData,
-    story: state.story,
-    loading: state.loading,
-    error: state.error,
-    saving: state.saving,
-    hasUnsavedChanges: state.hasUnsavedChanges,
-    currentNode: state.currentNode,
-    currentPage: state.currentPage,
-    totalPages: state.totalPages,
-    nodeMappings: state.nodeMappings,
-    
-    initializeStory: state.initializeStory,
-    handlePageChange: state.handlePageChange,
-    handleNodeChange: state.handleNodeChange,
-    handleStoryDataChange: state.handleStoryDataChange,
-    handleSave: state.handleSave,
-  }), shallow);
+  } = useStoryStore();
   
-  // Initialize story when component mounts
+  // Local state for the editor UI
+  const [activeTab, setActiveTab] = useState('json');
+  const [editingNode, setEditingNode] = useState('');
+  
+  // Initialize on component mount
   useEffect(() => {
-    initializeStory(storyId);
+    if (storyId) {
+      initializeStory(storyId);
+    }
   }, [storyId, initializeStory]);
   
-  // Create navigation handlers
-  const handleNavigation = (target: string) => {
-    console.log(`[StoryEditor] Navigation requested to: ${target}`);
-    
-    // Navigate to a specific target using the store
-    if (target === 'back') {
-      console.log("[StoryEditor] Navigating back in history");
-      useStoryStore.getState().goBack();
-    } else if (target === 'restart') {
-      console.log("[StoryEditor] Restarting story navigation");
-      useStoryStore.getState().handleRestart();
+  // Set editing node when currentNode changes
+  useEffect(() => {
+    if (currentNode && !editingNode) {
+      setEditingNode(currentNode);
     }
-  };
+  }, [currentNode, editingNode]);
   
-  const confirmNavigation = () => {
-    console.log("[StoryEditor] Navigation confirmed");
-    setIsLeaveDialogOpen(false);
-  };
+  // Handle node selection in the editor
+  const handleNodeSelection = useCallback((nodeName: string) => {
+    setEditingNode(nodeName);
+    handleNodeChange(nodeName);
+  }, [handleNodeChange]);
+  
+  // Handle story data changes
+  const updateStoryData = useCallback((newStoryData: CustomStory) => {
+    handleStoryDataChange(newStoryData);
+  }, [handleStoryDataChange]);
+  
+  // Save the story
+  const saveStory = useCallback(async () => {
+    await handleSave();
+  }, [handleSave]);
   
   return {
-    story,
+    // State
     storyData,
+    story,
     loading,
     error,
     saving,
@@ -79,14 +69,15 @@ export const useStoryEditor = (storyId: string) => {
     currentNode,
     currentPage,
     totalPages,
-    isLeaveDialogOpen,
     nodeMappings,
-    setIsLeaveDialogOpen,
+    activeTab,
+    editingNode,
+    
+    // Actions
+    setActiveTab,
+    handleNodeSelection,
+    updateStoryData,
+    saveStory,
     handlePageChange,
-    handleNodeChange,
-    handleNavigation,
-    confirmNavigation,
-    handleStoryDataChange,
-    handleSave,
   };
 };

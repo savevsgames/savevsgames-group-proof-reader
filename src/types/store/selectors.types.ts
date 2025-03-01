@@ -16,10 +16,7 @@ export type EqualityFn<T> = (previous: T, next: T) => boolean;
  * Type for a selector function that extracts data from the store.
  * This allows for proper typing with shallow equality function.
  */
-export type StorySelector<U> = {
-  (state: StoryStore): U;
-  (state: StoryStore, equalityFn: EqualityFn<U>): U;
-};
+export type StorySelector<U> = (state: StoryStore, equalityFn?: EqualityFn<U>) => U;
 
 /**
  * UI state selector interface.

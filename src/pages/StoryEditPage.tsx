@@ -9,13 +9,12 @@ import ErrorState from "@/components/story/editor/ErrorState";
 import EmptyState from "@/components/story/editor/EmptyState";
 import UnsavedChangesDialog from "@/components/story/editor/UnsavedChangesDialog";
 import { useStoryStore } from "@/stores/storyState";
-import { shallow } from "zustand/shallow";
 
 const StoryEditPage = () => {
   const { id } = useParams();
   const storyId = id as string;
   
-  // Select state from the store using shallow comparison
+  // Select state from the store
   const {
     storyData,
     title,
@@ -36,7 +35,7 @@ const StoryEditPage = () => {
     currentNode: state.currentNode,
     currentPage: state.currentPage,
     totalPages: state.totalPages
-  }), shallow);
+  }));
   
   // Get actions from the store
   const {
