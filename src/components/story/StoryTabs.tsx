@@ -10,7 +10,9 @@ import ReaderView from "./ReaderView";
 import { useAuth } from "@/context/AuthContext";
 import { 
   CustomStory, 
-  generateNodeMappings
+  generateNodeMappings,
+  storyNodeToPageMap,
+  pageToStoryNodeMap
 } from "@/lib/storyUtils";
 import { AlertCircle, BookOpen } from "lucide-react";
 
@@ -37,22 +39,16 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
   const [commentCount, setCommentCount] = useState<number>(0);
   const { user } = useAuth();
   
-  // Generate dynamic mappings when storyData changes
+  // Generate mappings when storyData changes
   const [mappings, setMappings] = useState({
-    nodeToPage: {} as Record<string, number>,
-    pageToNode: {} as Record<number, string>
+    nodeToPage: storyNodeToPageMap,
+    pageToNode: pageToStoryNodeMap
   });
   
   useEffect(() => {
     if (storyData) {
-      // Create a filtered version of storyData without metadata nodes
-      const filteredStoryData = { ...storyData };
-      // Remove metadata nodes that aren't actual story content
-      if (filteredStoryData.inkVersion) delete filteredStoryData.inkVersion;
-      if (filteredStoryData.listDefs) delete filteredStoryData.listDefs;
-      
-      // Generate fresh mappings from the filtered story data
-      const { storyNodeToPageMap, pageToStoryNodeMap } = generateNodeMappings(filteredStoryData);
+      // Generate fresh mappings from the story data
+      const { storyNodeToPageMap, pageToStoryNodeMap } = generateNodeMappings(storyData);
       
       // Update mappings state
       setMappings({
@@ -60,10 +56,12 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
         pageToNode: pageToStoryNodeMap
       });
       
-      console.log("StoryTabs: Generated mappings", { 
+      console.log("StoryTabs: Using node mappings", { 
         storyNodeToPageMap, 
         pageToStoryNodeMap,
-        nodeCount: Object.keys(filteredStoryData).length
+        nodeCount: Object.keys(storyData).filter(key => 
+          key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
+        ).length
       });
     }
   }, [storyData]);
@@ -85,7 +83,6 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
   };
 
   // Calculate current page number from node name
-  // Using our dynamic mappings
   const currentPage = currentNode ? (mappings.nodeToPage[currentNode] || 1) : 1;
 
   return (

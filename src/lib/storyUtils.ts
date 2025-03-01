@@ -1,4 +1,3 @@
-
 import { Story } from 'inkjs';
 import { supabase } from './supabase';
 
@@ -18,156 +17,344 @@ export interface CustomStory {
   [key: string]: StoryNode;
 }
 
-// Map to track story sections for page counting
-export const storyNodeToPageMap: Record<string, number> = {
-  'root': 1,
-  'vault_description': 2,
-  'dark_eye_introduction': 3,
-  'mages_attempt': 4,
-  'kavan_arrival': 5,
-  'kavan_determination': 6,
-  'dark_eye_awakens': 7,
-  'dark_eye_speaks': 8,
-  'kavan_response': 9,
-  'battle_begins': 10,
-  'kavan_struggle': 11,
-  'kavan_love': 12,
-  'kavan_fight': 13,
-  'dark_eye_reaction': 14,
-  'dark_eye_withdraws': 15,
-  'final_blast': 16,
-  'story_ending': 17,
-  'start': 1
+// Definition of Ink symbols for parsing
+export const InkSymbols = {
+  TEXT: '^',
+  NAVIGATION: '->',
+  EVAL_START: 'ev',
+  EVAL_END: '/ev',
+  STRING_START: 'str',
+  STRING_END: '/str',
+  END: 'end',
+  DONE: 'done',
+  NEW_LINE: '\n'
 };
 
-// Reverse map to look up node names from page numbers
-export const pageToStoryNodeMap: Record<number, string> = Object.entries(storyNodeToPageMap).reduce(
-  (acc, [node, page]) => {
-    if (!acc[page] || node !== 'start') {
-      acc[page] = node;
-    }
-    return acc;
-  },
-  {} as Record<number, string>
-);
+// Interface for parsed Ink node content
+export interface InkNodeContent {
+  text: string;
+  choices: InkChoice[];
+  nextNode?: string;
+  isEnding?: boolean;
+  metadata?: Record<string, any>;
+}
 
-// Dynamic mapping function that ensures all nodes in story have a page number
-export const generateNodeMappings = (storyData: CustomStory) => {
-  if (!storyData) return { storyNodeToPageMap, pageToStoryNodeMap };
+export interface InkChoice {
+  text: string;
+  nextNode: string;
+}
+
+// Token parser interface - used for processing different Ink symbols
+interface TokenParser {
+  matches: (token: any) => boolean;
+  process: (token: any, context: ParsingContext) => void;
+}
+
+// Context object to track state during parsing
+interface ParsingContext {
+  currentNode: InkNodeContent;
+  inChoice: boolean;
+  currentChoice: InkChoice | null;
+  choiceStack: any[];
+}
+
+// Map to track story node sequence for page counting - fixed order
+// This is our source of truth for page ordering
+export const storyNodeSequence: string[] = [
+  'root',
+  'vault_description',
+  'dark_eye_introduction',
+  'mages_attempt',
+  'kavan_arrival',
+  'kavan_determination',
+  'dark_eye_awakens',
+  'dark_eye_speaks',
+  'kavan_response',
+  'battle_begins',
+  'kavan_struggle',
+  'kavan_love',
+  'kavan_fight',
+  'dark_eye_reaction',
+  'dark_eye_withdraws',
+  'final_blast',
+  'story_ending'
+];
+
+// Generate node-to-page and page-to-node mappings based on the sequence
+export const storyNodeToPageMap: Record<string, number> = 
+  storyNodeSequence.reduce((acc, node, index) => {
+    acc[node] = index + 1; // Page numbers start from 1
+    return acc;
+  }, {} as Record<string, number>);
+
+// Reverse map to look up node names from page numbers
+export const pageToStoryNodeMap: Record<number, string> = 
+  storyNodeSequence.reduce((acc, node, index) => {
+    acc[index + 1] = node; // Page numbers start from 1
+    return acc;
+  }, {} as Record<number, string>);
+
+// Collection of token parsers for different Ink syntax elements
+const tokenParsers: TokenParser[] = [
+  // Text parser - handles basic story text prefixed with ^
+  {
+    matches: (token) => typeof token === 'string' && token.startsWith(InkSymbols.TEXT),
+    process: (token, context) => {
+      const text = token.substring(1).trim(); // Remove the ^ prefix
+      if (text) {
+        context.currentNode.text += (context.currentNode.text ? ' ' : '') + text;
+      }
+    }
+  },
   
-  // Start with a fresh mapping
-  const updatedNodeToPageMap: Record<string, number> = {};
+  // Navigation parser - handles -> directives
+  {
+    matches: (token) => typeof token === 'object' && token !== null && token[InkSymbols.NAVIGATION] !== undefined,
+    process: (token, context) => {
+      const nextNode = token[InkSymbols.NAVIGATION];
+      if (context.inChoice && context.currentChoice) {
+        // If we're in a choice, set the choice's nextNode
+        context.currentChoice.nextNode = nextNode;
+      } else {
+        // Otherwise set the node's nextNode
+        context.currentNode.nextNode = nextNode;
+      }
+    }
+  },
   
-  // Collect all valid story nodes from the story data
-  // (excluding metadata nodes)
+  // New line parser - handles line breaks
+  {
+    matches: (token) => token === InkSymbols.NEW_LINE,
+    process: (token, context) => {
+      // New lines in text are significant, add them to maintain formatting
+      if (context.currentNode.text) {
+        context.currentNode.text += '\n';
+      }
+    }
+  },
+  
+  // End parser - marks end of story paths
+  {
+    matches: (token) => token === InkSymbols.END,
+    process: (token, context) => {
+      context.currentNode.isEnding = true;
+    }
+  },
+  
+  // Choice parser for complex choice structures
+  {
+    matches: (token) => typeof token === 'object' && Array.isArray(token) && token.length >= 2 
+      && typeof token[0] === 'string' && token[0] === InkSymbols.EVAL_START,
+    process: (token, context) => {
+      // Start of a potential choice sequence
+      context.inChoice = true;
+      context.choiceStack.push(token);
+    }
+  },
+  
+  // String parser for choice text
+  {
+    matches: (token) => typeof token === 'object' && typeof token['s'] === 'object' 
+      && Array.isArray(token['s']) && typeof token['s'][0] === 'string',
+    process: (token, context) => {
+      // Extract choice text from the s array
+      const choiceText = token['s'][0];
+      if (choiceText.startsWith(InkSymbols.TEXT)) {
+        // If this is a text node inside a choice
+        if (context.inChoice && context.currentChoice) {
+          context.currentChoice.text = choiceText.substring(1).trim();
+        }
+      }
+    }
+  }
+];
+
+// Main parsing function to extract node content from Ink JSON
+export const parseInkNode = (storyData: any, nodeName: string): InkNodeContent => {
+  // Default structure for node content
+  const nodeContent: InkNodeContent = {
+    text: '',
+    choices: [],
+    nextNode: undefined,
+    isEnding: false,
+    metadata: {}
+  };
+  
+  // Return empty content if node doesn't exist
+  if (!storyData || !storyData[nodeName]) {
+    return nodeContent;
+  }
+  
+  // Initialize parsing context
+  const context: ParsingContext = {
+    currentNode: nodeContent,
+    inChoice: false,
+    currentChoice: null,
+    choiceStack: []
+  };
+  
+  const nodeData = storyData[nodeName];
+  
+  // If node is an array, process each element
+  if (Array.isArray(nodeData)) {
+    processArrayElements(nodeData, context);
+  } 
+  // If node is an object with specific properties
+  else if (typeof nodeData === 'object') {
+    // Some Ink formats use different object structures
+    if (Array.isArray(nodeData.content)) {
+      processArrayElements(nodeData.content, context);
+    }
+  }
+  
+  // If we have a direct link to next node but no choices yet,
+  // create a "Continue" choice for better UX
+  if (nodeContent.nextNode && nodeContent.choices.length === 0) {
+    nodeContent.choices.push({
+      text: 'Continue',
+      nextNode: nodeContent.nextNode
+    });
+  }
+  
+  return nodeContent;
+};
+
+// Helper function to process array elements with parsers
+const processArrayElements = (elements: any[], context: ParsingContext) => {
+  for (const element of elements) {
+    // Try each parser in sequence
+    let parsed = false;
+    
+    for (const parser of tokenParsers) {
+      if (parser.matches(element)) {
+        parser.process(element, context);
+        parsed = true;
+        break;
+      }
+    }
+    
+    // If element is an array, recursively process it
+    if (!parsed && Array.isArray(element)) {
+      processArrayElements(element, context);
+    }
+    
+    // If element has a special structure for choices
+    if (!parsed && typeof element === 'object' && element !== null) {
+      // Look for choice indicators
+      const keys = Object.keys(element);
+      for (const key of keys) {
+        if (key !== 'InkSymbols.NAVIGATION' && key !== '#f') {
+          // This might be a choice branch
+          context.currentChoice = { text: key, nextNode: '' };
+          
+          // Process the choice content
+          if (typeof element[key] === 'object' && element[key] !== null) {
+            if (Array.isArray(element[key])) {
+              // Set context to process this choice
+              context.inChoice = true;
+              processArrayElements(element[key], context);
+              context.inChoice = false;
+            }
+          }
+          
+          // Add the choice if it has both text and nextNode
+          if (context.currentChoice.text && context.currentChoice.nextNode) {
+            context.currentNode.choices.push({ ...context.currentChoice });
+          }
+        }
+      }
+    }
+  }
+};
+
+// Function to generate mappings based on story data
+export const generateNodeMappings = (storyData: any) => {
+  if (!storyData) {
+    // Return default mappings if no data
+    return { 
+      storyNodeToPageMap, 
+      pageToStoryNodeMap,
+      totalPages: storyNodeSequence.length 
+    };
+  }
+  
+  // Create empty mappings
+  const nodeToPage: Record<string, number> = {};
+  const pageToNode: Record<number, string> = {};
+  
+  // First, try to find all the nodes in our sequence
+  let totalPages = 0;
+  let pageNumber = 1;
+  
+  // Process nodes in our defined sequence first
+  for (const nodeName of storyNodeSequence) {
+    if (storyData[nodeName]) {
+      nodeToPage[nodeName] = pageNumber;
+      pageToNode[pageNumber] = nodeName;
+      pageNumber++;
+      totalPages++;
+    }
+  }
+  
+  // Now add any additional nodes that might not be in our sequence
+  const allNodes = Object.keys(storyData).filter(key => 
+    key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
+  );
+  
+  for (const nodeName of allNodes) {
+    if (!nodeToPage[nodeName]) {
+      nodeToPage[nodeName] = pageNumber;
+      pageToNode[pageNumber] = nodeName;
+      pageNumber++;
+      totalPages++;
+    }
+  }
+  
+  console.log("Generated mappings:", { nodeToPage, pageToNode, totalPages });
+  
+  return {
+    storyNodeToPageMap: nodeToPage,
+    pageToStoryNodeMap: pageToNode,
+    totalPages
+  };
+};
+
+// Function to extract a full story from Ink JSON
+export const parseFullInkStory = (storyData: any): CustomStory => {
+  if (!storyData) return {};
+  
+  // Filter out metadata nodes
   const storyNodes = Object.keys(storyData).filter(key => 
     key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
   );
   
-  // Create a sequence of nodes based on their relationships
-  const nodeSequence: string[] = [];
-  let currentNode = 'root';  // Always start with root
+  const customStory: CustomStory = {};
   
-  // First, add root node if it exists
-  if (storyNodes.includes('root') || storyNodes.includes('start')) {
-    currentNode = storyNodes.includes('root') ? 'root' : 'start';
-    nodeSequence.push(currentNode);
+  // Parse each node and convert to our CustomStory format
+  for (const nodeName of storyNodes) {
+    const parsedNode = parseInkNode(storyData, nodeName);
+    
+    customStory[nodeName] = {
+      text: parsedNode.text || '', 
+      choices: parsedNode.choices || [],
+      isEnding: parsedNode.isEnding
+    };
   }
   
-  // Then follow the node chain by looking at each node's choices
-  const MAX_NODES = storyNodes.length * 2; // Safety limit to prevent infinite loops
-  let count = 0;
-  
-  while (currentNode && count < MAX_NODES) {
-    count++;
-    
-    const node = storyData[currentNode];
-    if (!node) break;
-    
-    // For node with choices
-    if (node.choices && node.choices.length > 0) {
-      const nextNode = node.choices[0].nextNode;
-      if (nextNode && !nodeSequence.includes(nextNode) && storyData[nextNode]) {
-        nodeSequence.push(nextNode);
-        currentNode = nextNode;
-        continue;
-      }
-    }
-    
-    // Try to find the next node by other means if choices didn't work
-    // This will look for patterns in Ink JSON structure
-    if (storyData[currentNode]) {
-      // Function to extract next node name from Ink JSON structure
-      const findNextNodeInInkFormat = (nodeName: string): string | null => {
-        const node = storyData[nodeName];
-        // Check multiple formats that could indicate the next node
-        if (typeof node === 'object') {
-          // Direct next property
-          if (node['->']) return node['->'];
-          
-          // Array format with -> directive
-          if (Array.isArray(node)) {
-            for (const item of node) {
-              if (item && typeof item === 'object' && item['->']) {
-                return item['->'];
-              }
-            }
-          }
-        }
-        return null;
-      };
-      
-      const nextNode = findNextNodeInInkFormat(currentNode);
-      if (nextNode && !nodeSequence.includes(nextNode) && storyData[nextNode]) {
-        nodeSequence.push(nextNode);
-        currentNode = nextNode;
-        continue;
-      } else {
-        // If we can't find next node, move to next unused node in the list
-        const unusedNode = storyNodes.find(n => !nodeSequence.includes(n));
-        if (unusedNode) {
-          nodeSequence.push(unusedNode);
-          currentNode = unusedNode;
-          continue;
-        }
-      }
-    }
-    
-    // If we reach here, we can't find any more valid nodes
-    break;
+  // If there's no root node but there's a start node, use that as root
+  if (!customStory['root'] && customStory['start']) {
+    customStory['root'] = customStory['start'];
   }
   
-  // Now create page numbers based on the sequence
-  nodeSequence.forEach((nodeName, index) => {
-    updatedNodeToPageMap[nodeName] = index + 1;
-  });
+  // If we still don't have a root node, create a simple one
+  if (!customStory['root']) {
+    customStory['root'] = {
+      text: 'Start of the story...',
+      choices: []
+    };
+  }
   
-  // Add any remaining nodes not in the sequence
-  let nextPage = nodeSequence.length + 1;
-  storyNodes.forEach(nodeName => {
-    if (!updatedNodeToPageMap[nodeName]) {
-      updatedNodeToPageMap[nodeName] = nextPage++;
-    }
-  });
-  
-  // Generate the reverse mapping
-  const updatedPageToNodeMap: Record<number, string> = {};
-  
-  Object.entries(updatedNodeToPageMap).forEach(([nodeName, pageNum]) => {
-    updatedPageToNodeMap[pageNum] = nodeName;
-  });
-  
-  console.log("Generated mappings:", {
-    nodeToPage: updatedNodeToPageMap,
-    pageToNode: updatedPageToNodeMap,
-    sequencedNodes: nodeSequence,
-    totalNodes: storyNodes.length
-  });
-  
-  return {
-    storyNodeToPageMap: updatedNodeToPageMap,
-    pageToStoryNodeMap: updatedPageToNodeMap
-  };
+  return customStory;
 };
 
 // Fetch story content from URL
@@ -184,35 +371,7 @@ export const fetchStoryContent = async (storyUrl: string) => {
 // Helper function to extract a custom story format from ink JSON
 export const extractCustomStoryFromInkJSON = (inkJSON: any): CustomStory => {
   try {
-    const customStory: CustomStory = {};
-    
-    // Extract the root node text
-    if (inkJSON.root && Array.isArray(inkJSON.root) && inkJSON.root.length > 0) {
-      // Extract text from the root array
-      let rootText = "";
-      for (const item of inkJSON.root) {
-        if (typeof item === 'string' && item.startsWith('^')) {
-          rootText += item.substring(1) + " ";
-        }
-      }
-      
-      customStory.root = {
-        text: rootText.trim() || "Story begins...",
-        choices: [{
-          text: "Continue",
-          nextNode: "vault_description"
-        }]
-      };
-      
-      // Process all story nodes that aren't special properties
-      for (const nodeName in inkJSON) {
-        if (nodeName !== 'root' && nodeName !== 'inkVersion' && nodeName !== 'listDefs' && nodeName !== '#f') {
-          extractNodesRecursively(inkJSON, customStory, nodeName);
-        }
-      }
-    }
-    
-    return customStory;
+    return parseFullInkStory(inkJSON);
   } catch (e) {
     console.error("Error extracting custom story from Ink JSON:", e);
     return {
@@ -224,47 +383,29 @@ export const extractCustomStoryFromInkJSON = (inkJSON: any): CustomStory => {
   }
 };
 
-// Helper to recursively extract nodes
+// Helper to recursively extract nodes - legacy support
 export const extractNodesRecursively = (inkJSON: any, customStory: CustomStory, nodeName: string) => {
   if (!inkJSON[nodeName]) return;
   
   try {
-    let nodeText = "";
-    let nextNode = "";
-    let isEnding = false;
+    const parsedNode = parseInkNode(inkJSON, nodeName);
     
-    // Process the node content
-    if (Array.isArray(inkJSON[nodeName])) {
-      for (const item of inkJSON[nodeName]) {
-        if (typeof item === 'string') {
-          // Direct text content
-          if (item.startsWith('^')) {
-            nodeText += item.substring(1) + " ";
-          } else if (item === 'end') {
-            isEnding = true;
-          }
-        } else if (item && typeof item === 'object') {
-          // Check for next node reference
-          if (item['->']) {
-            nextNode = item['->'];
-          }
-        }
-      }
-    }
-    
-    // Create node entry
     customStory[nodeName] = {
-      text: nodeText.trim() || "Continue the story...",
-      choices: nextNode ? [{
-        text: "Continue",
-        nextNode: nextNode
-      }] : [],
-      isEnding: isEnding
+      text: parsedNode.text || '',
+      choices: parsedNode.choices || [],
+      isEnding: parsedNode.isEnding
     };
     
-    // If we found a next node, recursively process it if not already processed
-    if (nextNode && !customStory[nextNode] && nextNode !== 'end') {
-      extractNodesRecursively(inkJSON, customStory, nextNode);
+    // Extract any linked nodes
+    if (parsedNode.nextNode && !customStory[parsedNode.nextNode]) {
+      extractNodesRecursively(inkJSON, customStory, parsedNode.nextNode);
+    }
+    
+    // Extract nodes from choices
+    for (const choice of parsedNode.choices) {
+      if (choice.nextNode && !customStory[choice.nextNode]) {
+        extractNodesRecursively(inkJSON, customStory, choice.nextNode);
+      }
     }
   } catch (e) {
     console.error(`Error extracting node ${nodeName}:`, e);

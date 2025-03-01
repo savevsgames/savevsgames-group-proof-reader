@@ -1,11 +1,12 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { 
   CustomStory, 
-  storyNodeToPageMap, 
-  pageToStoryNodeMap,
-  generateNodeMappings 
+  generateNodeMappings,
+  storyNodeToPageMap,
+  pageToStoryNodeMap
 } from "@/lib/storyUtils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -31,7 +32,8 @@ export const useStoryEditor = (storyId: string) => {
   // Generate node mappings when storyData changes
   useEffect(() => {
     if (storyData) {
-      const { storyNodeToPageMap: updatedNodeToPage, pageToStoryNodeMap: updatedPageToNode } = 
+      // Generate fresh mappings with total pages
+      const { storyNodeToPageMap: updatedNodeToPage, pageToStoryNodeMap: updatedPageToNode, totalPages: calculatedPages } = 
         generateNodeMappings(storyData);
       
       setNodeMappings({
@@ -39,12 +41,10 @@ export const useStoryEditor = (storyId: string) => {
         pageToNode: updatedPageToNode
       });
       
-      // Calculate total pages based on the number of nodes
-      const totalNodes = Object.keys(storyData).length;
-      const calculatedPages = Math.max(totalNodes, 1);
+      // Update total pages based on the mapping
       setTotalPages(calculatedPages);
       
-      console.log(`Total story nodes: ${totalNodes}, Set total pages to: ${calculatedPages}`);
+      console.log(`useStoryEditor: Total story nodes: ${calculatedPages}, updated mappings`);
     }
   }, [storyData]);
 
@@ -52,8 +52,13 @@ export const useStoryEditor = (storyId: string) => {
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages) return;
     
-    // Get the node name for this page using our updated mappings
-    const nodeName = nodeMappings.pageToNode[newPage] || "root";
+    // Get the node name for this page using our mappings
+    const nodeName = nodeMappings.pageToNode[newPage];
+    
+    if (!nodeName) {
+      console.error(`No node found for page ${newPage}`);
+      return;
+    }
     
     console.log(`Page changed to ${newPage}, corresponding to node: ${nodeName}`);
     setCurrentNode(nodeName);
@@ -62,11 +67,14 @@ export const useStoryEditor = (storyId: string) => {
 
   // Handle node change
   const handleNodeChange = (nodeName: string) => {
-    if (!nodeName || !storyData || !storyData[nodeName]) return;
+    if (!nodeName || !storyData || !storyData[nodeName]) {
+      console.error(`Invalid node: ${nodeName}`);
+      return;
+    }
     
     setCurrentNode(nodeName);
     
-    // Calculate page number from node using our updated mappings
+    // Calculate page number from node
     const pageNumber = nodeMappings.nodeToPage[nodeName] || 1;
     
     console.log(`Node changed to ${nodeName}, corresponding to page: ${pageNumber}`);
@@ -142,8 +150,6 @@ export const useStoryEditor = (storyId: string) => {
           if (storyContent) {
             setStoryData(storyContent);
             setError(null);
-            
-            // We'll calculate total pages in the useEffect
           } else {
             // Create a default empty story structure as fallback
             console.log("No valid story content found, creating default structure");
@@ -154,7 +160,6 @@ export const useStoryEditor = (storyId: string) => {
               },
             };
             setStoryData(defaultStory);
-            setTotalPages(1);
           }
           
           // Reset unsaved changes flag
@@ -177,8 +182,6 @@ export const useStoryEditor = (storyId: string) => {
   const handleStoryDataChange = (data: CustomStory) => {
     setStoryData(data);
     setHasUnsavedChanges(true);
-    
-    // Dynamic mappings will be recalculated in the useEffect
   };
 
   const handleSave = async () => {
