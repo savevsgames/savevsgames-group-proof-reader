@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -55,9 +54,7 @@ const CommentForm = ({
           story_node: currentNode,
           text: text,
           comment_type: type,
-          user_id: user.id,
-          user_name: user.username || 'Anonymous',
-          user_avatar: user.avatar_url
+          user_id: user.id
         }])
         .select('*')
         .single();

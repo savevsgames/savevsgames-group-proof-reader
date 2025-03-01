@@ -34,7 +34,7 @@ export const useComments = (
           .from('comments')
           .select(`
             *,
-            profile:profiles(username)
+            profile:profiles(username, avatar_url)
           `)
           .eq('story_id', storyId)
           .eq('story_position', currentPage)
@@ -43,8 +43,15 @@ export const useComments = (
         if (error) {
           console.error("Error fetching comments:", error);
         } else {
-          setComments(data || []);
-          onCommentsUpdate(data ? data.length : 0);
+          // Transform data to include username and avatar for display
+          const formattedComments = data?.map(comment => ({
+            ...comment,
+            user_name: comment.profile?.username || 'Anonymous',
+            user_avatar: comment.profile?.avatar_url
+          })) || [];
+          
+          setComments(formattedComments);
+          onCommentsUpdate(formattedComments.length);
         }
       } catch (error) {
         console.error("Unexpected error fetching comments:", error);
