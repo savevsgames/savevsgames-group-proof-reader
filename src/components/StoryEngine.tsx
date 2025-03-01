@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useStory } from '@/hooks/useStory';
 import { CommentModal } from './CommentModal';
 import { BookLayout } from './story/BookLayout';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/useAuth';
 import { fetchComments } from '@/lib/storyUtils';
 import { Comment } from './CommentModal';
 
@@ -36,7 +35,6 @@ export const StoryEngine: React.FC = () => {
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
 
-  // Fetch comments for current story position
   useEffect(() => {
     const getComments = async () => {
       if (storyId && currentStoryPosition !== undefined) {
@@ -52,11 +50,9 @@ export const StoryEngine: React.FC = () => {
     getComments();
   }, [storyId, currentStoryPosition]);
 
-  // Refresh comments when modal closes
   const handleCommentModalOpenChange = (open: boolean) => {
     setIsCommentModalOpen(open);
     if (!open) {
-      // Slightly delayed refresh to allow for any new comments to be saved
       setTimeout(() => {
         if (storyId && currentStoryPosition !== undefined) {
           fetchComments(storyId, currentStoryPosition).then(commentsData => {
