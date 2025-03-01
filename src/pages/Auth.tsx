@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -15,7 +14,6 @@ const Auth = () => {
   const { user, signIn, signUp, continueAsGuest } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect if already logged in
   useEffect(() => {
     if (user) {
       navigate('/dashboard');
@@ -33,7 +31,6 @@ const Auth = () => {
     setError('');
 
     try {
-      // Basic validation
       if (!email || !password) {
         setError('Email and password are required');
         setLoading(false);
@@ -68,7 +65,6 @@ const Auth = () => {
         const { error } = await signUp(email, password, username);
         
         if (error) {
-          // Handle specific error cases
           if (error.message.includes('email')) {
             setError('This email is already in use. Please try another one or sign in.');
           } else if (error.message.includes('username')) {
@@ -103,6 +99,22 @@ const Auth = () => {
   const handleGuestAccess = () => {
     continueAsGuest();
     navigate('/dashboard');
+  };
+
+  const renderProfileLink = () => {
+    if (user) {
+      return (
+        <div className="mt-4 text-center">
+          <button
+            onClick={() => navigate('/profile')}
+            className="text-[#3A2618] hover:text-[#F97316] transition-colors duration-200"
+          >
+            Go to your profile
+          </button>
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
@@ -221,6 +233,8 @@ const Auth = () => {
               Continue as Guest
             </button>
           </div>
+
+          {renderProfileLink()}
         </div>
       </div>
     </div>
