@@ -40,6 +40,7 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
     e.preventDefault();
     const newPage = parseInt(pageInput);
     if (!isNaN(newPage) && newPage >= 1 && newPage <= totalPages) {
+      console.log("Navigating to page from input:", newPage);
       onPageChange(newPage);
     } else {
       // Reset to current page if invalid
@@ -99,18 +100,18 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
             </div>
           </div>
 
-          {/* Page Navigation */}
+          {/* Page Navigation - Replaced Button components with custom buttons */}
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
+            {/* Previous page button */}
+            <button
               onClick={goToPreviousPage}
               disabled={currentPage <= 1}
-              className="h-8 w-8 p-0 flex items-center justify-center"
+              className="h-8 w-8 p-0 flex items-center justify-center border border-[#3A2618]/20 rounded hover:bg-[#3A2618]/10 transition-colors disabled:opacity-50 disabled:pointer-events-none"
               type="button"
+              aria-label="Previous page"
             >
               <ChevronLeft className="h-4 w-4" />
-            </Button>
+            </button>
 
             <form onSubmit={handlePageSubmit} className="flex items-center">
               {isEditing ? (
@@ -133,16 +134,16 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
               )}
             </form>
 
-            <Button
-              variant="outline"
-              size="sm"
+            {/* Next page button */}
+            <button
               onClick={goToNextPage}
               disabled={currentPage >= totalPages}
-              className="h-8 w-8 p-0 flex items-center justify-center"
+              className="h-8 w-8 p-0 flex items-center justify-center border border-[#3A2618]/20 rounded hover:bg-[#3A2618]/10 transition-colors disabled:opacity-50 disabled:pointer-events-none"
               type="button"
+              aria-label="Next page"
             >
               <ChevronRight className="h-4 w-4" />
-            </Button>
+            </button>
           </div>
         </div>
 
