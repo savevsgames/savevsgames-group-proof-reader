@@ -9,7 +9,7 @@ import { extractAllNodesFromInkJSON } from "@/lib/story/nodeExtraction";
 import { extractCustomStoryFromInkJSON } from "@/lib/story/conversion";
 
 // Re-export NodeMappings interface for wider use
-export { NodeMappings } from "@/lib/storyNodeMapping";
+export type { NodeMappings } from "@/lib/storyNodeMapping";
 
 // Generate node mappings and log information about the story structure - improved version
 export const generateAndLogNodeMappings = (storyData: CustomStory): {
