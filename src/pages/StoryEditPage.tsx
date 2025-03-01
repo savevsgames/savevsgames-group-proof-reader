@@ -60,9 +60,9 @@ const StoryEditPage = () => {
   // Handle node change
   const handleNodeChange = (nodeName: string) => {
     setCurrentNode(nodeName);
-    // Calculate page number from node index
-    const nodeIndex = Object.keys(storyData || {}).indexOf(nodeName);
-    setCurrentPage(nodeIndex >= 0 ? nodeIndex + 1 : 1);
+    // Calculate page number from node name using the storyNodeToPageMap
+    const pageNumber = storyNodeToPageMap[nodeName] || 1;
+    setCurrentPage(pageNumber);
   };
 
   // Confirmation when navigating away with unsaved changes

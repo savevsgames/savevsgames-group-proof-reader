@@ -50,7 +50,8 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
   };
 
   // Calculate current page number from node name
-  const currentPage = storyNodeToPageMap[currentNode] || 1;
+  // This logic now matches how the reader component maps nodes to pages
+  const currentPage = currentNode ? (storyNodeToPageMap[currentNode] || 1) : 1;
 
   return (
     <Tabs
@@ -109,7 +110,6 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
               onStoryDataChange(data);
               onUnsavedChanges(true);
             }}
-            // Remove the currentNode prop since it's not in the LlmIntegration interface
           />
         </TabsContent>
       </Card>
