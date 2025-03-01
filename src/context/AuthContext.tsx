@@ -140,11 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const errorMessage = formatAuthError(error);
         updateState({ error: errorMessage });
         
-        toast({
-          title: "Sign in failed",
-          description: errorMessage,
-          variant: "destructive",
-        });
+        toast.error("Sign in failed: " + errorMessage);
         
         console.error('Sign in error:', error.message);
         return { error };
@@ -161,10 +157,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isGuest: false
         });
         
-        toast({
-          title: "Signed in successfully",
-          description: `Welcome back${profileData?.username ? ', ' + profileData.username : ''}!`,
-        });
+        toast.success("Signed in successfully" + (profileData?.username ? ', ' + profileData.username : '') + "!");
         
         console.log('User signed in successfully:', data.user.email);
       }
@@ -199,21 +192,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const errorMessage = formatAuthError(error);
         updateState({ error: errorMessage });
         
-        toast({
-          title: "Sign up failed",
-          description: errorMessage,
-          variant: "destructive",
-        });
+        toast.error("Sign up failed: " + errorMessage);
         
         console.error('Sign up error:', error.message);
         return { error };
       }
       
       if (data?.user) {
-        toast({
-          title: "Account created",
-          description: "Please check your email to verify your account.",
-        });
+        toast.success("Account created. Please check your email to verify your account.");
         console.log('User signed up:', data.user.email);
       }
       
@@ -241,20 +227,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         error: null
       });
       
-      toast({
-        title: "Signed out",
-        description: "You have been signed out successfully.",
-      });
+      toast.success("You have been signed out successfully.");
       
       console.log('User signed out');
     } catch (error) {
       console.error('Error during sign out:', error);
       
-      toast({
-        title: "Sign out failed",
-        description: "There was an error signing out. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("There was an error signing out. Please try again.");
       
       updateState({ error: 'Failed to sign out' });
     } finally {
@@ -272,10 +251,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       error: null
     });
     
-    toast({
-      title: "Guest mode",
-      description: "You're browsing as a guest. Some features may be limited.",
-    });
+    toast.info("You're browsing as a guest. Some features may be limited.");
     
     console.log('Continuing as guest');
   };
@@ -290,31 +266,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await updateUserProfile(state.user.id, updates);
       
       if (error) {
-        toast({
-          title: "Update failed",
-          description: error.message,
-          variant: "destructive",
-        });
+        toast.error("Update failed: " + error.message);
         return { error };
       }
       
       // Refresh profile after update
       await refreshUserProfile();
       
-      toast({
-        title: "Profile updated",
-        description: "Your profile has been updated successfully.",
-      });
+      toast.success("Your profile has been updated successfully.");
       
       return { error: null };
     } catch (error) {
       console.error('Error updating profile:', error);
       
-      toast({
-        title: "Update failed",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("An unexpected error occurred. Please try again.");
       
       return { error };
     }
