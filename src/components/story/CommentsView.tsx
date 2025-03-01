@@ -6,8 +6,9 @@ import { CommentType } from '@/lib/commentTypes';
 import CommentForm from './comments/CommentForm';
 import CommentSection from './comments/CommentSection';
 import { useStoryStore } from '@/stores/storyState';
-import { Comment } from '@/types/features/comments.types';
+import { Comment } from '@/types';
 import { useAuth } from '@/context/AuthContext';
+import { shallow } from 'zustand/shallow';
 
 interface CommentsViewProps {
   storyId: string;
@@ -27,17 +28,15 @@ const CommentsView = ({
   const { bookId } = useParams();
   const { user } = useAuth();
   
-  // Use store selectors for comments state
+  // Use store selectors for comments state with shallow comparison
   const { comments, commentCount, isLoading } = useStoryStore(state => ({
     comments: state.comments,
     commentCount: state.commentCount,
     isLoading: state.commentsLoading
-  }));
+  }), shallow);
   
   // Use store actions for comments operations
-  const { fetchComments } = useStoryStore(state => ({
-    fetchComments: state.fetchComments
-  }));
+  const fetchComments = useStoryStore(state => state.fetchComments);
   
   // Local UI state for the comment form
   const [commentText, setCommentText] = React.useState('');

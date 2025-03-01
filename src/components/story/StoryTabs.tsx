@@ -13,6 +13,7 @@ import { generateNodeMappings } from "@/lib/story/mappings";
 import { CustomStory, NodeMappings, TabType } from "@/types";
 import { useStoryStore } from "@/stores/storyState";
 import { BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
+import { shallow } from "zustand/shallow";
 
 interface StoryTabsProps {
   storyId: string;
@@ -34,10 +35,8 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
   const [activeTab, setActiveTab] = useState<TabType>("json");
   const { user } = useAuth();
   
-  // Get comment count from store
-  const { commentCount } = useStoryStore(state => ({
-    commentCount: state.commentCount
-  }));
+  // Get comment count from store with proper typing
+  const commentCount = useStoryStore(state => state.commentCount);
   
   const [mappings, setMappings] = useState<NodeMappings>({
     nodeToPage: {},

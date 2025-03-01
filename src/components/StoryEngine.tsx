@@ -8,44 +8,43 @@ import { useStoryStore } from "@/stores/storyState";
 import { shallow } from "zustand/shallow";
 import { 
   StoryEngineProps,
-  StoryStore,
   StorySelector
 } from "@/types";
 
 export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
   const { user } = useAuth();
   
-  // Use specific selectors to minimize re-renders
-  const uiState = useStoryStore(state => ({
+  // Use specific selectors with proper typing to minimize re-renders
+  const uiState = useStoryStore((state) => ({
     loading: state.loading,
     error: state.error
-  }));
+  }), shallow);
   
-  const metadataState = useStoryStore(state => ({
+  const metadataState = useStoryStore((state) => ({
     bookTitle: state.title,
     totalPages: state.totalPages
   }), shallow);
   
-  const navigationState = useStoryStore(state => ({
+  const navigationState = useStoryStore((state) => ({
     currentPage: state.currentPage,
     canGoBack: state.canGoBack,
     currentNode: state.currentNode
   }), shallow);
   
-  const contentState = useStoryStore(state => ({
+  const contentState = useStoryStore((state) => ({
     currentText: state.currentText,
     currentChoices: state.currentChoices,
     canContinue: state.canContinue,
     currentStoryPosition: state.currentStoryPosition
   }), shallow);
   
-  const commentsState = useStoryStore(state => ({
+  const commentsState = useStoryStore((state) => ({
     comments: state.comments,
     commentCount: state.commentCount
   }), shallow);
   
   // Actions don't need shallow comparison as they don't change
-  const actions = useStoryStore(state => ({
+  const actions = useStoryStore((state) => ({
     handleContinue: state.handleContinue,
     handleChoice: state.handleChoice,
     goBack: state.goBack,
@@ -65,7 +64,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
       // Fetch latest comments when modal opens
       actions.fetchComments(storyId, contentState.currentStoryPosition);
     }
-  }, [storyId, contentState.currentStoryPosition, actions]);
+  }, [storyId, contentState.currentStoryPosition, actions.fetchComments]);
 
   // Initialize comments when we load a new story position
   useEffect(() => {

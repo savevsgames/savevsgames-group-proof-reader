@@ -9,31 +9,55 @@ import ErrorState from "@/components/story/editor/ErrorState";
 import EmptyState from "@/components/story/editor/EmptyState";
 import UnsavedChangesDialog from "@/components/story/editor/UnsavedChangesDialog";
 import { useStoryStore } from "@/stores/storyState";
-import { StoryStore, StorySelector, EqualityFn } from "@/types";
+import { shallow } from "zustand/shallow";
 
 const StoryEditPage = () => {
   const { id } = useParams();
   const storyId = id as string;
   
-  // Select state from the store using individual selectors
-  const storyData = useStoryStore((state: StoryStore) => state.storyData);
-  const title = useStoryStore((state: StoryStore) => state.title);
-  const loading = useStoryStore((state: StoryStore) => state.loading);
-  const error = useStoryStore((state: StoryStore) => state.error);
-  const saving = useStoryStore((state: StoryStore) => state.saving);
-  const hasUnsavedChanges = useStoryStore((state: StoryStore) => state.hasUnsavedChanges);
-  const currentNode = useStoryStore((state: StoryStore) => state.currentNode);
-  const currentPage = useStoryStore((state: StoryStore) => state.currentPage);
-  const totalPages = useStoryStore((state: StoryStore) => state.totalPages);
+  // Select state from the store using shallow comparison
+  const {
+    storyData,
+    title,
+    loading,
+    error,
+    saving,
+    hasUnsavedChanges,
+    currentNode,
+    currentPage,
+    totalPages
+  } = useStoryStore(state => ({
+    storyData: state.storyData,
+    title: state.title,
+    loading: state.loading,
+    error: state.error,
+    saving: state.saving,
+    hasUnsavedChanges: state.hasUnsavedChanges,
+    currentNode: state.currentNode,
+    currentPage: state.currentPage,
+    totalPages: state.totalPages
+  }), shallow);
   
   // Get actions from the store
-  const initializeStory = useStoryStore((state: StoryStore) => state.initializeStory);
-  const handlePageChange = useStoryStore((state: StoryStore) => state.handlePageChange);
-  const handleNodeChange = useStoryStore((state: StoryStore) => state.handleNodeChange);
-  const handleStoryDataChange = useStoryStore((state: StoryStore) => state.handleStoryDataChange);
-  const handleSave = useStoryStore((state: StoryStore) => state.handleSave);
+  const {
+    initializeStory,
+    handlePageChange,
+    handleNodeChange,
+    handleStoryDataChange,
+    handleSave,
+    goBack,
+    handleRestart
+  } = useStoryStore(state => ({
+    initializeStory: state.initializeStory,
+    handlePageChange: state.handlePageChange,
+    handleNodeChange: state.handleNodeChange,
+    handleStoryDataChange: state.handleStoryDataChange,
+    handleSave: state.handleSave,
+    goBack: state.goBack,
+    handleRestart: state.handleRestart
+  }));
   
-  // State for leave dialog
+  // State for leave dialog (local UI state)
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = React.useState(false);
   
   // Initialize story on component mount
@@ -62,9 +86,9 @@ const StoryEditPage = () => {
 
   const handleNavigate = (target: string) => {
     if (target === 'back' && useStoryStore.getState().canGoBack) {
-      useStoryStore.getState().goBack();
+      goBack();
     } else if (target === 'restart') {
-      useStoryStore.getState().handleRestart();
+      handleRestart();
     }
   };
 

@@ -13,12 +13,10 @@ import { StoryStore } from './store.types';
 export type EqualityFn<T> = (previous: T, next: T) => boolean;
 
 /**
- * Type for a selector function that extracts data from the store and supports an optional equality function.
+ * Type for a selector function that extracts data from the store.
+ * This includes proper typing for the equality function used with shallow comparison.
  */
-export type StorySelector<T> = {
-  (state: StoryStore): T;
-  (state: StoryStore, equalityFn?: EqualityFn<T>): T;
-};
+export type StorySelector<T> = (state: StoryStore, equalityFn?: EqualityFn<T>) => T;
 
 /**
  * Helper type for creating type-safe store selectors.
@@ -26,12 +24,57 @@ export type StorySelector<T> = {
 export type TypedSelector<T> = <U>(selector: (state: T) => U, equalityFn?: EqualityFn<U>) => U;
 
 /**
+ * UI state selector interface.
+ */
+export interface UISelector {
+  loading: boolean;
+  error: string | null;
+}
+
+/**
+ * Navigation state selector interface.
+ */
+export interface NavigationSelector {
+  currentPage: number;
+  currentNode: string;
+  totalPages: number;
+  canGoBack: boolean;
+}
+
+/**
+ * Content selector interface.
+ */
+export interface ContentSelector {
+  currentText: string;
+  currentChoices: import('../core/story.types').StoryChoice[];
+  canContinue: boolean;
+}
+
+/**
+ * Metadata selector interface.
+ */
+export interface MetadataSelector {
+  bookTitle: string;
+  totalPages: number;
+}
+
+/**
+ * Comments selector interface.
+ */
+export interface CommentsSelector {
+  comments: import('../features/comments.types').Comment[];
+  commentCount: number;
+  isLoading: boolean;
+  error: string | null;
+}
+
+/**
  * Store selector utility types for Zustand usage.
  */
 export interface StoreSelectors {
-  useUIState: () => import('./state.types').UISelector;
-  useNavigationState: () => import('../core/navigation.types').NavigationSelector;
-  useContentState: () => import('./state.types').ContentSelector;
-  useMetadataState: () => import('./state.types').MetadataSelector;
-  useCommentsState: () => import('./state.types').CommentsSelector;
+  useUIState: () => UISelector;
+  useNavigationState: () => NavigationSelector;
+  useContentState: () => ContentSelector;
+  useMetadataState: () => MetadataSelector;
+  useCommentsState: () => CommentsSelector;
 }

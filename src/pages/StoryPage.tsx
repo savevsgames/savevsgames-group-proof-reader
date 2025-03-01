@@ -59,14 +59,7 @@ const StoryPage = () => {
         totalPages
       });
     }
-  }, [id, navigate, toast, handleInitialization, storyId]);
-
-  // Monitor totalPages changes in a separate effect
-  useEffect(() => {
-    if (totalPages > 0) {
-      console.log(`[StoryPage] totalPages detected: ${totalPages}`);
-    }
-  }, [totalPages]);
+  }, [id, navigate, toast, handleInitialization, storyId, totalPages]);
 
   return (
     <div className="min-h-screen bg-[#3A2618] w-full overflow-x-hidden">
