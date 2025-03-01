@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
@@ -11,6 +12,7 @@ import { useAuth } from "@/context/AuthContext";
 import { generateNodeMappings } from "@/lib/story/mappings";
 import { CustomStory } from "@/lib/storyUtils";
 import { NodeMappings } from "@/lib/storyNodeMapping";
+import { TabType } from "@/stores/storyState/types";
 import { AlertCircle, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface StoryTabsProps {
@@ -21,8 +23,6 @@ interface StoryTabsProps {
   currentNode?: string;
   onNodeChange?: (nodeName: string) => void;
 }
-
-export const TabType = "json" | "ink" | "reader" | "comments" | "llm";
 
 const StoryTabs: React.FC<StoryTabsProps> = ({
   storyId,

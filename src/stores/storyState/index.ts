@@ -24,7 +24,7 @@ export const useStoryStore = create<StoryStore>()(
         partialize: (state) => ({ 
           storyId: state.storyId,
           title: state.title
-          // Removed currentPage to avoid infinite update loops
+          // Do NOT persist currentPage or currentNode to avoid infinite update loops
         })
       }
     )

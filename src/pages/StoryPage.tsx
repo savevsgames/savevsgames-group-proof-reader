@@ -5,13 +5,12 @@ import { StoryEngine } from "@/components/StoryEngine";
 import Header from "@/components/Header";
 import { useToast } from "@/hooks/use-toast";
 import { useStoryStore } from "@/stores/storyState";
-import { StoryStore } from "@/stores/storyState/types";
 
 const StoryPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const initializeStory = useStoryStore((state: StoryStore) => state.initializeStory);
+  const initializeStory = useStoryStore(state => state.initializeStory);
   
   useEffect(() => {
     if (!id) {

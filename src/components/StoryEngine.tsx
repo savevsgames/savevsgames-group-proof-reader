@@ -7,8 +7,6 @@ import { fetchComments } from "@/lib/storyUtils";
 import { Comment } from "./comments/types";
 import { User } from "@supabase/supabase-js";
 import { useStoryStore } from "@/stores/storyState";
-import { shallow } from "zustand/shallow";
-import { StoryStore } from "@/stores/storyState/types";
 
 interface StoryEngineProps {
   storyId: string;
@@ -23,60 +21,30 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
   
   // Split state into smaller, focused selectors to prevent unnecessary re-renders
   // UI state
-  const {
-    loading,
-    error,
-    title: bookTitle,
-  } = useStoryStore((state: StoryStore) => ({
-    loading: state.loading,
-    error: state.error,
-    title: state.title,
-  }), shallow);
+  const loading = useStoryStore(state => state.loading);
+  const error = useStoryStore(state => state.error);
+  const bookTitle = useStoryStore(state => state.title);
 
   // Navigation state
-  const {
-    currentPage,
-    totalPages,
-    currentText,
-    currentChoices,
-    canContinue,
-    canGoBack,
-    commentCount,
-  } = useStoryStore((state: StoryStore) => ({
-    currentPage: state.currentPage,
-    totalPages: state.totalPages,
-    currentText: state.currentText,
-    currentChoices: state.currentChoices,
-    canContinue: state.canContinue,
-    canGoBack: state.canGoBack,
-    commentCount: state.commentCount,
-  }), shallow);
+  const currentPage = useStoryStore(state => state.currentPage);
+  const totalPages = useStoryStore(state => state.totalPages);
+  const currentText = useStoryStore(state => state.currentText);
+  const currentChoices = useStoryStore(state => state.currentChoices);
+  const canContinue = useStoryStore(state => state.canContinue);
+  const canGoBack = useStoryStore(state => state.canGoBack);
+  const commentCount = useStoryStore(state => state.commentCount);
 
   // Current node and position state
-  const {
-    currentStoryPosition,
-    currentNode,
-  } = useStoryStore((state: StoryStore) => ({
-    currentStoryPosition: state.currentStoryPosition,
-    currentNode: state.currentNode,
-  }), shallow);
+  const currentStoryPosition = useStoryStore(state => state.currentStoryPosition);
+  const currentNode = useStoryStore(state => state.currentNode);
 
   // Actions as a separate selector to avoid re-renders on state changes
-  const {
-    handleContinue,
-    handleChoice,
-    goBack: handleBack,
-    handleRestart,
-    handlePageChange,
-    setCommentCount
-  } = useStoryStore((state: StoryStore) => ({
-    handleContinue: state.handleContinue,
-    handleChoice: state.handleChoice,
-    goBack: state.goBack,
-    handleRestart: state.handleRestart,
-    handlePageChange: state.handlePageChange,
-    setCommentCount: state.setCommentCount
-  }), shallow);
+  const handleContinue = useStoryStore(state => state.handleContinue);
+  const handleChoice = useStoryStore(state => state.handleChoice);
+  const goBack = useStoryStore(state => state.goBack);
+  const handleRestart = useStoryStore(state => state.handleRestart);
+  const handlePageChange = useStoryStore(state => state.handlePageChange);
+  const setCommentCount = useStoryStore(state => state.setCommentCount);
 
   // Capture the latest store values for use in callbacks
   useEffect(() => {
@@ -166,7 +134,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
         storyId={storyId}
         onContinue={handleContinue}
         onChoice={handleChoice}
-        onBack={handleBack}
+        onBack={goBack}
         onRestart={handleRestart}
         onOpenComments={() => setIsCommentModalOpen(true)}
         onPageChange={handlePageChange}

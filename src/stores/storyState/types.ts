@@ -3,6 +3,7 @@ import { CustomStory } from "@/lib/storyUtils";
 import { NodeMappings } from "@/lib/storyNodeMapping";
 import { Story } from "inkjs";
 
+// Core story state
 export interface StoryState {
   // Basic story metadata
   storyId: string | null;
@@ -37,6 +38,7 @@ export interface StoryState {
   usingCustomFormat: boolean;
 }
 
+// Actions for manipulating story data
 export interface StoryActions {
   // Story data actions
   setStoryId: (id: string | null) => void;
@@ -81,4 +83,8 @@ export interface StoryActions {
   handleRestart: () => Promise<void>;
 }
 
+// Combined store type
 export type StoryStore = StoryState & StoryActions;
+
+// Define TabType for StoryTabs component
+export type TabType = "json" | "ink" | "reader" | "comments" | "llm";

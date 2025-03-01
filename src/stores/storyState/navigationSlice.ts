@@ -1,7 +1,6 @@
 
 import { StateCreator } from 'zustand';
 import { StoryStore } from './types';
-import { fetchCommentCount } from '@/lib/storyUtils';
 
 // Slice for navigation-related state and actions
 export const createNavigationSlice: StateCreator<
@@ -54,7 +53,7 @@ export const createNavigationSlice: StateCreator<
   
   // Navigation
   navigateToNode: (nodeName) => {
-    const { storyData, currentNode } = get();
+    const { storyData, currentNode, nodeMappings } = get();
     if (!storyData || !storyData[nodeName]) {
       console.error(`[StoryStore] Node "${nodeName}" not found in story data`);
       return;
@@ -67,13 +66,13 @@ export const createNavigationSlice: StateCreator<
     const nodeData = storyData[nodeName];
     
     // Batch state updates to reduce re-renders
-    set(state => ({
+    set({
       currentNode: nodeName,
       currentText: nodeData.text,
       currentChoices: nodeData.choices || [],
       currentPage: nodeMappings.nodeToPage[nodeName] || 1,
       currentStoryPosition: nodeMappings.nodeToPage[nodeName] || 1
-    }));
+    });
   },
   
   // History management
@@ -157,12 +156,10 @@ export const createNavigationSlice: StateCreator<
       currentPage: newPage,
       currentStoryPosition: newPage
     });
-    
-    // Don't update comment count here, let the component handle it
   },
   
   handleNodeChange: async (nodeName) => {
-    const { storyData, currentNode } = get();
+    const { storyData, currentNode, nodeMappings } = get();
     
     if (!storyData || !storyData[nodeName]) {
       console.error(`[StoryStore] Node "${nodeName}" not found in story data`);
@@ -176,7 +173,6 @@ export const createNavigationSlice: StateCreator<
     
     // Set new node data in a single batch update
     const nodeData = storyData[nodeName];
-    const { nodeMappings } = get();
     const page = nodeMappings.nodeToPage[nodeName] || 1;
     
     set({
@@ -186,8 +182,6 @@ export const createNavigationSlice: StateCreator<
       currentPage: page,
       currentStoryPosition: page
     });
-    
-    // Don't update comment count here, let the component handle it
   },
   
   handleContinue: async () => {
@@ -203,7 +197,8 @@ export const createNavigationSlice: StateCreator<
     const { 
       currentChoices, 
       storyData, 
-      currentNode
+      currentNode,
+      nodeMappings
     } = get();
     
     if (!storyData || index < 0 || index >= currentChoices.length) {
@@ -222,16 +217,15 @@ export const createNavigationSlice: StateCreator<
     
     const nextNode = choice.nextNode;
     const nextNodeData = storyData[nextNode];
-    const { nodeMappings } = get();
-    const nextPage = nodeMappings.nodeToPage[nextNode];
+    const nextPage = nodeMappings.nodeToPage[nextNode] || Math.min(get().currentPage + 1, get().totalPages);
     
     // Single batch update
     set({
       currentNode: nextNode,
       currentText: nextNodeData.text,
       currentChoices: nextNodeData.choices || [],
-      currentPage: nextPage || Math.min(get().currentPage + 1, get().totalPages),
-      currentStoryPosition: nextPage || Math.min(get().currentPage + 1, get().totalPages)
+      currentPage: nextPage,
+      currentStoryPosition: nextPage
     });
   },
   
