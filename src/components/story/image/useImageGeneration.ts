@@ -92,8 +92,11 @@ export const useImageGeneration = ({
   useEffect(() => {
     if (!storyId || !currentNode) return;
     
+    // Important: we don't automatically fetch images on component mount anymore
+    // This prevents unwanted API calls and leaves image generation to user action
     setShouldFetchImage(false);
     setImageData(null);
+    setPollingCount(0);
   }, [storyId, currentNode]);
 
   // Fetch existing image if shouldFetchImage is true
@@ -101,14 +104,19 @@ export const useImageGeneration = ({
     const checkExistingImage = async () => {
       if (!shouldFetchImage) return;
       
-      const data = await fetchImageData(storyId, currentNode);
-      if (data) {
-        setImageData(data);
-        
-        // If status is generating or uploading, start polling
-        if (data.status === 'generating' || data.status === 'uploading') {
-          setPollingCount(0); // Reset polling count
+      try {
+        const data = await fetchImageData(storyId, currentNode);
+        if (data) {
+          setImageData(data);
+          
+          // If status is generating or uploading, start polling
+          if (data.status === 'generating' || data.status === 'uploading') {
+            setPollingCount(0); // Reset polling count
+          }
         }
+      } catch (error) {
+        console.error('Error checking existing image:', error);
+        // If we can't fetch existing image data, it's okay to continue
       }
     };
     
@@ -131,17 +139,24 @@ export const useImageGeneration = ({
     
     try {
       const newImageData = await generateNewImage(storyId, currentNode, currentPage, imagePrompt);
-      setImageData(newImageData);
       
-      // Show toast if not already generating
-      if (newImageData?.status !== 'completed') {
-        toast({
-          title: "Image generation started",
-          description: "Your image is being generated. This may take up to a minute.",
-          variant: "default"
-        });
+      if (newImageData) {
+        setImageData(newImageData);
+        
+        // Show toast if not already generating
+        if (newImageData.status !== 'completed') {
+          toast({
+            title: "Image generation started",
+            description: "Your image is being generated. This may take up to a minute.",
+            variant: "default"
+          });
+        }
+      } else {
+        throw new Error("Failed to generate image data");
       }
     } catch (error: any) {
+      console.error('Error in generateImage:', error);
+      
       toast({
         title: "Image generation failed",
         description: error.message || "Something went wrong",
@@ -153,7 +168,12 @@ export const useImageGeneration = ({
         ...prev,
         status: 'error',
         error_message: error.message || "Unknown error"
-      } : null);
+      } : {
+        id: 'temp-error-id',
+        image_url: '',
+        status: 'error',
+        error_message: error.message || "Unknown error"
+      });
     } finally {
       setLoading(false);
     }

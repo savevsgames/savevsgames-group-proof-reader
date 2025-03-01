@@ -51,6 +51,8 @@ export const generateNewImage = async (
   prompt: string
 ): Promise<ImageData | null> => {
   try {
+    console.log('Calling image generation with params:', { storyId, nodeId, pageNumber, prompt });
+    
     const response = await supabase.functions.invoke('generate-story-image', {
       body: {
         storyId,
@@ -60,14 +62,34 @@ export const generateNewImage = async (
       },
     });
     
-    if (!response || !response.data) {
+    // Check if the response exists
+    if (!response) {
+      console.error('No response received from image generation service');
       throw new Error('No response received from image generation service');
     }
     
-    if (!response.data.success) {
-      throw new Error(response.data.error || 'Failed to generate image');
+    // Log the full response for debugging
+    console.log('Image generation raw response:', response);
+    
+    // Check for error status
+    if (response.error) {
+      console.error('Error from image generation service:', response.error);
+      throw new Error(response.error.message || 'Error from image generation service');
     }
     
+    // Check if data exists
+    if (!response.data) {
+      console.error('No data in response from image generation service');
+      throw new Error('No data received from image generation service');
+    }
+    
+    // Check for failure in the data
+    if (response.data.success === false) {
+      console.error('Image generation failed:', response.data.error, response.data.details);
+      throw new Error(response.data.error || response.data.details || 'Failed to generate image');
+    }
+    
+    // Return the image data
     return response.data.image;
   } catch (error) {
     console.error('Error generating image:', error);

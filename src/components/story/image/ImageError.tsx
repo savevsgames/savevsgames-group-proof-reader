@@ -28,13 +28,22 @@ export const ImageError: React.FC<ImageErrorProps> = ({
     return null;
   };
 
+  const getErrorMessage = () => {
+    // Provide a user-friendly error message
+    if (imageData.error_message?.includes('attempt_count')) {
+      return "There was a database configuration issue. Please try again.";
+    }
+    
+    return imageData.error_message || "Something went wrong";
+  };
+
   return (
     <div className="border-2 border-dashed border-red-300 bg-red-50 rounded-lg p-8 text-center flex flex-col items-center space-y-4">
       <AlertCircle className="h-12 w-12 text-red-400" />
       <div>
         <p className="text-sm text-red-500 flex items-center justify-center mb-2">
           <AlertCircle className="h-4 w-4 mr-2 text-red-500" />
-          Error: {imageData.error_message || "Something went wrong"}
+          Error: {getErrorMessage()}
         </p>
         {getAttemptsInfo()}
         <p className="text-sm text-gray-500 mb-4">Prompt: {prompt}</p>
