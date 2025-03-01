@@ -94,6 +94,11 @@ export const StoryImage: React.FC<StoryImageProps> = ({
         },
       });
       
+      // Improved error handling
+      if (!response || !response.data) {
+        throw new Error('No response received from image generation service');
+      }
+      
       if (!response.data.success) {
         throw new Error(response.data.error || 'Failed to generate image');
       }
