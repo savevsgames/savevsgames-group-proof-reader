@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { UserProfileForm } from '@/components/UserProfileForm';
@@ -10,21 +10,12 @@ const Profile = () => {
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect to login if not logged in
-  React.useEffect(() => {
+  // Redirect to login if not logged in and not loading
+  useEffect(() => {
     if (!isLoading && !user) {
       navigate('/auth');
     }
   }, [user, isLoading, navigate]);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#F1F1F1] flex flex-col items-center justify-center">
-        <div className="animate-spin h-10 w-10 border-4 border-[#F97316] border-t-transparent rounded-full"></div>
-        <p className="mt-4 text-[#3A2618]">Loading...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-[#F1F1F1] pt-8 px-4">
@@ -41,7 +32,12 @@ const Profile = () => {
         <div className="flex flex-col items-center">
           <h1 className="text-3xl font-serif font-bold text-[#3A2618] mb-8">Profile Settings</h1>
           
-          {user ? (
+          {isLoading ? (
+            <div className="w-full max-w-md mx-auto bg-[#E8DCC4] rounded-lg shadow-md p-6 mb-8 flex flex-col items-center justify-center">
+              <div className="animate-spin h-10 w-10 border-4 border-[#F97316] border-t-transparent rounded-full"></div>
+              <p className="mt-4 text-[#3A2618]">Loading profile...</p>
+            </div>
+          ) : user ? (
             <UserProfileForm />
           ) : (
             <div className="bg-[#E8DCC4] rounded-lg shadow p-8 text-center">
