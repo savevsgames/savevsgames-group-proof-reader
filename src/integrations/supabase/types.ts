@@ -13,6 +13,7 @@ export type Database = {
         Row: {
           cover_url: string | null
           created_at: string | null
+          creator_id: string | null
           id: string
           story_file: string
           story_url: string | null
@@ -24,6 +25,7 @@ export type Database = {
         Insert: {
           cover_url?: string | null
           created_at?: string | null
+          creator_id?: string | null
           id?: string
           story_file: string
           story_url?: string | null
@@ -35,6 +37,7 @@ export type Database = {
         Update: {
           cover_url?: string | null
           created_at?: string | null
+          creator_id?: string | null
           id?: string
           story_file?: string
           story_url?: string | null
