@@ -9,7 +9,7 @@
 // Core types
 export * from './core/story.types';
 // Export only the types that don't conflict from navigation.types
-export { NavigationState } from './core/navigation.types';
+export type { NavigationState } from './core/navigation.types';
 
 // Store types - be careful not to duplicate selector types
 export * from './store/state.types';
