@@ -14,6 +14,8 @@ interface CommentsViewProps {
   currentNode: string;
   onCommentsUpdate: (count: number) => void;
   currentPage: number;
+  // Add the missing prop - make it optional with ? so it doesn't break other uses of CommentsView
+  onAddToLlmContext?: (text: string) => void;
 }
 
 interface Comment {
@@ -32,6 +34,7 @@ const CommentsView: React.FC<CommentsViewProps> = ({
   currentNode,
   onCommentsUpdate,
   currentPage,
+  onAddToLlmContext,
 }) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -137,6 +140,7 @@ const CommentsView: React.FC<CommentsViewProps> = ({
           loading={loading}
           currentUserId={user?.id}
           onDeleteComment={handleDeleteComment}
+          onAddToLlmContext={onAddToLlmContext}
         />
       </div>
     </div>
