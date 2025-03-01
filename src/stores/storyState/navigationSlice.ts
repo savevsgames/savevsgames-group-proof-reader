@@ -65,20 +65,15 @@ export const createNavigationSlice: StateCreator<
     
     // Set the new node and update content
     const nodeData = storyData[nodeName];
-    set({
+    
+    // Batch state updates to reduce re-renders
+    set(state => ({
       currentNode: nodeName,
       currentText: nodeData.text,
-      currentChoices: nodeData.choices || []
-    });
-    
-    // Update page using node mappings
-    const { nodeMappings } = get();
-    const page = nodeMappings.nodeToPage[nodeName] || 1;
-    
-    set({
-      currentPage: page,
-      currentStoryPosition: page
-    });
+      currentChoices: nodeData.choices || [],
+      currentPage: nodeMappings.nodeToPage[nodeName] || 1,
+      currentStoryPosition: nodeMappings.nodeToPage[nodeName] || 1
+    }));
   },
   
   // History management
@@ -100,28 +95,29 @@ export const createNavigationSlice: StateCreator<
     const newHistory = [...storyHistory];
     const prevNode = newHistory.pop() as string;
     
+    if (!storyData[prevNode]) {
+      console.error(`[StoryStore] Previous node "${prevNode}" not found in story data`);
+      set({
+        storyHistory: newHistory,
+        canGoBack: newHistory.length > 0
+      });
+      return;
+    }
+    
+    const prevNodeData = storyData[prevNode];
+    const { nodeMappings } = get();
+    const prevPage = nodeMappings.nodeToPage[prevNode] || Math.max(get().currentPage - 1, 1);
+    
+    // Batch update to reduce re-renders
     set({
       storyHistory: newHistory,
       canGoBack: newHistory.length > 0,
-      currentNode: prevNode
+      currentNode: prevNode,
+      currentText: prevNodeData.text,
+      currentChoices: prevNodeData.choices || [],
+      currentPage: prevPage,
+      currentStoryPosition: prevPage
     });
-    
-    if (storyData[prevNode]) {
-      const prevNodeData = storyData[prevNode];
-      set({
-        currentText: prevNodeData.text,
-        currentChoices: prevNodeData.choices || []
-      });
-      
-      // Update page using node mappings
-      const { nodeMappings } = get();
-      const prevPage = nodeMappings.nodeToPage[prevNode] || Math.max(get().currentPage - 1, 1);
-      
-      set({
-        currentPage: prevPage,
-        currentStoryPosition: prevPage
-      });
-    }
   },
   
   // Compound navigation actions
@@ -144,35 +140,25 @@ export const createNavigationSlice: StateCreator<
     // Get the target node for this page
     const targetNode = nodeMappings.pageToNode[newPage];
     
-    if (!targetNode) {
-      console.error(`[StoryStore] No node mapping found for page ${newPage}`);
+    if (!targetNode || !storyData || !storyData[targetNode]) {
+      console.error(`[StoryStore] No valid node mapping found for page ${newPage}`);
       return;
     }
     
-    if (storyData && storyData[targetNode]) {
-      console.log(`[StoryStore] Found node ${targetNode} for page ${newPage}`);
-      
-      // Add current node to history before changing
-      get().addToHistory(get().currentNode);
-      
-      // Set new node data
-      const nodeData = storyData[targetNode];
-      set({
-        currentNode: targetNode,
-        currentText: nodeData.text,
-        currentChoices: nodeData.choices || [],
-        currentPage: newPage,
-        currentStoryPosition: newPage
-      });
-      
-      // Update comment count
-      if (storyId) {
-        const count = await fetchCommentCount(storyId, newPage);
-        set({ commentCount: count });
-      }
-    } else {
-      console.error(`[StoryStore] Node "${targetNode}" not found in story data`);
-    }
+    // Add current node to history before changing
+    get().addToHistory(get().currentNode);
+    
+    // Set new node data in a single batch update
+    const nodeData = storyData[targetNode];
+    set({
+      currentNode: targetNode,
+      currentText: nodeData.text,
+      currentChoices: nodeData.choices || [],
+      currentPage: newPage,
+      currentStoryPosition: newPage
+    });
+    
+    // Don't update comment count here, let the component handle it
   },
   
   handleNodeChange: async (nodeName) => {
@@ -188,34 +174,26 @@ export const createNavigationSlice: StateCreator<
     // Add current node to history
     get().addToHistory(currentNode);
     
-    // Set new node data
+    // Set new node data in a single batch update
     const nodeData = storyData[nodeName];
-    set({
-      currentNode: nodeName,
-      currentText: nodeData.text,
-      currentChoices: nodeData.choices || []
-    });
-    
-    // Update page using node mappings
-    const { nodeMappings, storyId } = get();
+    const { nodeMappings } = get();
     const page = nodeMappings.nodeToPage[nodeName] || 1;
     
     set({
+      currentNode: nodeName,
+      currentText: nodeData.text,
+      currentChoices: nodeData.choices || [],
       currentPage: page,
       currentStoryPosition: page
     });
     
-    // Update comment count
-    if (storyId) {
-      const count = await fetchCommentCount(storyId, page);
-      set({ commentCount: count });
-    }
+    // Don't update comment count here, let the component handle it
   },
   
   handleContinue: async () => {
-    const { currentChoices, storyData, storyId } = get();
+    const { currentChoices } = get();
     
-    if (!storyData || !storyId || currentChoices.length !== 1) return;
+    if (currentChoices.length !== 1) return;
     
     // For single choice (continue), use the first choice
     await get().handleChoice(0);
@@ -225,89 +203,64 @@ export const createNavigationSlice: StateCreator<
     const { 
       currentChoices, 
       storyData, 
-      storyId, 
       currentNode
     } = get();
     
-    if (!storyData || !storyId || index < 0 || index >= currentChoices.length) {
+    if (!storyData || index < 0 || index >= currentChoices.length) {
       return;
     }
     
     const choice = currentChoices[index];
     
-    if (choice && choice.nextNode) {
-      // Add current node to history before navigating
-      get().addToHistory(currentNode);
-      
-      const nextNode = choice.nextNode;
-      const nextNodeData = storyData[nextNode];
-      
-      if (nextNodeData) {
-        // Update node and content
-        set({
-          currentNode: nextNode,
-          currentText: nextNodeData.text,
-          currentChoices: nextNodeData.choices || []
-        });
-        
-        // Update page using node mappings
-        const { nodeMappings } = get();
-        const nextPage = nodeMappings.nodeToPage[nextNode];
-        
-        if (nextPage) {
-          console.log(`[StoryStore] Choice navigation: node ${nextNode} maps to page ${nextPage}`);
-          set({
-            currentPage: nextPage,
-            currentStoryPosition: nextPage
-          });
-        } else {
-          console.warn(`[StoryStore] No page mapping for node ${nextNode}, using incremental page`);
-          const newPage = Math.min(get().currentPage + 1, get().totalPages);
-          set({
-            currentPage: newPage,
-            currentStoryPosition: newPage
-          });
-        }
-      } else {
-        console.error(`[StoryStore] Node "${nextNode}" not found in story`);
-      }
-    } else {
-      console.error("[StoryStore] Invalid choice, no nextNode specified");
+    if (!choice || !choice.nextNode || !storyData[choice.nextNode]) {
+      console.error("[StoryStore] Invalid choice or nextNode not found in story data");
+      return;
     }
+    
+    // Add current node to history before navigating
+    get().addToHistory(currentNode);
+    
+    const nextNode = choice.nextNode;
+    const nextNodeData = storyData[nextNode];
+    const { nodeMappings } = get();
+    const nextPage = nodeMappings.nodeToPage[nextNode];
+    
+    // Single batch update
+    set({
+      currentNode: nextNode,
+      currentText: nextNodeData.text,
+      currentChoices: nextNodeData.choices || [],
+      currentPage: nextPage || Math.min(get().currentPage + 1, get().totalPages),
+      currentStoryPosition: nextPage || Math.min(get().currentPage + 1, get().totalPages)
+    });
   },
   
   handleRestart: async () => {
-    const { storyData, storyId } = get();
+    const { storyData } = get();
     
-    if (!storyData || !storyId) return;
+    if (!storyData) return;
     
     console.log("[StoryStore] Restarting story");
     
-    // Reset history
-    set({ 
+    // Find start node
+    const startNode = storyData.start ? 'start' : 'root';
+    if (!storyData[startNode]) {
+      console.error(`[StoryStore] Start node "${startNode}" not found`);
+      return;
+    }
+    
+    const startNodeData = storyData[startNode];
+    
+    // Batch all updates in a single state change
+    set({
       storyHistory: [], 
       canGoBack: false,
       currentPage: 1,
-      currentStoryPosition: 1
+      currentStoryPosition: 1,
+      currentNode: startNode,
+      currentText: startNodeData.text,
+      currentChoices: startNodeData.choices || []
     });
-    
-    // Reset to start node
-    const startNode = storyData.start ? 'start' : 'root';
-    const startNodeData = storyData[startNode];
-    
-    if (startNodeData && startNodeData.text) {
-      set({
-        currentNode: startNode,
-        currentText: startNodeData.text,
-        currentChoices: startNodeData.choices || []
-      });
-    } else {
-      set({
-        currentNode: 'root',
-        currentText: "Story begins...",
-        currentChoices: []
-      });
-    }
   }
 });
 

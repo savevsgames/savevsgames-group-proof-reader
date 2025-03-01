@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { CommentModal } from "./CommentModal";
 import { BookLayout } from "./story/BookLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -16,12 +16,25 @@ interface StoryEngineProps {
 
 export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
   const { user } = useAuth();
+  const storeRef = useRef({
+    currentStoryPosition: 1,
+    setCommentCount: (count: number) => {}
+  });
   
-  // Get state from our global store with proper type checking
+  // Split state into smaller, focused selectors to prevent unnecessary re-renders
+  // UI state
   const {
     loading,
     error,
     title: bookTitle,
+  } = useStoryStore((state: StoryStore) => ({
+    loading: state.loading,
+    error: state.error,
+    title: state.title,
+  }), shallow);
+
+  // Navigation state
+  const {
     currentPage,
     totalPages,
     currentText,
@@ -29,18 +42,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
     canContinue,
     canGoBack,
     commentCount,
-    currentStoryPosition,
-    currentNode,
-    handleContinue,
-    handleChoice,
-    goBack: handleBack,
-    handleRestart,
-    handlePageChange,
-    setCommentCount
   } = useStoryStore((state: StoryStore) => ({
-    loading: state.loading,
-    error: state.error,
-    title: state.title,
     currentPage: state.currentPage,
     totalPages: state.totalPages,
     currentText: state.currentText,
@@ -48,8 +50,26 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
     canContinue: state.canContinue,
     canGoBack: state.canGoBack,
     commentCount: state.commentCount,
+  }), shallow);
+
+  // Current node and position state
+  const {
+    currentStoryPosition,
+    currentNode,
+  } = useStoryStore((state: StoryStore) => ({
     currentStoryPosition: state.currentStoryPosition,
     currentNode: state.currentNode,
+  }), shallow);
+
+  // Actions as a separate selector to avoid re-renders on state changes
+  const {
+    handleContinue,
+    handleChoice,
+    goBack: handleBack,
+    handleRestart,
+    handlePageChange,
+    setCommentCount
+  } = useStoryStore((state: StoryStore) => ({
     handleContinue: state.handleContinue,
     handleChoice: state.handleChoice,
     goBack: state.goBack,
@@ -58,34 +78,57 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
     setCommentCount: state.setCommentCount
   }), shallow);
 
+  // Capture the latest store values for use in callbacks
+  useEffect(() => {
+    storeRef.current = {
+      currentStoryPosition,
+      setCommentCount
+    };
+  }, [currentStoryPosition, setCommentCount]);
+
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [fetchingComments, setFetchingComments] = useState(false);
 
-  // Creating a self-contained function to update comments
-  const updateCommentCount = React.useCallback(() => {
-    if (storyId) {
-      fetchComments(storyId, currentStoryPosition).then(commentsData => {
-        setComments(commentsData);
-        setCommentCount(commentsData.length);
-      });
+  // Creating a stable reference to updateCommentCount
+  const updateCommentCount = useCallback(() => {
+    if (storeRef.current && !fetchingComments) {
+      setFetchingComments(true);
+      const { currentStoryPosition, setCommentCount } = storeRef.current;
+      
+      fetchComments(storyId, currentStoryPosition)
+        .then(commentsData => {
+          setComments(commentsData);
+          // Use the stable reference to avoid closure issues
+          setCommentCount(commentsData.length);
+        })
+        .finally(() => {
+          setFetchingComments(false);
+        });
     }
-  }, [storyId, currentStoryPosition, setCommentCount]);
+  }, [storyId, fetchingComments]);
 
-  // Load comments when modal opens
-  const handleCommentModalOpenChange = (open: boolean) => {
+  // Only update comments when currentStoryPosition changes
+  useEffect(() => {
+    updateCommentCount();
+  }, [currentStoryPosition, updateCommentCount]);
+
+  // Handle comment modal open/close with debounce
+  const handleCommentModalOpenChange = useCallback((open: boolean) => {
     setIsCommentModalOpen(open);
+    
     if (open) {
       // Fetch comments when modal opens
       fetchComments(storyId, currentStoryPosition).then(commentsData => {
         setComments(commentsData);
       });
     } else {
-      // Refresh comment count when modal closes
+      // Use setTimeout to avoid state update loops
       setTimeout(() => {
         updateCommentCount();
       }, 300);
     }
-  };
+  }, [storyId, currentStoryPosition, updateCommentCount]);
 
   if (loading) {
     return (

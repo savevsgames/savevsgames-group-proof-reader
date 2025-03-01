@@ -20,10 +20,11 @@ export const useStoryStore = create<StoryStore>()(
       }),
       {
         name: 'story-storage',
+        // Only persist minimal essential data to avoid update loops
         partialize: (state) => ({ 
           storyId: state.storyId,
-          title: state.title,
-          currentPage: state.currentPage
+          title: state.title
+          // Removed currentPage to avoid infinite update loops
         })
       }
     )

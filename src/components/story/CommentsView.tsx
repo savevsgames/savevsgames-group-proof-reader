@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CommentType } from '@/lib/commentTypes';
@@ -24,6 +24,8 @@ const CommentsView = ({
   onAddToLlmContext 
 }: CommentsViewProps) => {
   const { bookId } = useParams();
+  const prevPageRef = useRef(currentPage);
+  
   const {
     comments,
     commentText,
@@ -43,8 +45,14 @@ const CommentsView = ({
     node: currentNode,
     page: currentPage
   };
-
-  console.log(`[CommentsView] Showing comments for page ${currentPage}, node: ${currentNode}`);
+  
+  // Only log when the page actually changes to reduce console spam
+  useEffect(() => {
+    if (prevPageRef.current !== currentPage) {
+      console.log(`[CommentsView] Showing comments for page ${currentPage}, node: ${currentNode}`);
+      prevPageRef.current = currentPage;
+    }
+  }, [currentPage, currentNode]);
 
   return (
     <div className="h-full flex flex-col">
