@@ -14,6 +14,7 @@ interface BookHeaderProps {
   onRestart: () => void;
   onOpenComments: () => void;
   onPageChange: (pageNumber: number) => void;
+  hidePageSelector?: boolean;
 }
 
 export const BookHeader: React.FC<BookHeaderProps> = ({
@@ -25,7 +26,8 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
   onBack,
   onRestart,
   onOpenComments,
-  onPageChange
+  onPageChange,
+  hidePageSelector = false
 }) => {
   const [pageInputValue, setPageInputValue] = useState<string>(currentPage.toString());
   
@@ -118,55 +120,57 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
         <h1 className="font-serif text-lg md:text-xl font-medium">{bookTitle}</h1>
       </div>
       
-      {/* Right side - Page information and comment button */}
+      {/* Right side - Comment button only (Page selector removed) */}
       <div className="flex items-center space-x-4">
-        <Popover>
-          <PopoverTrigger asChild>
-            <div className="flex items-center cursor-pointer hover:bg-[#4A3628] rounded px-2 py-1">
-              <BookOpen className="h-4 w-4 mr-2" />
-              <span className="text-sm">
-                Page <span className="font-bold">{currentPage}</span> of {totalPages}
-              </span>
-            </div>
-          </PopoverTrigger>
-          <PopoverContent className="w-80 bg-[#E8DCC4] text-[#3A2618] p-4">
-            <div className="space-y-4">
-              <h4 className="font-medium">Jump to Page</h4>
-              
-              <form onSubmit={handlePageSubmit} className="flex space-x-2">
-                <input
-                  type="text"
-                  value={pageInputValue}
-                  onChange={handlePageInputChange}
-                  className="w-16 px-2 py-1 border border-[#3A2618] rounded text-center"
-                  aria-label="Enter page number"
-                />
-                <Button 
-                  type="submit" 
-                  className="bg-[#3A2618] text-[#E8DCC4] hover:bg-[#4A3628]"
-                >
-                  Go
-                </Button>
-              </form>
-              
-              <div className="flex flex-wrap gap-1 justify-center">
-                {getPageNumbers().map(page => (
-                  <div
-                    key={`page-${page}`}
-                    onClick={() => onPageChange(page)}
-                    className={`px-2 py-1 min-w-[30px] text-center ${
-                      currentPage === page
-                        ? 'bg-[#3A2618] text-[#E8DCC4]'
-                        : 'hover:bg-[#3A2618]/10'
-                    } rounded cursor-pointer`}
-                  >
-                    {page}
-                  </div>
-                ))}
+        {!hidePageSelector && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <div className="flex items-center cursor-pointer hover:bg-[#4A3628] rounded px-2 py-1">
+                <BookOpen className="h-4 w-4 mr-2" />
+                <span className="text-sm">
+                  Page <span className="font-bold">{currentPage}</span> of {totalPages}
+                </span>
               </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 bg-[#E8DCC4] text-[#3A2618] p-4">
+              <div className="space-y-4">
+                <h4 className="font-medium">Jump to Page</h4>
+                
+                <form onSubmit={handlePageSubmit} className="flex space-x-2">
+                  <input
+                    type="text"
+                    value={pageInputValue}
+                    onChange={handlePageInputChange}
+                    className="w-16 px-2 py-1 border border-[#3A2618] rounded text-center"
+                    aria-label="Enter page number"
+                  />
+                  <Button 
+                    type="submit" 
+                    className="bg-[#3A2618] text-[#E8DCC4] hover:bg-[#4A3628]"
+                  >
+                    Go
+                  </Button>
+                </form>
+                
+                <div className="flex flex-wrap gap-1 justify-center">
+                  {getPageNumbers().map(page => (
+                    <div
+                      key={`page-${page}`}
+                      onClick={() => onPageChange(page)}
+                      className={`px-2 py-1 min-w-[30px] text-center ${
+                        currentPage === page
+                          ? 'bg-[#3A2618] text-[#E8DCC4]'
+                          : 'hover:bg-[#3A2618]/10'
+                      } rounded cursor-pointer`}
+                    >
+                      {page}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
         
         <Button
           variant="ghost"

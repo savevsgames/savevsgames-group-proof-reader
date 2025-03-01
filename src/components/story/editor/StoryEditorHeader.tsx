@@ -33,6 +33,7 @@ const StoryEditorHeader: React.FC<StoryEditorHeaderProps> = ({
           onRestart={() => {}}
           onOpenComments={() => {}}
           onPageChange={onPageChange}
+          hidePageSelector={true}
         />
       )}
 
