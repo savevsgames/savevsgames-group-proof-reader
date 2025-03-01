@@ -66,7 +66,7 @@ export const StoryText: React.FC<StoryTextProps> = ({
     >
       {formattedText}
       
-      {/* Add the StoryImage component if we have the required props */}
+      {/* Pass the full text to StoryImage so it can extract the image prompt */}
       {storyId && currentNode && currentPage !== undefined && (
         <StoryImage 
           storyId={storyId}
