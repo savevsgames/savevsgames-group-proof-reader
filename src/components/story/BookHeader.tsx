@@ -104,9 +104,10 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
         <Button
           variant="ghost"
           size="sm"
-          className="text-[#E8DCC4] hover:text-white hover:bg-[#4A3628]"
           onClick={onRestart}
+          className="text-[#E8DCC4] hover:text-white hover:bg-[#4A3628]"
           title="Start Over"
+          type="button"
         >
           <SkipBack className="h-4 w-4 mr-1" />
           <span className="hidden sm:inline">Restart</span>
@@ -115,10 +116,11 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
         <Button
           variant="ghost"
           size="sm"
-          className="text-[#E8DCC4] hover:text-white hover:bg-[#4A3628] disabled:opacity-50"
           onClick={onBack}
           disabled={!canGoBack}
+          className="text-[#E8DCC4] hover:text-white hover:bg-[#4A3628] disabled:opacity-50"
           title="Go Back"
+          type="button"
         >
           <ChevronLeft className="h-4 w-4 mr-1" />
           <span className="hidden sm:inline">Back</span>
@@ -132,12 +134,16 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
         {!hidePageSelector && (
           <Popover>
             <PopoverTrigger asChild>
-              <div className="flex items-center cursor-pointer hover:bg-[#4A3628] rounded px-2 py-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex items-center hover:bg-[#4A3628] text-[#E8DCC4] hover:text-white"
+              >
                 <BookOpen className="h-4 w-4 mr-2" />
                 <span className="text-sm">
                   Page <span className="font-bold">{currentPage}</span> of {totalPages}
                 </span>
-              </div>
+              </Button>
             </PopoverTrigger>
             <PopoverContent className="w-80 bg-[#E8DCC4] text-[#3A2618] p-4">
               <div className="space-y-4">
@@ -182,9 +188,10 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
         <Button
           variant="ghost"
           size="sm"
-          className="text-[#E8DCC4] hover:text-white hover:bg-[#4A3628] relative"
           onClick={onOpenComments}
+          className="text-[#E8DCC4] hover:text-white hover:bg-[#4A3628] relative"
           title="View Comments"
+          type="button"
         >
           <MessageSquare className="h-4 w-4 mr-1" />
           <span className="hidden sm:inline">Comments</span>
@@ -198,9 +205,10 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
         <Button
           variant="ghost"
           size="sm"
-          className="text-[#E8DCC4] hover:text-white hover:bg-[#4A3628]"
           onClick={handleDashboardClick}
+          className="text-[#E8DCC4] hover:text-white hover:bg-[#4A3628]"
           title="Back to Dashboard"
+          type="button"
         >
           <Home className="h-4 w-4 mr-1" />
           <span className="hidden sm:inline">Dashboard</span>
