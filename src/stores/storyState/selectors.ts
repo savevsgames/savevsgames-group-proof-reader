@@ -2,32 +2,54 @@
 import { StoryState, StoryStore } from './types';
 
 // Navigation selectors
-export const selectCurrentNode = (state: StoryState) => state.currentNode;
-export const selectCurrentPage = (state: StoryState) => state.currentPage;
-export const selectTotalPages = (state: StoryState) => state.totalPages;
-export const selectNodeMappings = (state: StoryState) => state.nodeMappings;
+export const selectCurrentNode = (state: StoryStore) => state.currentNode;
+export const selectCurrentPage = (state: StoryStore) => state.currentPage;
+export const selectTotalPages = (state: StoryStore) => state.totalPages;
+export const selectNodeMappings = (state: StoryStore) => state.nodeMappings;
 
 // Content selectors
-export const selectCurrentText = (state: StoryState) => state.currentText;
-export const selectCurrentChoices = (state: StoryState) => state.currentChoices;
-export const selectCanContinue = (state: StoryState) => state.canContinue;
+export const selectCurrentText = (state: StoryStore) => state.currentText;
+export const selectCurrentChoices = (state: StoryStore) => state.currentChoices;
+export const selectCanContinue = (state: StoryStore) => state.canContinue;
 
 // Status selectors
-export const selectLoading = (state: StoryState) => state.loading;
-export const selectSaving = (state: StoryState) => state.saving;
-export const selectError = (state: StoryState) => state.error;
-export const selectHasUnsavedChanges = (state: StoryState) => state.hasUnsavedChanges;
-export const selectCommentCount = (state: StoryState) => state.commentCount;
+export const selectLoading = (state: StoryStore) => state.loading;
+export const selectSaving = (state: StoryStore) => state.saving;
+export const selectError = (state: StoryStore) => state.error;
+export const selectHasUnsavedChanges = (state: StoryStore) => state.hasUnsavedChanges;
+export const selectCommentCount = (state: StoryStore) => state.commentCount;
 
 // History selectors
-export const selectCanGoBack = (state: StoryState) => state.canGoBack;
-export const selectStoryHistory = (state: StoryState) => state.storyHistory;
+export const selectCanGoBack = (state: StoryStore) => state.canGoBack;
+export const selectStoryHistory = (state: StoryStore) => state.storyHistory;
 
 // Data selectors
-export const selectStoryData = (state: StoryState) => state.storyData;
-export const selectStoryId = (state: StoryState) => state.storyId;
-export const selectTitle = (state: StoryState) => state.title;
+export const selectStoryData = (state: StoryStore) => state.storyData;
+export const selectStoryId = (state: StoryStore) => state.storyId;
+export const selectTitle = (state: StoryStore) => state.title;
 
 // Compound selectors
-export const selectStoryIsReady = (state: StoryState) => 
+export const selectStoryIsReady = (state: StoryStore) => 
   !state.loading && state.storyData !== null && !state.error;
+
+// Selector for all story navigation state
+export const selectStoryNavigation = (state: StoryStore) => ({
+  currentPage: state.currentPage,
+  totalPages: state.totalPages,
+  currentNode: state.currentNode
+});
+
+// Selector for core content
+export const selectStoryContent = (state: StoryStore) => ({
+  currentText: state.currentText,
+  currentChoices: state.currentChoices,
+  canContinue: state.canContinue,
+  canGoBack: state.canGoBack
+});
+
+// Selector for UI state
+export const selectUiState = (state: StoryStore) => ({
+  loading: state.loading,
+  error: state.error,
+  commentCount: state.commentCount
+});

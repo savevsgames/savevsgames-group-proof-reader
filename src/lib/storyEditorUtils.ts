@@ -1,4 +1,3 @@
-
 import { CustomStory } from "@/lib/storyUtils";
 import { 
   NodeMappings,
@@ -57,8 +56,26 @@ export const generateAndLogNodeMappings = (storyData: CustomStory): {
     
     console.log(`[Editor Utils] Content nodes: ${contentNodes.length}, First few:`, contentNodes.slice(0, 5));
     
-    // Check for root or start node explicitly
-    console.log(`[Editor Utils] Has 'root' node: ${!!storyData.root}, Has 'start' node: ${!!storyData.start}`);
+    // IMPORTANT: If we have content nodes but generateComprehensiveNodeMapping fails,
+    // fallback to a simple sequential mapping to ensure we have pages
+    const fallbackMapping = () => {
+      console.log(`[Editor Utils] Using fallback mapping for ${contentNodes.length} content nodes`);
+      
+      const nodeToPage: Record<string, number> = {};
+      const pageToNode: Record<number, string> = {};
+      
+      contentNodes.forEach((nodeName, index) => {
+        const pageNumber = index + 1;
+        nodeToPage[nodeName] = pageNumber;
+        pageToNode[pageNumber] = nodeName;
+      });
+      
+      return {
+        nodeToPage,
+        pageToNode,
+        totalPages: contentNodes.length || 1 // Ensure at least 1 page
+      };
+    };
     
     // Use our improved comprehensive mapping generator
     console.log("[Editor Utils] Calling generateComprehensiveNodeMapping");
@@ -66,81 +83,56 @@ export const generateAndLogNodeMappings = (storyData: CustomStory): {
     
     // Log mapping statistics
     console.log(`[Editor Utils] Generated mapping for ${Object.keys(nodeToPage).length} nodes across ${totalPages} pages`);
-    console.log("[Editor Utils] First 5 node mappings:", 
-      Object.entries(nodeToPage).slice(0, 5).reduce((acc, [key, value]) => {
-        acc[key] = value;
-        return acc;
-      }, {} as Record<string, number>)
-    );
     
-    // Validate the mappings
-    console.log("[Editor Utils] Validating node mappings");
-    const isValid = validateNodeMappings(storyData, nodeToPage, pageToNode);
-    
-    if (isValid) {
-      console.log("[Editor Utils] Node mapping validation successful");
-      
-      // Useful debugging information
-      if (totalPages > 0) {
-        const firstPage = pageToNode[1];
-        const lastPage = pageToNode[totalPages];
-        console.log(`[Editor Utils] First page maps to '${firstPage}', last page to '${lastPage}'`);
-      }
-      
+    // Verify we have valid mappings, if not fall back
+    if (totalPages === 0 && contentNodes.length > 0) {
+      console.warn("[Editor Utils] Mapping generated zero pages despite having content nodes. Using fallback.");
       return {
         nodeMappings: {
-          nodeToPage: nodeToPage,
-          pageToNode: pageToNode
+          nodeToPage: { [contentNodes[0]]: 1 },
+          pageToNode: { 1: contentNodes[0] }
         },
-        totalPages
-      };
-    } else {
-      console.warn("[Editor Utils] Node mapping validation failed, using the mappings anyway");
-      console.log("[Editor Utils] Mapping node count:", Object.keys(nodeToPage).length);
-      console.log("[Editor Utils] Mapping page count:", totalPages);
-      
-      return {
-        nodeMappings: {
-          nodeToPage: nodeToPage,
-          pageToNode: pageToNode
-        },
-        totalPages
+        totalPages: 1
       };
     }
-  } catch (error) {
-    console.error("[Editor Utils] Error in node mapping:", error);
     
-    // Fallback for error cases with better error handling
-    const allNodes = Object.keys(storyData).filter(key => 
-      key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
-    );
-    
-    console.warn(`[Editor Utils] Mapping error occurred. Falling back to sequential mapping for ${allNodes.length} nodes`);
-    
-    // Create simple sequential mapping
-    const nodeToPage: Record<string, number> = {};
-    const pageToNode: Record<number, string> = {};
-    
-    allNodes.forEach((nodeName, index) => {
-      const pageNumber = index + 1;
-      nodeToPage[nodeName] = pageNumber;
-      pageToNode[pageNumber] = nodeName;
-    });
-    
-    const totalPages = allNodes.length;
-    
-    console.log("[Editor Utils] Fallback mapping created with:", {
-      nodeCount: Object.keys(nodeToPage).length,
-      totalPages: totalPages,
-      firstNode: allNodes[0] || 'none'
-    });
+    // Final verification and safeguard
+    if (totalPages === 0) {
+      console.warn("[Editor Utils] No pages found in story. Ensuring at least 1 page.");
+      // If we have any node, map it to page 1
+      if (Object.keys(storyData).length > 0) {
+        const firstNode = Object.keys(storyData)[0];
+        return {
+          nodeMappings: {
+            nodeToPage: { [firstNode]: 1 },
+            pageToNode: { 1: firstNode }
+          },
+          totalPages: 1
+        };
+      }
+    }
     
     return {
       nodeMappings: {
-        nodeToPage, 
+        nodeToPage,
         pageToNode
       },
-      totalPages
+      totalPages: totalPages || 1 // Final safeguard: ensure at least 1 page
+    };
+    
+  } catch (error) {
+    console.error("[Editor Utils] Error in node mapping:", error);
+    
+    // Create emergency fallback with at least one page
+    const emergencyNode = Object.keys(storyData)[0] || 'root';
+    console.warn(`[Editor Utils] Critical mapping error. Using emergency fallback with node: ${emergencyNode}`);
+    
+    return {
+      nodeMappings: {
+        nodeToPage: { [emergencyNode]: 1 },
+        pageToNode: { 1: emergencyNode }
+      },
+      totalPages: 1
     };
   }
 };

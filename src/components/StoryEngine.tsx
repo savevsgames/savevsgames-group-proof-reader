@@ -7,6 +7,7 @@ import { fetchComments } from "@/lib/storyUtils";
 import { Comment } from "./comments/types";
 import { User } from "@supabase/supabase-js";
 import { useStoryStore } from "@/stores/storyState";
+import { shallow } from "zustand/shallow";
 
 interface StoryEngineProps {
   storyId: string;
@@ -14,155 +15,135 @@ interface StoryEngineProps {
 
 export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
   const { user } = useAuth();
-  const storeRef = useRef({
-    currentStoryPosition: 1,
-    setCommentCount: (count: number) => {}
-  });
   
-  // Split state into smaller, focused selectors to prevent unnecessary re-renders
-  // UI state
-  const loading = useStoryStore(state => state.loading);
-  const error = useStoryStore(state => state.error);
-  const bookTitle = useStoryStore(state => state.title);
-
-  // Navigation state
-  const currentPage = useStoryStore(state => state.currentPage);
-  const totalPages = useStoryStore(state => state.totalPages);
-  const currentText = useStoryStore(state => state.currentText);
-  const currentChoices = useStoryStore(state => state.currentChoices);
-  const canContinue = useStoryStore(state => state.canContinue);
-  const canGoBack = useStoryStore(state => state.canGoBack);
-  const commentCount = useStoryStore(state => state.commentCount);
-
-  // Current node and position state
-  const currentStoryPosition = useStoryStore(state => state.currentStoryPosition);
-  const currentNode = useStoryStore(state => state.currentNode);
-  const nodeMappings = useStoryStore(state => state.nodeMappings);
-  const storyData = useStoryStore(state => state.storyData);
-
-  // Actions as a separate selector to avoid re-renders on state changes
-  const handleContinue = useStoryStore(state => state.handleContinue);
-  const handleChoice = useStoryStore(state => state.handleChoice);
-  const goBack = useStoryStore(state => state.goBack);
-  const handleRestart = useStoryStore(state => state.handleRestart);
-  const handlePageChange = useStoryStore(state => state.handlePageChange);
-  const setCommentCount = useStoryStore(state => state.setCommentCount);
-
-  // Logging for debugging totalPages issue
+  // Stable references to prevent infinite update loops
+  const stableStoryId = useRef(storyId);
+  const updateCountRef = useRef(0);
+  
   useEffect(() => {
-    console.log("[StoryEngine] Component mounted with:", {
-      storyId,
-      currentPage,
-      totalPages,
-      currentNode,
-      mappedNodes: nodeMappings?.nodeToPage ? Object.keys(nodeMappings.nodeToPage).length : 0,
-      currentStoryPosition
-    });
+    // Update stable ref when prop changes
+    stableStoryId.current = storyId;
+  }, [storyId]);
+  
+  // Split selectors into logical groups to minimize re-renders
+  // UI state
+  const { loading, error } = useStoryStore(
+    state => ({ 
+      loading: state.loading,
+      error: state.error 
+    }),
+    shallow
+  );
+  
+  // Book metadata
+  const { bookTitle, totalPages } = useStoryStore(
+    state => ({ 
+      bookTitle: state.title,
+      totalPages: state.totalPages
+    }),
+    shallow
+  );
+  
+  // Navigation state 
+  const { 
+    currentPage,
+    currentText,
+    currentChoices,
+    canContinue,
+    canGoBack,
+    currentStoryPosition
+  } = useStoryStore(
+    state => ({
+      currentPage: state.currentPage,
+      currentText: state.currentText,
+      currentChoices: state.currentChoices,
+      canContinue: state.canContinue,
+      canGoBack: state.canGoBack,
+      currentStoryPosition: state.currentStoryPosition
+    }),
+    shallow
+  );
+  
+  // Current node state
+  const { currentNode, nodeMappings, storyData } = useStoryStore(
+    state => ({
+      currentNode: state.currentNode,
+      nodeMappings: state.nodeMappings,
+      storyData: state.storyData
+    }),
+    shallow
+  );
+  
+  // UI state that can change frequently
+  const [commentCount, setCommentCount] = useState(0);
+  
+  // Actions get their own selector to avoid re-renders on state changes
+  const actions = useStoryStore(
+    state => ({
+      handleContinue: state.handleContinue,
+      handleChoice: state.handleChoice,
+      goBack: state.goBack,
+      handleRestart: state.handleRestart,
+      handlePageChange: state.handlePageChange,
+      setCommentCount: state.setCommentCount
+    }),
+    shallow
+  );
+  
+  // Log component state - limit frequency to avoid console flooding
+  useEffect(() => {
+    updateCountRef.current += 1;
+    const updateCount = updateCountRef.current;
     
-    // Check store state directly
-    const storeState = useStoryStore.getState();
-    console.log("[StoryEngine] Direct store state check:", {
-      storeId: storeState.storyId,
-      storeTitle: storeState.title,
-      storeTotalPages: storeState.totalPages,
-      storeNodeMappings: storeState.nodeMappings && Object.keys(storeState.nodeMappings.nodeToPage || {}).length,
-      storyDataKeysCount: storeState.storyData ? Object.keys(storeState.storyData).length : 0,
-      storyDataFirstNodes: storeState.storyData ? Object.keys(storeState.storyData).slice(0, 5) : []
-    });
-
-    // Add detailed logging of story data structure
-    if (storeState.storyData) {
-      const storyKeys = Object.keys(storeState.storyData);
-      console.log(`[StoryEngine] Story data contains ${storyKeys.length} nodes`);
-      
-      // Log first few nodes for debugging
-      const sampleSize = Math.min(5, storyKeys.length);
-      storyKeys.slice(0, sampleSize).forEach(key => {
-        const node = storeState.storyData?.[key];
-        console.log(`[StoryEngine] Node "${key}":`, {
-          hasText: !!node?.text,
-          textLength: node?.text?.length || 0,
-          choicesCount: node?.choices?.length || 0,
-          isEnding: !!node?.isEnding
-        });
+    // Only log every 5th update or important ones
+    if (updateCount % 5 === 0 || totalPages > 1) {
+      console.log("[StoryEngine] Component state updated:", {
+        updateCount,
+        storyId,
+        currentPage,
+        totalPages,
+        currentNode,
+        mappedNodes: nodeMappings?.nodeToPage ? Object.keys(nodeMappings.nodeToPage).length : 0,
+        hasChoices: currentChoices.length > 0,
+        commentCount
       });
     }
-    
-    return () => {
-      console.log("[StoryEngine] Component unmounting");
-    };
-  }, [storyId, currentPage, totalPages, currentNode, nodeMappings, currentStoryPosition, storyData]);
+  }, [storyId, currentPage, totalPages, currentNode, nodeMappings, currentChoices.length, commentCount]);
 
-  // Monitor changes to totalPages
-  useEffect(() => {
-    console.log(`[StoryEngine] totalPages changed to: ${totalPages}`);
-    
-    if (totalPages === 0 && storyData) {
-      console.warn("[StoryEngine] totalPages is 0 but storyData exists with node count:", 
-        Object.keys(storyData).length);
-      
-      // Analyze story data structure to diagnose mapping issues
-      const contentNodes = Object.keys(storyData).filter(key => 
-        key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
-      );
-      
-      console.log(`[StoryEngine] Content nodes available: ${contentNodes.length}`);
-      console.log("[StoryEngine] First few content nodes:", contentNodes.slice(0, 5));
-      
-      // Check if nodes have proper structure
-      const nodesWithText = contentNodes.filter(key => storyData[key]?.text);
-      console.log(`[StoryEngine] Nodes with text: ${nodesWithText.length}/${contentNodes.length}`);
-      
-      const nodesWithChoices = contentNodes.filter(key => 
-        storyData[key]?.choices && storyData[key]?.choices.length > 0);
-      console.log(`[StoryEngine] Nodes with choices: ${nodesWithChoices.length}/${contentNodes.length}`);
-    }
-  }, [totalPages, storyData]);
-
-  // Capture the latest store values for use in callbacks
-  useEffect(() => {
-    storeRef.current = {
-      currentStoryPosition,
-      setCommentCount
-    };
-    
-    console.log("[StoryEngine] Updated ref with new values:", {
-      currentStoryPosition
-    });
-  }, [currentStoryPosition, setCommentCount]);
-
+  // Comment state and handling
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [fetchingComments, setFetchingComments] = useState(false);
 
   // Creating a stable reference to updateCommentCount
   const updateCommentCount = useCallback(() => {
-    if (storeRef.current && !fetchingComments) {
-      setFetchingComments(true);
-      const { currentStoryPosition, setCommentCount } = storeRef.current;
-      
-      console.log("[StoryEngine] Fetching comments for position:", currentStoryPosition);
-      
-      fetchComments(storyId, currentStoryPosition)
-        .then(commentsData => {
-          setComments(commentsData);
-          // Use the stable reference to avoid closure issues
-          setCommentCount(commentsData.length);
-          console.log("[StoryEngine] Updated comment count:", commentsData.length);
-        })
-        .finally(() => {
-          setFetchingComments(false);
-        });
+    if (fetchingComments) return;
+    
+    setFetchingComments(true);
+    const currentStoryPos = currentStoryPosition;
+    
+    // Don't log frequently
+    if (updateCountRef.current % 10 === 0) {
+      console.log("[StoryEngine] Fetching comments for position:", currentStoryPos);
     }
-  }, [storyId, fetchingComments]);
+    
+    fetchComments(stableStoryId.current, currentStoryPos)
+      .then(commentsData => {
+        setComments(commentsData);
+        setCommentCount(commentsData.length);
+        actions.setCommentCount(commentsData.length);
+      })
+      .finally(() => {
+        setFetchingComments(false);
+      });
+  }, [storyId, currentStoryPosition, fetchingComments, actions]);
 
   // Only update comments when currentStoryPosition changes
   useEffect(() => {
-    console.log("[StoryEngine] Story position changed:", currentStoryPosition);
     updateCommentCount();
   }, [currentStoryPosition, updateCommentCount]);
 
-  // Handle comment modal open/close with debounce
+  // Handle comment modal open/close
   const handleCommentModalOpenChange = useCallback((open: boolean) => {
     setIsCommentModalOpen(open);
     
@@ -170,7 +151,6 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
       // Fetch comments when modal opens
       fetchComments(storyId, currentStoryPosition).then(commentsData => {
         setComments(commentsData);
-        console.log("[StoryEngine] Loaded comments for modal:", commentsData.length);
       });
     } else {
       // Use setTimeout to avoid state update loops
@@ -181,7 +161,6 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
   }, [storyId, currentStoryPosition, updateCommentCount]);
 
   if (loading) {
-    console.log("[StoryEngine] Rendering loading state");
     return (
       <div className="flex justify-center items-center h-[60vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8DCC4]"></div>
@@ -191,7 +170,6 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
   }
 
   if (error) {
-    console.log("[StoryEngine] Rendering error state:", error);
     return (
       <div className="text-center p-8 text-[#E8DCC4]">
         <h2 className="text-2xl font-bold mb-4">Error Loading Story</h2>
@@ -199,15 +177,6 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
       </div>
     );
   }
-
-  console.log("[StoryEngine] Rendering BookLayout with:", {
-    bookTitle,
-    currentPage,
-    totalPages,
-    currentNode,
-    hasChoices: currentChoices.length > 0,
-    commentCount
-  });
 
   return (
     <div className="flex justify-center items-center w-full">
@@ -225,12 +194,12 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
         comments={comments}
         currentUser={user as User}
         storyId={storyId}
-        onContinue={handleContinue}
-        onChoice={handleChoice}
-        onBack={goBack}
-        onRestart={handleRestart}
+        onContinue={actions.handleContinue}
+        onChoice={actions.handleChoice}
+        onBack={actions.goBack}
+        onRestart={actions.handleRestart}
         onOpenComments={() => setIsCommentModalOpen(true)}
-        onPageChange={handlePageChange}
+        onPageChange={actions.handlePageChange}
       />
 
       <CommentModal

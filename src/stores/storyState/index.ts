@@ -12,7 +12,9 @@ export const useStoryStore = create<StoryStore>()(
   devtools(
     persist(
       (...params) => {
-        console.log('[StoryStore] Creating store instance');
+        // Disable verbose logging during store creation
+        const isInitializing = true;
+        
         // Combine all slices
         const store = {
           ...createStorySlice(...params),
@@ -21,38 +23,48 @@ export const useStoryStore = create<StoryStore>()(
           ...createUiSlice(...params),
         };
         
-        console.log('[StoryStore] Store initialized with:', {
-          storyId: store.storyId,
-          hasTitle: !!store.title,
-          totalPages: store.totalPages || 0,
-          nodeMappingsSize: store.nodeMappings ? Object.keys(store.nodeMappings.nodeToPage || {}).length : 0
-        });
+        // Only log during development and not during frequent updates
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[StoryStore] Store initialized with:', {
+            storyId: store.storyId,
+            hasTitle: !!store.title,
+            totalPages: store.totalPages || 0,
+            nodeMappingsSize: store.nodeMappings ? Object.keys(store.nodeMappings.nodeToPage || {}).length : 0
+          });
+        }
         
         return store;
       },
       {
         name: 'story-storage',
-        // Only persist minimal essential data to avoid update loops
+        // Only persist essential data to avoid update loops
         partialize: (state) => {
-          console.log('[StoryStore] Persisting state with:', {
-            storyId: state.storyId,
-            title: state.title,
-            totalPageCount: state.totalPages || 0,
-            nodeMappingsSize: state.nodeMappings ? Object.keys(state.nodeMappings.nodeToPage || {}).length : 0
-          });
+          // Avoid logging during normal state persistence to prevent loops
+          // Only log during significant changes
+          if (state.totalPages > 0 && process.env.NODE_ENV === 'development') {
+            console.log('[StoryStore] Persisting essential state', {
+              storyId: state.storyId,
+              hasTitle: !!state.title,
+              totalPages: state.totalPages
+            });
+          }
+          
           return { 
             storyId: state.storyId,
-            title: state.title
+            title: state.title,
+            // Store totalPages to ensure it's preserved between sessions
+            totalPages: state.totalPages 
             // Do NOT persist currentPage or currentNode to avoid infinite update loops
           };
         },
         onRehydrateStorage: () => (state) => {
-          console.log('[StoryStore] Rehydrated state:', {
-            storyId: state?.storyId,
-            hasTitle: !!state?.title,
-            hasNodeMappings: state?.nodeMappings && Object.keys(state?.nodeMappings.nodeToPage || {}).length > 0,
-            totalPages: state?.totalPages || 0
-          });
+          if (state && process.env.NODE_ENV === 'development') {
+            console.log('[StoryStore] Rehydrated state:', {
+              storyId: state?.storyId,
+              hasTitle: !!state?.title,
+              totalPages: state?.totalPages || 0
+            });
+          }
         }
       }
     )
