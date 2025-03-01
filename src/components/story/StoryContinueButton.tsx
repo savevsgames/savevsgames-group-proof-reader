@@ -4,21 +4,44 @@ import { Button } from '../ui/button';
 import { ChevronRight } from 'lucide-react';
 
 interface StoryContinueButtonProps {
-  onClick: () => void;
+  onClick?: () => void;
+  onContinue?: () => void;  // Add this prop to match what's being passed
+  canContinue?: boolean;    // Add this prop
+  isEnding?: boolean;       // Add this prop
+  onRestart?: () => void;   // Add this prop
   label?: string;
 }
 
 export const StoryContinueButton: React.FC<StoryContinueButtonProps> = ({ 
   onClick, 
+  onContinue,
+  canContinue = true,
+  isEnding = false,
+  onRestart,
   label = "Continue Reading" 
 }) => {
+  // Use onContinue if provided, otherwise fallback to onClick
+  const handleClick = () => {
+    if (isEnding && onRestart) {
+      onRestart();
+    } else if (onContinue) {
+      onContinue();
+    } else if (onClick) {
+      onClick();
+    }
+  };
+
+  // Determine the label based on the state
+  const buttonLabel = isEnding ? "Restart Story" : label;
+  
   return (
     <div className="flex justify-center">
       <Button 
-        onClick={onClick}
+        onClick={handleClick}
         className="bg-[#F97316] text-[#E8DCC4] hover:bg-[#E86305] transition-colors flex items-center gap-2"
+        disabled={!isEnding && !canContinue}
       >
-        {label} <ChevronRight className="h-4 w-4" />
+        {buttonLabel} <ChevronRight className="h-4 w-4" />
       </Button>
     </div>
   );
