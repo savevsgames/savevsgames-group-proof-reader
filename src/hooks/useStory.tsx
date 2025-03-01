@@ -9,6 +9,7 @@ import {
   storyNodeToPageMap,
   pageToStoryNodeMap
 } from '@/lib/storyUtils';
+import { analyzeStoryStructure } from '@/lib/storyNodeMapping';
 
 export const useStory = (storyId: string | undefined) => {
   const [story, setStory] = useState<Story | null>(null);
@@ -27,6 +28,13 @@ export const useStory = (storyId: string | undefined) => {
   const [commentCount, setCommentCount] = useState(0);
   const [currentStoryPosition, setCurrentStoryPosition] = useState<number>(1);
   const [canContinue, setCanContinue] = useState(false);
+  const [nodeMappings, setNodeMappings] = useState<{
+    nodeToPage: Record<string, number>;
+    pageToNode: Record<number, string>;
+  }>({
+    nodeToPage: {},
+    pageToNode: {}
+  });
   const { toast } = useToast();
 
   const estimateTotalPagesFromInkStory = (storyObj: Story): number => {
@@ -146,6 +154,24 @@ export const useStory = (storyId: string | undefined) => {
         console.log("Using custom story format with start node");
         setUsingCustomFormat(true);
         setCustomStory(storyData);
+        
+        // Use our new dynamic node mapping system
+        try {
+          console.log("Analyzing story structure for node mappings...");
+          const { nodeToPage, pageToNode, totalPages: calculatedPages } = analyzeStoryStructure(storyData);
+          
+          setNodeMappings({ nodeToPage, pageToNode });
+          setTotalPages(calculatedPages);
+          console.log("Dynamic node mapping successful:", { nodeToPage, pageToNode, totalPages: calculatedPages });
+        } catch (err) {
+          console.warn("Failed to use dynamic node mapping, falling back to static mappings", err);
+          // Fallback to static mappings
+          setNodeMappings({
+            nodeToPage: storyNodeToPageMap,
+            pageToNode: pageToStoryNodeMap
+          });
+        }
+        
         setCurrentNode('start');
         setCurrentText(storyData.start.text);
         setCurrentChoices(storyData.start.choices || []);
@@ -161,6 +187,24 @@ export const useStory = (storyId: string | undefined) => {
         console.log("Using root-based custom story format");
         setUsingCustomFormat(true);
         setCustomStory(storyData);
+        
+        // Use our new dynamic node mapping system
+        try {
+          console.log("Analyzing story structure for node mappings...");
+          const { nodeToPage, pageToNode, totalPages: calculatedPages } = analyzeStoryStructure(storyData);
+          
+          setNodeMappings({ nodeToPage, pageToNode });
+          setTotalPages(calculatedPages);
+          console.log("Dynamic node mapping successful:", { nodeToPage, pageToNode, totalPages: calculatedPages });
+        } catch (err) {
+          console.warn("Failed to use dynamic node mapping, falling back to static mappings", err);
+          // Fallback to static mappings
+          setNodeMappings({
+            nodeToPage: storyNodeToPageMap,
+            pageToNode: pageToStoryNodeMap
+          });
+        }
+        
         setCurrentNode('root');
         
         if (storyData.root.text) {
@@ -217,30 +261,6 @@ export const useStory = (storyId: string | undefined) => {
     setCommentCount(count);
   };
 
-  const handleCustomChoice = async (nextNode: string) => {
-    if (!customStory || !storyId) return;
-
-    setStoryHistory(prev => [...prev, currentNode]);
-    setCanGoBack(true);
-
-    const nextStoryNode = customStory[nextNode];
-    if (nextStoryNode) {
-      setCurrentNode(nextNode);
-      setCurrentText(nextStoryNode.text);
-      setCurrentChoices(nextStoryNode.choices || []);
-      
-      const newPage = storyNodeToPageMap[nextNode] || (currentPage + 1);
-      setCurrentPage(newPage);
-      setCurrentStoryPosition(newPage);
-      
-      const count = await fetchCommentCount(storyId, newPage);
-      setCommentCount(count);
-    } else {
-      console.error(`Node "${nextNode}" not found in story`);
-      setError(`Story navigation error: Node "${nextNode}" not found`);
-    }
-  };
-
   const handleInkChoice = async (index: number) => {
     if (!story || !storyId) return;
 
@@ -271,6 +291,34 @@ export const useStory = (storyId: string | undefined) => {
     
     const count = await fetchCommentCount(storyId, newPage);
     setCommentCount(count);
+  };
+
+  const handleCustomChoice = async (nextNode: string) => {
+    if (!customStory || !storyId) return;
+
+    setStoryHistory(prev => [...prev, currentNode]);
+    setCanGoBack(true);
+
+    const nextStoryNode = customStory[nextNode];
+    if (nextStoryNode) {
+      setCurrentNode(nextNode);
+      setCurrentText(nextStoryNode.text);
+      setCurrentChoices(nextStoryNode.choices || []);
+      
+      // Use our dynamic node mappings first, fall back to static if needed
+      const newPage = nodeMappings.nodeToPage[nextNode] || 
+                      storyNodeToPageMap[nextNode] || 
+                      (currentPage + 1);
+                      
+      setCurrentPage(newPage);
+      setCurrentStoryPosition(newPage);
+      
+      const count = await fetchCommentCount(storyId, newPage);
+      setCommentCount(count);
+    } else {
+      console.error(`Node "${nextNode}" not found in story`);
+      setError(`Story navigation error: Node "${nextNode}" not found`);
+    }
   };
 
   const handleChoice = (index: number) => {
@@ -401,7 +449,9 @@ export const useStory = (storyId: string | undefined) => {
     console.log(`Navigating to page ${newPage} (current: ${currentPage})`);
     
     if (usingCustomFormat && customStory) {
-      const targetNode = pageToStoryNodeMap[newPage];
+      // Try dynamic mappings first, fall back to static if needed
+      const targetNode = nodeMappings.pageToNode[newPage] || 
+                        pageToStoryNodeMap[newPage];
       
       if (targetNode && customStory[targetNode]) {
         console.log(`Found node ${targetNode} for page ${newPage}`);

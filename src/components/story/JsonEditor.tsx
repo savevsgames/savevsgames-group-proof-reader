@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RefreshCw, AlertTriangle, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { analyzeStoryStructure } from "@/lib/storyNodeMapping";
 
 interface JsonEditorProps {
   storyData: CustomStory;
@@ -41,7 +42,7 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
   useEffect(() => {
     if (storyData) {
       const nodes = Object.keys(storyData).filter(key => 
-        key !== 'inkVersion' && key !== 'listDefs'
+        key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
       );
       setNodeOptions(nodes);
       if (!nodes.includes(selectedNode) && nodes.length > 0) {
@@ -146,7 +147,7 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
       onChange(parsed);
       
       const nodes = Object.keys(parsed).filter(key => 
-        key !== 'inkVersion' && key !== 'listDefs'
+        key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
       );
       if (JSON.stringify(nodes) !== JSON.stringify(nodeOptions)) {
         setNodeOptions(nodes);
@@ -174,6 +175,36 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
       setError("Cannot reformat: " + (e as Error).message);
       toast({
         title: "Reformat failed",
+        description: (e as Error).message,
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  };
+
+  const handleAnalyzeStructure = () => {
+    try {
+      const parsed = JSON.parse(jsonText);
+      
+      // Use our new dynamic structure analysis
+      const { nodeToPage, pageToNode, totalPages } = analyzeStoryStructure(parsed);
+      
+      // Display results
+      toast({
+        title: "Story Analysis",
+        description: `Found ${totalPages} pages in the story structure`,
+        duration: 5000,
+      });
+      
+      console.log("Story Structure Analysis:", {
+        totalPages,
+        nodeToPage,
+        pageToNode
+      });
+      
+    } catch (e) {
+      toast({
+        title: "Analysis Failed",
         description: (e as Error).message,
         variant: "destructive",
         duration: 3000,
@@ -296,15 +327,26 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
           </div>
         </div>
         
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleReformat}
-          title="Reformat JSON"
-        >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Reformat
-        </Button>
+        <div className="flex space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAnalyzeStructure}
+            title="Analyze Story Structure"
+          >
+            Analyze Structure
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleReformat}
+            title="Reformat JSON"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Reformat
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -327,7 +369,14 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
           onChange={handleTextChange}
           className="json-editor-textarea min-h-[500px] border-none focus-visible:ring-0"
           placeholder="Enter your story JSON here..."
-          style={textAreaStyle}
+          style={{
+            fontFamily: 'monospace',
+            fontSize: '14px',
+            lineHeight: '1.5',
+            whiteSpace: 'pre',
+            tabSize: 2,
+            position: 'relative',
+          }}
         />
       </ScrollArea>
     </div>

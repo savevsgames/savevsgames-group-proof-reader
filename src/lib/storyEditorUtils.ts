@@ -1,5 +1,5 @@
-
 import { CustomStory, generateNodeMappings } from "@/lib/storyUtils";
+import { analyzeStoryStructure, validateNodeMappings } from "@/lib/storyNodeMapping";
 
 export interface NodeMappings {
   nodeToPage: Record<string, number>;
@@ -11,7 +11,36 @@ export const generateAndLogNodeMappings = (storyData: CustomStory): {
   nodeMappings: NodeMappings;
   totalPages: number;
 } => {
-  // Generate fresh mappings with total pages
+  // Try the new dynamic mapping system first
+  try {
+    console.log("Using dynamic node mapping system...");
+    const { nodeToPage, pageToNode, totalPages } = analyzeStoryStructure(storyData);
+    
+    // Validate the generated mappings
+    const isValid = validateNodeMappings(storyData, nodeToPage, pageToNode);
+    
+    if (isValid) {
+      console.log("Dynamic node mapping succeeded!");
+      console.log("Total story nodes:", totalPages);
+      console.log("Node to page mapping:", nodeToPage);
+      console.log("Page to node mapping:", pageToNode);
+      
+      return {
+        nodeMappings: {
+          nodeToPage,
+          pageToNode
+        },
+        totalPages
+      };
+    } else {
+      console.warn("Dynamic node mapping produced invalid results, falling back to legacy mapping");
+    }
+  } catch (error) {
+    console.error("Error in dynamic node mapping:", error);
+    console.warn("Falling back to legacy node mapping system");
+  }
+  
+  // Fallback to the original mapping system
   const { 
     storyNodeToPageMap: updatedNodeToPage, 
     pageToStoryNodeMap: updatedPageToNode, 
@@ -28,11 +57,12 @@ export const generateAndLogNodeMappings = (storyData: CustomStory): {
     key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
   );
   
+  console.log("Using legacy node mapping system");
   console.log("Story nodes found:", allNodes);
   console.log("Total story nodes:", allNodes.length);
   console.log("Node to page mapping:", updatedNodeToPage);
   console.log("Page to node mapping:", updatedPageToNode);
-  console.log(`Total story nodes: ${calculatedPages}, updated mappings`);
+  console.log(`Total story pages: ${calculatedPages}`);
   
   return {
     nodeMappings,
