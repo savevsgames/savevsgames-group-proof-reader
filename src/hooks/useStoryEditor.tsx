@@ -44,6 +44,16 @@ export const useStoryEditor = (storyId: string) => {
       // Update total pages based on the mapping
       setTotalPages(calculatedPages);
       
+      // Log all nodes found in the story data
+      const allNodes = Object.keys(storyData).filter(key => 
+        key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
+      );
+      
+      console.log("Story nodes found:", allNodes);
+      console.log("Total story nodes:", allNodes.length);
+      console.log("Node to page mapping:", updatedNodeToPage);
+      console.log("Page to node mapping:", updatedPageToNode);
+      
       console.log(`useStoryEditor: Total story nodes: ${calculatedPages}, updated mappings`);
     }
   }, [storyData]);
@@ -138,6 +148,16 @@ export const useStoryEditor = (storyId: string) => {
               if (response.ok) {
                 storyContent = await response.json();
                 console.log("Successfully loaded story from URL");
+                
+                // Log the complete structure of the fetched story
+                console.log("Story structure:", storyContent);
+                
+                // Count and log all nodes in the story
+                const allNodes = Object.keys(storyContent).filter(key => 
+                  key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
+                );
+                console.log("All story nodes:", allNodes);
+                console.log("Total nodes found:", allNodes.length);
               } else {
                 console.error("Failed to fetch story from URL:", response.statusText);
               }
