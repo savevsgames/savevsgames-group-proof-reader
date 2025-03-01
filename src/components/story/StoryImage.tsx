@@ -19,6 +19,7 @@ interface ImageData {
   status: 'pending' | 'generating' | 'uploading' | 'completed' | 'error';
   error_message?: string;
   request_id?: string;
+  attempt_count?: number;
 }
 
 export const StoryImage: React.FC<StoryImageProps> = ({ 
@@ -249,6 +250,18 @@ export const StoryImage: React.FC<StoryImageProps> = ({
     }
   };
 
+  // Show attempts count if more than 1
+  const getAttemptsInfo = () => {
+    if (imageData?.attempt_count && imageData.attempt_count > 1) {
+      return (
+        <p className="text-xs text-gray-400">
+          Attempt {imageData.attempt_count} of generating this image
+        </p>
+      );
+    }
+    return null;
+  };
+
   // If there's no image prompt in the text, don't render anything
   if (!imagePrompt) return null;
 
@@ -280,6 +293,7 @@ export const StoryImage: React.FC<StoryImageProps> = ({
             <div className="flex flex-col items-center space-y-4">
               <Skeleton className="w-full h-64 rounded-lg" />
               {getStatusMessage()}
+              {getAttemptsInfo()}
               <p className="text-xs text-gray-400">
                 This may take up to a minute. Please wait...
               </p>
@@ -289,6 +303,7 @@ export const StoryImage: React.FC<StoryImageProps> = ({
               <AlertCircle className="h-12 w-12 text-red-400" />
               <div>
                 {getStatusMessage()}
+                {getAttemptsInfo()}
                 <p className="text-sm text-gray-500 mb-4">Prompt: {imagePrompt}</p>
                 <Button
                   onClick={generateImage}
