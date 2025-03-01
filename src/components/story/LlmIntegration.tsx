@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -11,8 +10,9 @@ import {
   loadComments,
   loadModelSettings,
   preparePromptData,
-  generateContent
-} from "@/lib/llmUtils";
+  generateContent,
+  CommentContextItem
+} from "@/lib/llm";
 import { CommentType } from "@/lib/commentTypes";
 
 interface LlmIntegrationProps {
@@ -21,12 +21,6 @@ interface LlmIntegrationProps {
   currentNode: string;
   onStoryUpdate: (updatedStory: CustomStory) => void;
   currentPage: number;
-}
-
-interface CommentContextItem {
-  type: CommentType;
-  text: string;
-  username: string;
 }
 
 const LlmIntegration: React.FC<LlmIntegrationProps> = ({
