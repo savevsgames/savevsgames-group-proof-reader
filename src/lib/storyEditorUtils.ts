@@ -25,7 +25,15 @@ export const generateAndLogNodeMappings = (storyData: CustomStory): {
   
   try {
     console.log("Using dynamic node mapping system...");
+    console.log("Story data contains", Object.keys(storyData).length, "total objects");
+    console.log("Content nodes:", Object.keys(storyData).filter(key => 
+      key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
+    ).length);
+    
     const { nodeToPage, pageToNode, totalPages } = analyzeStoryStructure(storyData);
+    
+    // Log some statistics about the mapping
+    console.log(`Generated mapping for ${Object.keys(nodeToPage).length} nodes across ${totalPages} pages`);
     
     // Validate the generated mappings
     const isValid = validateNodeMappings(storyData, nodeToPage, pageToNode);
@@ -33,8 +41,13 @@ export const generateAndLogNodeMappings = (storyData: CustomStory): {
     if (isValid) {
       console.log("Dynamic node mapping succeeded!");
       console.log("Total story nodes:", totalPages);
-      console.log("Node to page mapping:", nodeToPage);
-      console.log("Page to node mapping:", pageToNode);
+      
+      // Useful debugging information
+      if (totalPages > 0) {
+        const firstPage = pageToNode[1];
+        const lastPage = pageToNode[totalPages];
+        console.log(`First page maps to '${firstPage}', last page to '${lastPage}'`);
+      }
       
       return {
         nodeMappings: {
@@ -46,10 +59,12 @@ export const generateAndLogNodeMappings = (storyData: CustomStory): {
     } else {
       console.warn("Dynamic node mapping produced invalid results, using fallback");
       
-      // Fallback to simple sequential mapping
+      // Fallback to simple sequential mapping with better logging
       const allNodes = Object.keys(storyData).filter(key => 
         key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
       );
+      
+      console.log(`Using fallback mapping for ${allNodes.length} nodes`);
       
       const nodeToPage: Record<string, number> = {};
       const pageToNode: Record<number, string> = {};
@@ -72,10 +87,12 @@ export const generateAndLogNodeMappings = (storyData: CustomStory): {
   } catch (error) {
     console.error("Error in node mapping:", error);
     
-    // Fallback for error cases
+    // Fallback for error cases with better error handling
     const allNodes = Object.keys(storyData).filter(key => 
       key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
     );
+    
+    console.warn(`Mapping error occurred. Falling back to sequential mapping for ${allNodes.length} nodes`);
     
     // Create simple sequential mapping
     const nodeToPage: Record<string, number> = {};
@@ -146,4 +163,4 @@ export const extractStoryContent = async (data: any): Promise<CustomStory | null
 };
 
 // These functions are imported from external files
-import { extractCustomStoryFromInkJSON } from "@/lib/storyUtils";
+import { extractCustomStoryFromInkJSON } from "@/lib/storyNodeMapping";

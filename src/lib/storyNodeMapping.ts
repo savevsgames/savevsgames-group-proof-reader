@@ -1,6 +1,4 @@
 
-import { CustomStory } from "./storyUtils";
-
 /**
  * Interface representing a node in the story graph
  */
@@ -147,7 +145,107 @@ export const generatePageMappings = (sequence: string[]): {
 };
 
 /**
- * Analyzes a story and generates page mappings
+ * Handles array-style node IDs by normalizing them to a consistent format
+ * @param nodeId The node ID that might contain array notation
+ * @returns Normalized node ID
+ */
+export const normalizeNodeId = (nodeId: string): string => {
+  // Remove array indices from node IDs (e.g., root[0][1] -> root)
+  // This helps with mapping complex nested structures
+  return nodeId.replace(/\[\d+\]/g, '');
+};
+
+/**
+ * Extracts array-style nodes from nested Ink structures
+ * @param storyData The full story data
+ * @returns CustomStory with flattened nodes
+ */
+export const extractNestedNodes = (storyData: any): CustomStory => {
+  const result: CustomStory = {};
+  const skipKeys = ['inkVersion', 'listDefs', '#f'];
+  
+  // Helper function to process nested arrays
+  const processNode = (node: any, path: string = '') => {
+    if (!node) return;
+    
+    // Skip system nodes
+    if (skipKeys.includes(path)) return;
+    
+    // Handle array
+    if (Array.isArray(node)) {
+      // Extract text content from strings in the array
+      let nodeText = '';
+      let choices: any[] = [];
+      
+      node.forEach((item, index) => {
+        // If item is string and looks like content
+        if (typeof item === 'string') {
+          if (item.startsWith('^')) {
+            nodeText += item.substring(1) + ' ';
+          }
+        }
+        
+        // If item has a pointer to another node
+        if (typeof item === 'object' && item && item['->']) {
+          choices.push({
+            text: 'Continue',
+            nextNode: item['->']
+          });
+        }
+        
+        // Recursively process nested structures
+        const newPath = path ? `${path}[${index}]` : `[${index}]`;
+        processNode(item, newPath);
+      });
+      
+      // Only add if we found content
+      if (nodeText.trim() || choices.length > 0) {
+        result[path] = {
+          text: nodeText.trim(),
+          choices: choices
+        };
+      }
+    } 
+    // Handle object
+    else if (typeof node === 'object' && node !== null) {
+      Object.entries(node).forEach(([key, value]) => {
+        // Skip system properties
+        if (skipKeys.includes(key)) return;
+        
+        const newPath = path ? `${path}.${key}` : key;
+        
+        // If this is a content object with text/choices
+        if (key === 'text' || key === 'choices') {
+          if (!result[path]) {
+            result[path] = { text: '', choices: [] };
+          }
+          result[path][key] = value;
+        } else {
+          // Recursively process the value
+          processNode(value, newPath);
+        }
+      });
+    }
+  };
+  
+  // Start processing from the root
+  processNode(storyData);
+  
+  // Add the original nodes from the story data if they're not already added
+  Object.entries(storyData).forEach(([key, value]) => {
+    if (!skipKeys.includes(key) && !result[key] && typeof value === 'object' && value !== null) {
+      result[key] = {
+        text: value.text || '',
+        choices: value.choices || []
+      };
+    }
+  });
+  
+  return result;
+};
+
+/**
+ * Analyzes a story and generates page mappings with improved handling
  * @param storyData The story data object
  * @returns Object with node mappings and total pages
  */
@@ -156,33 +254,51 @@ export const analyzeStoryStructure = (storyData: CustomStory): {
   pageToNode: Record<number, string>;
   totalPages: number;
 } => {
+  console.log("Starting story structure analysis...");
+  
+  // First, extract any nested nodes to ensure we catch all content
+  const enrichedStoryData = extractNestedNodes(storyData);
+  console.log(`Extracted ${Object.keys(enrichedStoryData).length} nodes including nested content`);
+  
   // Extract all story nodes
-  const nodes = extractNodes(storyData);
+  const nodes = extractNodes(enrichedStoryData);
+  console.log(`Mapped ${nodes.size} story nodes to structured format`);
   
   // Build the node connection graph
   const graph = buildNodeGraph(nodes);
+  console.log(`Built connection graph with ${graph.size} nodes`);
   
   // Find the starting node
-  const startNode = findStartNode(storyData);
+  const startNode = findStartNode(enrichedStoryData);
+  console.log(`Using '${startNode}' as starting node for traversal`);
   
   // Traverse the story to get the sequence
   const sequence = traverseStory(startNode, nodes, graph);
+  console.log(`Traversal found ${sequence.length} connected nodes in sequence`);
+  
+  // If traversal found fewer nodes than total, add disconnected nodes at the end
+  const disconnectedNodes = Array.from(nodes.keys()).filter(node => !sequence.includes(node));
+  if (disconnectedNodes.length > 0) {
+    console.log(`Found ${disconnectedNodes.length} disconnected nodes, adding to end of sequence`);
+    sequence.push(...disconnectedNodes);
+  }
   
   // Generate page mappings
   const { nodeToPage, pageToNode } = generatePageMappings(sequence);
   
   // Calculate total pages
   const totalPages = sequence.length;
+  console.log(`Total pages in story: ${totalPages}`);
   
   return { nodeToPage, pageToNode, totalPages };
 };
 
 /**
- * Validates node mappings against a story structure
+ * Validates node mappings against a story structure with improved diagnostics
  * @param storyData The story data to validate against
  * @param nodeToPage The node to page mapping
  * @param pageToNode The page to node mapping
- * @returns True if valid, false otherwise
+ * @returns True if valid, false otherwise with reasons logged
  */
 export const validateNodeMappings = (
   storyData: CustomStory,
@@ -193,22 +309,37 @@ export const validateNodeMappings = (
   const skipKeys = ['inkVersion', 'listDefs', '#f'];
   const storyNodes = Object.keys(storyData).filter(key => !skipKeys.includes(key));
   
-  const hasAllNodes = storyNodes.every(nodeId => nodeId in nodeToPage);
+  // Check if all story nodes have a mapping
+  const unmappedNodes = storyNodes.filter(nodeId => !(nodeId in nodeToPage));
+  const hasAllNodes = unmappedNodes.length === 0;
+  if (!hasAllNodes) {
+    console.warn(`Validation failed: ${unmappedNodes.length} nodes without page mapping`, unmappedNodes);
+  }
   
-  // Check page mapping is consistent
-  const pages = Object.keys(pageToNode).map(Number);
+  // Check page mapping is sequential (1, 2, 3...)
+  const pages = Object.keys(pageToNode).map(Number).sort((a, b) => a - b);
   const isSequential = pages.every((page, i) => page === i + 1);
+  if (!isSequential) {
+    console.warn(`Validation failed: Page numbers not sequential`, pages);
+  }
   
-  // Verify bidirectional mapping
-  const isBidirectional = Object.entries(nodeToPage).every(
-    ([nodeId, page]) => pageToNode[page] === nodeId
+  // Verify bidirectional mapping (node→page→node matches original node)
+  const brokenMappings = Object.entries(nodeToPage).filter(
+    ([nodeId, page]) => pageToNode[page] !== nodeId
   );
+  const isBidirectional = brokenMappings.length === 0;
+  if (!isBidirectional) {
+    console.warn(`Validation failed: Inconsistent bidirectional mappings`, brokenMappings);
+  }
   
-  return hasAllNodes && isSequential && isBidirectional;
+  const isValid = hasAllNodes && isSequential && isBidirectional;
+  console.log(`Mapping validation result: ${isValid ? 'Valid' : 'Invalid'}`);
+  
+  return isValid;
 };
 
 /**
- * Extract all nodes from an Ink.js JSON structure
+ * Extract all nodes from an Ink.js JSON structure with improved array handling
  * @param inkJson The Ink.js story JSON
  * @returns Array of node IDs found in the story
  */
@@ -266,7 +397,7 @@ export const extractAllNodesFromInkJSON = (inkJson: any): string[] => {
 };
 
 /**
- * Converts an Ink.js story to our custom format
+ * Converts an Ink.js story to our custom format with improved array handling
  * @param inkJson The original Ink.js JSON
  * @returns A story in our custom format
  */
@@ -275,31 +406,82 @@ export const extractCustomStoryFromInkJSON = (inkJson: any): CustomStory => {
     inkVersion: inkJson.inkVersion 
   };
   
-  // Get all nodes
+  // Get all nodes including array-style nodes
   const nodeNames = extractAllNodesFromInkJSON(inkJson);
-  console.log("Converted ink nodes:", nodeNames);
+  console.log("Extracted ink nodes:", nodeNames);
   
-  // Start with the root container
+  // Process root container
   if (inkJson.root) {
     customStory.root = {
       text: extractTextFromInkNode(inkJson.root),
       choices: extractChoicesFromInkNode(inkJson.root, nodeNames)
     };
+    
+    // Also extract array nodes from root
+    if (Array.isArray(inkJson.root)) {
+      extractArrayNodes(inkJson.root, 'root', customStory, nodeNames);
+    }
   }
   
-  // Extract all other nodes
-  nodeNames.forEach(nodeName => {
-    const nodeContent = getNestedProperty(inkJson, nodeName);
-    if (nodeContent && typeof nodeContent === 'object') {
-      customStory[nodeName] = {
-        text: extractTextFromInkNode(nodeContent),
-        choices: extractChoicesFromInkNode(nodeContent, nodeNames)
-      };
-    }
+  // Extract all other standard nodes
+  nodeNames
+    .filter(name => !name.includes('[') && !name.includes('.')) // Only process standard nodes here
+    .forEach(nodeName => {
+      const nodeContent = getNestedProperty(inkJson, nodeName);
+      if (nodeContent && typeof nodeContent === 'object') {
+        customStory[nodeName] = {
+          text: extractTextFromInkNode(nodeContent),
+          choices: extractChoicesFromInkNode(nodeContent, nodeNames)
+        };
+        
+        // Also extract array nodes
+        if (Array.isArray(nodeContent)) {
+          extractArrayNodes(nodeContent, nodeName, customStory, nodeNames);
+        }
+      }
   });
   
+  console.log(`Extracted ${Object.keys(customStory).length} total nodes`);
   return customStory;
 };
+
+/**
+ * Helper function to extract nodes from array structures
+ */
+function extractArrayNodes(array: any[], basePath: string, customStory: CustomStory, allNodes: string[]): void {
+  array.forEach((item, index) => {
+    const nodePath = `${basePath}[${index}]`;
+    
+    // If this looks like content (has text or is an object with content)
+    if (typeof item === 'string' && item.startsWith('^')) {
+      // Text content
+      if (!customStory[nodePath]) {
+        customStory[nodePath] = { text: item.substring(1), choices: [] };
+      } else {
+        customStory[nodePath].text = item.substring(1);
+      }
+    } else if (typeof item === 'object' && item !== null) {
+      // Could be a choice, navigation, or nested content
+      if (item['->']) {
+        // Navigation target
+        const target = item['->'];
+        if (!customStory[nodePath]) {
+          customStory[nodePath] = { 
+            text: '', 
+            choices: [{ text: 'Continue', nextNode: target }] 
+          };
+        } else {
+          customStory[nodePath].choices = [{ text: 'Continue', nextNode: target }];
+        }
+      }
+      
+      // Recursively process nested arrays
+      if (Array.isArray(item)) {
+        extractArrayNodes(item, nodePath, customStory, allNodes);
+      }
+    }
+  });
+}
 
 /**
  * Helper to get a nested property from an object using a path string
@@ -326,7 +508,7 @@ function getNestedProperty(obj: any, path: string): any {
 }
 
 /**
- * Extract text content from an Ink node
+ * Extract text content from an Ink node with improved handling
  */
 function extractTextFromInkNode(node: any): string {
   if (!node) return '';
@@ -349,7 +531,7 @@ function extractTextFromInkNode(node: any): string {
 }
 
 /**
- * Extract choices from an Ink node
+ * Extract choices from an Ink node with improved detection
  */
 function extractChoicesFromInkNode(node: any, allNodes: string[]): { text: string, nextNode: string }[] {
   const choices: { text: string, nextNode: string }[] = [];
@@ -369,14 +551,33 @@ function extractChoicesFromInkNode(node: any, allNodes: string[]): { text: strin
             if (choiceIndex >= 0 && typeof obj[choiceIndex] === 'string') {
               let choiceText = obj[choiceIndex].replace(/^str\^/, '').replace(/\/str$/, '');
               choices.push({ text: choiceText, nextNode: targetNode });
+            } else {
+              // If we can't find choice text, use a default
+              choices.push({ text: 'Continue', nextNode: targetNode });
             }
+          }
+        } else if (typeof item === 'object' && item && item['->']) {
+          // Direct navigation object
+          const targetNode = item['->'];
+          if (allNodes.includes(targetNode) || targetNode === 'root') {
+            choices.push({ text: 'Continue', nextNode: targetNode });
           }
         } else {
           findPointers(item);
         }
       });
     } else {
-      Object.values(obj).forEach(value => findPointers(value));
+      Object.entries(obj).forEach(([key, value]) => {
+        if (key === '->') {
+          // Direct navigation property
+          const targetNode = value as string;
+          if (allNodes.includes(targetNode) || targetNode === 'root') {
+            choices.push({ text: 'Continue', nextNode: targetNode });
+          }
+        } else {
+          findPointers(value);
+        }
+      });
     }
   };
   
@@ -385,3 +586,5 @@ function extractChoicesFromInkNode(node: any, allNodes: string[]): { text: strin
   return choices;
 }
 
+// Import necessary type
+import { CustomStory } from "./storyUtils";

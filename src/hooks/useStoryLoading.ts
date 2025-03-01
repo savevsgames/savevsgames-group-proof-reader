@@ -89,15 +89,31 @@ export const useStoryLoading = (storyId: string | undefined): UseStoryLoadingRes
           setStory(newStory);
           setUsingCustomFormat(false);
           
+          // Enhanced conversion with better node extraction
+          console.log("Beginning conversion to custom format for analysis...");
           const customStoryData = extractCustomStoryFromInkJSON(storyData);
-          console.log("Converted Ink story to custom format for analysis");
+          console.log("Converted Ink story to custom format with", 
+                      Object.keys(customStoryData).length, "nodes");
           
           try {
+            console.log("Analyzing story structure...");
             const { nodeMappings: mappings, totalPages: calculatedPages } = 
               generateAndLogNodeMappings(customStoryData);
             
             console.log("Story structure analysis successful:", 
-              { totalPages: calculatedPages, mappings });
+              { totalPages: calculatedPages, mappingCount: Object.keys(mappings.nodeToPage).length });
+            
+            // Validate that mapping has enough nodes
+            const nodeCount = Object.keys(customStoryData).filter(key => 
+              key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
+            ).length;
+            
+            const mappedNodeCount = Object.keys(mappings.nodeToPage).length;
+            
+            if (mappedNodeCount < nodeCount * 0.7) { // If we mapped less than 70% of nodes, log a warning
+              console.warn(`Mapping only covered ${mappedNodeCount} of ${nodeCount} nodes (${
+                Math.round(mappedNodeCount/nodeCount*100)}%)`);
+            }
             
             setNodeMappings(mappings);
             setTotalPages(calculatedPages);
@@ -105,13 +121,28 @@ export const useStoryLoading = (storyId: string | undefined): UseStoryLoadingRes
           } catch (analysisErr) {
             console.error("Error in story structure analysis:", analysisErr);
             
+            // More robust fallback for node extraction
             const allNodes = extractAllNodesFromInkJSON(storyData);
+            console.log("Extracted", allNodes.length, "nodes from story");
+            
             const contentNodes = allNodes.filter(node => 
               node !== 'inkVersion' && node !== 'listDefs' && node !== '#f'
             );
             
             setTotalPages(Math.max(contentNodes.length, 1));
             console.warn("Using fallback page count:", contentNodes.length);
+            
+            // Create a simple sequential mapping for the fallback
+            const nodeToPage: Record<string, number> = {};
+            const pageToNode: Record<number, string> = {};
+            
+            contentNodes.forEach((node, index) => {
+              const pageNum = index + 1;
+              nodeToPage[node] = pageNum;
+              pageToNode[pageNum] = node;
+            });
+            
+            setNodeMappings({ nodeToPage, pageToNode });
           }
           
           setIsLoading(false);
@@ -127,7 +158,7 @@ export const useStoryLoading = (storyId: string | undefined): UseStoryLoadingRes
         setCustomStory(storyData);
         
         try {
-          console.log("Analyzing story structure for node mappings...");
+          console.log("Analyzing custom story structure for node mappings...");
           const { nodeMappings: mappings, totalPages: calculatedPages } = 
             generateAndLogNodeMappings(storyData);
           
