@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useStory } from '@/hooks/useStory';
@@ -46,7 +45,7 @@ export const StoryEngine: React.FC = () => {
           setComments(commentsData);
           // Update the comment count based on fetched comments
           if (updateCommentCount) {
-            updateCommentCount(commentsData.length);
+            updateCommentCount();
           }
         } catch (error) {
           console.error('Error fetching comments:', error);
@@ -67,7 +66,7 @@ export const StoryEngine: React.FC = () => {
           fetchComments(storyId, currentStoryPosition).then(commentsData => {
             setComments(commentsData);
             if (updateCommentCount) {
-              updateCommentCount(commentsData.length);
+              updateCommentCount();
             }
           });
         }

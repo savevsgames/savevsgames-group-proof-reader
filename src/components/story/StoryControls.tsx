@@ -1,101 +1,111 @@
+import React from 'react';
+import { MessageSquare } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { BookNavigationProps } from '@/components/story/BookLayout';
+// Import Comment type from the correct location
+import { Comment } from '@/components/comments/types';
 
-import React, { useState, useEffect } from 'react';
-import { StoryContinueButton } from './StoryContinueButton';
-import { StoryChoices } from './StoryChoices';
-import { StoryChoice } from '@/lib/storyUtils';
-import { Comment } from '../CommentModal';
-import { User } from '@/lib/supabase';
-import CommentsView from './CommentsView';
-
-interface StoryControlsProps {
-  canContinue?: boolean;
-  choices?: StoryChoice[];
-  isEnding: boolean;
-  text?: string;
-  comments?: Comment[];
-  currentUser: User | null;
+interface StoryControlsProps extends BookNavigationProps {
+  commentCount: number;
+  currentNode: string;
   storyId: string;
-  currentNode?: string;
-  currentPage?: number;
-  canGoBack: boolean;
-  onContinue?: () => void;
-  onChoice?: (index: number) => void;
-  onOpenCommentModal: () => void;
-  onRestart: () => void;
-  onBack: () => void;
+  comments: Comment[];
+  onOpenComments: () => void;
 }
 
 export const StoryControls: React.FC<StoryControlsProps> = ({
+  currentPage,
+  totalPages,
   canContinue,
-  choices = [],
-  isEnding,
-  text = '',
-  comments = [],
-  currentUser,
-  storyId,
-  currentNode = 'root',
-  currentPage = 1,
   canGoBack,
+  choices,
+  isEnding,
+  commentCount,
+  currentNode,
+  storyId,
+  comments,
   onContinue,
   onChoice,
-  onOpenCommentModal,
+  onBack,
   onRestart,
-  onBack
+  onOpenComments,
+  onPageChange,
 }) => {
-  const [commentCount, setCommentCount] = useState(comments.length);
-  
-  const handleCommentsUpdate = (count: number) => {
-    setCommentCount(count);
-  };
-
-  if (isEnding || !text) {
-    return (
-      <div className="w-full bg-white p-4 md:p-6 lg:p-8 min-h-[400px] md:min-h-[600px] rounded-lg md:rounded-none">
-        <div className="space-y-4 md:space-y-6">
-          <div className="flex flex-col space-y-4">
-            <StoryContinueButton onClick={onRestart} label="Restart Story" />
-            <button 
-              onClick={onOpenCommentModal}
-              className="text-[#3A2618] hover:text-[#F97316] transition-colors text-sm"
-            >
-              View Comments
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  
   return (
-    <div className="w-full bg-white p-4 md:p-6 lg:p-8 min-h-[400px] md:min-h-[600px] rounded-lg md:rounded-none">
-      <div className="space-y-4 pt-4">
-        <div className="prose prose-lg max-w-none">
-          <h3 className="text-xl font-serif">What would you like to do?</h3>
+    <div className="flex flex-col items-center justify-center mt-6">
+      <div className="flex justify-between w-full max-w-md mb-4">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={onBack}
+          disabled={!canGoBack}
+        >
+          Back
+        </Button>
 
-          {canContinue && onContinue ? (
-            <StoryContinueButton onClick={onContinue} />
-          ) : choices.length > 0 && onChoice ? (
-            <StoryChoices choices={choices} onChoice={onChoice} />
-          ) : null}
-          
-          <div className="flex flex-col space-y-2 mt-6">
-            {canGoBack && (
-              <button 
-                onClick={onBack}
-                className="text-[#3A2618] hover:text-[#F97316] transition-colors text-sm"
-              >
-                Go Back
-              </button>
-            )}
-            <button 
-              onClick={onRestart}
-              className="text-[#3A2618] hover:text-[#F97316] transition-colors text-sm"
-            >
-              Restart Story
-            </button>
-          </div>
-        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={onOpenComments}
+          className="relative"
+        >
+          <MessageSquare className="mr-2 h-4 w-4" />
+          Comments
+          {commentCount > 0 && (
+            <span className="absolute top-[-5px] right-[-5px] bg-red-500 text-white rounded-full px-2 text-xs">
+              {commentCount}
+            </span>
+          )}
+        </Button>
       </div>
+
+      <div className="flex justify-center items-center space-x-4 mb-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage <= 1}
+        >
+          Previous
+        </Button>
+        <span>
+          Page {currentPage} / {totalPages}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage >= totalPages}
+        >
+          Next
+        </Button>
+      </div>
+
+      {canContinue && (
+        <Button onClick={onContinue} className="w-full max-w-md mb-4">
+          Continue
+        </Button>
+      )}
+
+      {choices.length > 0 && (
+        <div className="w-full max-w-md">
+          {choices.map((choice: any, index: number) => (
+            <Button
+              key={index}
+              onClick={() => onChoice(index)}
+              className="w-full mb-2"
+            >
+              {choice.text}
+            </Button>
+          ))}
+        </div>
+      )}
+
+      {isEnding && (
+        <Button onClick={onRestart} className="w-full max-w-md">
+          Restart Story
+        </Button>
+      )}
     </div>
   );
 };
