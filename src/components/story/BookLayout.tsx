@@ -12,6 +12,7 @@ interface BookLayoutProps {
   currentPage: number;
   totalPages: number;
   currentText: string;
+  currentNode: string;
   canContinue: boolean;
   choices: StoryChoice[];
   isEnding: boolean;
@@ -33,6 +34,7 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
   currentPage,
   totalPages,
   currentText,
+  currentNode,
   canContinue,
   choices,
   isEnding,
@@ -89,6 +91,8 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
             comments={comments}
             currentUser={currentUser}
             storyId={storyId}
+            currentNode={currentNode}
+            currentPage={currentPage}
             onOpenCommentModal={onOpenComments}
             onRestart={onRestart}
             canGoBack={canGoBack}

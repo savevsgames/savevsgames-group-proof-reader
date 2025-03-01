@@ -26,6 +26,7 @@ export const StoryEngine: React.FC = () => {
     canGoBack,
     commentCount,
     currentStoryPosition,
+    currentNode, // Make sure to extract this from the hook
     handleContinue,
     handleChoice,
     handleBack,
@@ -94,6 +95,7 @@ export const StoryEngine: React.FC = () => {
         currentPage={currentPage}
         totalPages={totalPages}
         currentText={currentText}
+        currentNode={currentNode || 'root'} // Pass the current node, default to 'root'
         canContinue={canContinue}
         choices={currentChoices}
         isEnding={!canContinue && currentChoices.length === 0}

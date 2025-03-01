@@ -2,7 +2,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Trash } from "lucide-react";
+import { Trash, Plus } from "lucide-react";
 import { commentTypeLabels, commentTypeColors } from "@/lib/commentTypes";
 
 interface CommentItemProps {
@@ -18,12 +18,14 @@ interface CommentItemProps {
   };
   currentUserId?: string;
   onDelete: (commentId: string) => void;
+  onAddToLlmContext?: (text: string) => void;
 }
 
 const CommentItem: React.FC<CommentItemProps> = ({
   comment,
   currentUserId,
   onDelete,
+  onAddToLlmContext,
 }) => {
   const commentType = comment.comment_type || 'general';
   const typeColor = commentTypeColors[commentType as keyof typeof commentTypeColors] || '#9ca3af';
@@ -48,16 +50,28 @@ const CommentItem: React.FC<CommentItemProps> = ({
             </p>
           </div>
         </div>
-        {currentUserId && currentUserId === comment.user_id && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onDelete(comment.id)}
-            title="Delete Comment"
-          >
-            <Trash className="h-4 w-4 text-red-500" />
-          </Button>
-        )}
+        <div className="flex items-center gap-1">
+          {onAddToLlmContext && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onAddToLlmContext(comment.content)}
+              title="Add to LLM Context"
+            >
+              <Plus className="h-4 w-4 text-blue-500" />
+            </Button>
+          )}
+          {currentUserId && currentUserId === comment.user_id && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onDelete(comment.id)}
+              title="Delete Comment"
+            >
+              <Trash className="h-4 w-4 text-red-500" />
+            </Button>
+          )}
+        </div>
       </div>
       
       <div 
