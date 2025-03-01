@@ -7,7 +7,6 @@ import { BookOpenCheck, BookPlus, Loader2, Search, X, Database, RefreshCw } from
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from '@/lib/supabase';
 import { toast } from "sonner";
 
@@ -63,7 +62,7 @@ const Dashboard = () => {
         .from('books')
         .select('*');
       
-      console.log("Query object:", query);
+      console.log("Executing query:", query);
       
       const { data: booksData, error: booksError } = await query;
       
@@ -100,18 +99,6 @@ const Dashboard = () => {
         setLoading(false);
         return;
       }
-      
-      // Insert a test book if you'd like to test this feature without database entries
-      // Uncomment the following to add a test book to the UI (not to the database)
-      /*
-      const testBook = {
-        id: "test-book-1",
-        title: "Test Book",
-        subtitle: "This is a test book that is not in the database",
-        cover_url: "/placeholder.svg"
-      };
-      booksData.push(testBook);
-      */
       
       // Log each book to check their structure
       booksData.forEach((book, index) => {
@@ -168,10 +155,7 @@ const Dashboard = () => {
       console.log("Running database diagnostics...");
       
       // Check Supabase instance
-      console.log("Supabase client config:", {
-        url: supabase.supabaseUrl,
-        hasKey: !!supabase.supabaseKey,
-      });
+      console.log("Testing connection to Supabase API...");
       
       // Try a simple health check
       console.log("Testing connection to Supabase...");
