@@ -84,9 +84,23 @@ const CommentItem: React.FC<CommentItemProps> = ({
         {commentTypeLabels[commentType as keyof typeof commentTypeLabels] || 'Comment'}
       </div>
       
-      <p className="mt-2 text-gray-700 whitespace-pre-wrap">
+      <div className="mt-2 text-gray-700 whitespace-pre-wrap">
         {comment.content}
-      </p>
+      </div>
+      
+      {onAddToLlmContext && (
+        <div className="mt-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onAddToLlmContext(comment)}
+            className="text-xs"
+          >
+            <ArrowUpRight className="h-3 w-3 mr-1" />
+            Add Comment and Type to Context
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
