@@ -29,20 +29,34 @@ const Dashboard = () => {
     const fetchStories = async () => {
       setLoading(true);
       try {
+        console.log("Fetching stories from Supabase...");
         const { data: booksData, error: booksError } = await supabase
           .from('books')
           .select('*');
 
         if (booksError) {
+          console.error("Error fetching books:", booksError);
           throw booksError;
         }
 
-        setStories(booksData.map(book => ({
+        console.log("Books data received:", booksData);
+        
+        if (!booksData || booksData.length === 0) {
+          console.log("No books found in the database");
+          setStories([]);
+          setLoading(false);
+          return;
+        }
+
+        const formattedStories = booksData.map(book => ({
           id: book.id,
-          title: book.title,
+          title: book.title || 'Untitled Story',
           description: book.subtitle || 'No description available',
           cover_url: book.cover_url || '/placeholder.svg'
-        })));
+        }));
+
+        console.log("Formatted stories:", formattedStories);
+        setStories(formattedStories);
       } catch (error) {
         console.error("Could not fetch stories:", error);
         toast.error("Failed to load stories");
@@ -120,37 +134,42 @@ const Dashboard = () => {
               <span className="ml-2 text-[#3A2618]">Loading stories...</span>
             </div>
           ) : (
-            <ScrollArea className="rounded-md border">
-              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 p-4">
-                {filteredStories.map(story => (
-                  <Card key={story.id} className="bg-[#E8DCC4] text-[#3A2618] hover:shadow-lg transition-shadow">
-                    <CardHeader>
-                      <CardTitle className="text-lg font-semibold line-clamp-1">{story.title}</CardTitle>
-                      <CardDescription className="line-clamp-2">{story.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-4">
-                      <img
-                        src={story.cover_url}
-                        alt={story.title}
-                        className="w-full h-32 object-cover rounded-md mb-4"
-                      />
-                    </CardContent>
-                    <CardFooter className="flex justify-between items-center">
-                      <Link to={`/story/${story.id}`}>
-                        <Button className="bg-[#F97316] text-white hover:bg-[#F97316]/90">
-                          Read More <BookOpenCheck className="h-4 w-4 ml-2" />
-                        </Button>
-                      </Link>
-                    </CardFooter>
-                  </Card>
-                ))}
-                {filteredStories.length === 0 && (
-                  <div className="text-center text-[#3A2618]/70 col-span-full py-8">
-                    No stories found.
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
+            <div className="rounded-md border border-[#3A2618]/20 bg-white p-4">
+              {filteredStories.length > 0 ? (
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                  {filteredStories.map(story => (
+                    <Card key={story.id} className="bg-[#E8DCC4] text-[#3A2618] hover:shadow-lg transition-shadow">
+                      <CardHeader>
+                        <CardTitle className="text-lg font-semibold line-clamp-1">{story.title}</CardTitle>
+                        <CardDescription className="line-clamp-2">{story.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-4">
+                        <img
+                          src={story.cover_url}
+                          alt={story.title}
+                          className="w-full h-32 object-cover rounded-md mb-4"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = '/placeholder.svg';
+                          }}
+                        />
+                      </CardContent>
+                      <CardFooter className="flex justify-between items-center">
+                        <Link to={`/story/${story.id}`}>
+                          <Button className="bg-[#F97316] text-white hover:bg-[#F97316]/90">
+                            Read More <BookOpenCheck className="h-4 w-4 ml-2" />
+                          </Button>
+                        </Link>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-[#3A2618]/70 py-8">
+                  {searchTerm ? 'No stories match your search.' : 'No stories available. Check back later!'}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
