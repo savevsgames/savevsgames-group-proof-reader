@@ -22,6 +22,7 @@ const Dashboard = () => {
   const [stories, setStories] = useState<Story[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { isAuthenticated, isGuest } = useAuth();
   const navigate = useNavigate();
 
@@ -30,35 +31,64 @@ const Dashboard = () => {
       setLoading(true);
       try {
         console.log("Fetching stories from Supabase...");
+        
+        // Log the supabase client to verify it's properly initialized
+        console.log("Supabase client:", supabase);
+        
         const { data: booksData, error: booksError } = await supabase
           .from('books')
           .select('*');
 
+        console.log("Raw response from Supabase:", { data: booksData, error: booksError });
+
         if (booksError) {
           console.error("Error fetching books:", booksError);
+          setError(`Failed to fetch books: ${booksError.message}`);
           throw booksError;
         }
 
-        console.log("Books data received:", booksData);
-        
-        if (!booksData || booksData.length === 0) {
-          console.log("No books found in the database");
+        if (!booksData) {
+          console.log("No data returned from books table");
           setStories([]);
           setLoading(false);
           return;
         }
 
-        const formattedStories = booksData.map(book => ({
-          id: book.id,
-          title: book.title || 'Untitled Story',
-          description: book.subtitle || 'No description available',
-          cover_url: book.cover_url || '/placeholder.svg'
-        }));
+        console.log("Books data received:", booksData);
+        console.log("Number of books fetched:", booksData.length);
+        
+        if (booksData.length === 0) {
+          console.log("The books table exists but is empty");
+          setStories([]);
+          setLoading(false);
+          return;
+        }
 
-        console.log("Formatted stories:", formattedStories);
+        // Log each book to check their structure
+        booksData.forEach((book, index) => {
+          console.log(`Book ${index + 1}:`, book);
+          console.log(`- ID: ${book.id}`);
+          console.log(`- Title: ${book.title}`);
+          console.log(`- Subtitle: ${book.subtitle}`);
+          console.log(`- Cover URL: ${book.cover_url}`);
+        });
+
+        const formattedStories = booksData.map(book => {
+          const story = {
+            id: book.id,
+            title: book.title || 'Untitled Story',
+            description: book.subtitle || 'No description available',
+            cover_url: book.cover_url || '/placeholder.svg'
+          };
+          console.log("Formatted story:", story);
+          return story;
+        });
+
+        console.log("Final formatted stories array:", formattedStories);
         setStories(formattedStories);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Could not fetch stories:", error);
+        setError(`Failed to load stories: ${error.message}`);
         toast.error("Failed to load stories");
       } finally {
         setLoading(false);
@@ -133,6 +163,11 @@ const Dashboard = () => {
               <Loader2 className="h-6 w-6 text-[#F97316] animate-spin" />
               <span className="ml-2 text-[#3A2618]">Loading stories...</span>
             </div>
+          ) : error ? (
+            <div className="p-6 text-center text-red-600 bg-white rounded-md border border-[#3A2618]/20">
+              <p>{error}</p>
+              <p className="mt-2">Please check the console for more details.</p>
+            </div>
           ) : (
             <div className="rounded-md border border-[#3A2618]/20 bg-white p-4">
               {filteredStories.length > 0 ? (
@@ -151,6 +186,7 @@ const Dashboard = () => {
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
                             target.src = '/placeholder.svg';
+                            console.log(`Image load error for story "${story.title}", using placeholder instead`);
                           }}
                         />
                       </CardContent>
@@ -166,9 +202,31 @@ const Dashboard = () => {
                 </div>
               ) : (
                 <div className="text-center text-[#3A2618]/70 py-8">
-                  {searchTerm ? 'No stories match your search.' : 'No stories available. Check back later!'}
+                  {searchTerm ? (
+                    'No stories match your search.'
+                  ) : (
+                    <div>
+                      <p>No stories available in the database.</p>
+                      <p className="mt-2">
+                        {isAuthenticated && !isGuest ? (
+                          <>Try adding a new story with the "Add Story" button above.</>
+                        ) : (
+                          <>Stories may need to be added by an administrator.</>
+                        )}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
+
+              <div className="mt-4 p-4 bg-gray-100 rounded-md">
+                <h3 className="font-bold mb-2">Debug Information:</h3>
+                <p>Stories array length: {stories.length}</p>
+                <p>Filtered stories length: {filteredStories.length}</p>
+                <p>Search term: "{searchTerm}"</p>
+                <p>Is authenticated: {isAuthenticated ? "Yes" : "No"}</p>
+                <p>Is guest: {isGuest ? "Yes" : "No"}</p>
+              </div>
             </div>
           )}
         </div>
