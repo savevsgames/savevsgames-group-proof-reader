@@ -102,8 +102,7 @@ export const preparePromptData = (
   currentPage: number,
   comments: any[],
   prompt: string,
-  llmType: "node" | "choices",
-  llmContext?: string
+  llmType: "node" | "choices"
 ) => {
   const nodeData = storyData[currentNode] || {
     text: "",
@@ -129,9 +128,6 @@ export const preparePromptData = (
   const nextNodeText = nextNodeName && storyData[nextNodeName] ? 
     `\nNext page content: "${storyData[nextNodeName].text}"` : '';
 
-  const contextSection = llmContext ? 
-    `\n\nAdditional context from comments:\n${llmContext}` : '';
-
   return `
 Story node: "${currentNode}" (Page ${currentPage})
 Current text: "${nodeData.text}"
@@ -139,7 +135,6 @@ Current choices: ${JSON.stringify(nodeData.choices, null, 2)}
 ${prevNodeText}
 ${nextNodeText}
 ${commentsText}
-${contextSection}
 
 User instruction: ${prompt}
 `;
@@ -147,4 +142,3 @@ User instruction: ${prompt}
 
 // Import from storyUtils to avoid circular imports
 import { generateNodeMappings } from "@/lib/storyUtils";
-

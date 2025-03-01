@@ -20,9 +20,6 @@ interface LlmIntegrationProps {
   currentNode: string;
   onStoryUpdate: (updatedStory: CustomStory) => void;
   currentPage: number;
-  llmContext?: string;
-  setLlmContext?: (context: string) => void;
-  onAddToLlmContext?: (text: string) => void;
 }
 
 const LlmIntegration: React.FC<LlmIntegrationProps> = ({
@@ -31,9 +28,6 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
   currentNode,
   onStoryUpdate,
   currentPage,
-  llmContext = "",
-  setLlmContext,
-  onAddToLlmContext,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [prompt, setPrompt] = useState("");
@@ -62,7 +56,7 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
     };
     
     initializeData();
-  }, [storyId, currentNode, currentPage, llmType, prompt]);
+  }, [storyId, currentNode, currentPage, llmType]);
 
   const handleGenerateContent = async () => {
     if (!prompt.trim()) {
@@ -85,8 +79,7 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
         currentPage,
         comments,
         prompt,
-        llmType,
-        llmContext
+        llmType
       );
 
       console.log("Sending prompt to OpenAI:", {
@@ -147,6 +140,18 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
     }
   };
 
+  const handleAddToLlmContext = (text: string) => {
+    setPrompt(prev => {
+      const newPrompt = prev ? `${prev}\n\n${text}` : text;
+      return newPrompt;
+    });
+    
+    toast({
+      title: "Added to prompt",
+      description: "Comment information has been added to your prompt.",
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -161,8 +166,6 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
             setPrompt={setPrompt}
             onGenerateContent={handleGenerateContent}
             isLoading={isLoading}
-            llmContext={llmContext}
-            setLlmContext={setLlmContext}
           />
         </Card>
         
@@ -183,7 +186,7 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
               onCommentsUpdate={(count) => {
                 // This function can stay the same
               }}
-              onAddToLlmContext={onAddToLlmContext}
+              onAddToLlmContext={handleAddToLlmContext}
             />
           </Card>
         </div>

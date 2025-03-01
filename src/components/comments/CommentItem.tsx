@@ -30,7 +30,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
   
   const handleAddToContext = () => {
     if (onAddToLlmContext) {
-      const contextText = `${commentTypeLabel}: ${comment.text}`;
+      const contextText = `${commentTypeLabel} from ${comment.user_name}: ${comment.text}`;
       onAddToLlmContext(contextText);
     }
   };
@@ -77,6 +77,17 @@ const CommentItem: React.FC<CommentItemProps> = ({
               className="h-8 w-8 p-0 text-red-500"
             >
               <Trash className="h-4 w-4" />
+            </Button>
+          )}
+          
+          {onAddToLlmContext && (
+            <Button
+              onClick={handleAddToContext}
+              variant="ghost"
+              className="h-8 w-8 p-0 text-blue-500"
+              title="Add to AI Context"
+            >
+              <Plus className="h-4 w-4" />
             </Button>
           )}
           

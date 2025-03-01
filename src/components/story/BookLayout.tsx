@@ -27,7 +27,6 @@ interface BookLayoutProps {
   onRestart: () => void;
   onOpenComments: () => void;
   onPageChange: (pageNumber: number) => void;
-  onAddToLlmContext?: (text: string) => void;
 }
 
 export const BookLayout: React.FC<BookLayoutProps> = ({
@@ -49,8 +48,7 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
   onBack,
   onRestart,
   onOpenComments,
-  onPageChange,
-  onAddToLlmContext
+  onPageChange
 }) => {
   return (
     <div className="container mx-auto relative book-container mt-6 px-0 md:px-2 overflow-hidden">
@@ -94,7 +92,6 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
               currentNode={currentNode}
               currentPage={currentPage}
               onCommentsUpdate={(count) => {/* This is a no-op to prevent unnecessary re-renders */}}
-              onAddToLlmContext={onAddToLlmContext}
             />
           </div>
         </div>
