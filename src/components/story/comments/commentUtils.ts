@@ -1,6 +1,6 @@
-
-import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
+import { commentTypeLabels } from "@/lib/commentTypes";
 
 export const useCommentOperations = (
   storyId: string,
@@ -9,53 +9,48 @@ export const useCommentOperations = (
 ) => {
   const { toast } = useToast();
 
-  // Delete a comment
   const deleteComment = async (commentId: string, userId: string, currentComments: any[]) => {
     try {
       const { error } = await supabase
-        .from("comments")
+        .from('comments')
         .delete()
-        .eq("id", commentId)
-        .eq("user_id", userId);
+        .eq('id', commentId)
+        .eq('user_id', userId);
 
       if (error) {
         throw error;
       }
 
       toast({
-        title: "Comment deleted",
-        description: "Your comment has been deleted successfully",
+        title: "Comment Deleted",
+        description: "The comment has been successfully deleted.",
       });
 
-      // Update local state
-      const updatedComments = currentComments.filter(
-        (comment) => comment.id !== commentId
-      );
+      const updatedComments = currentComments.filter(comment => comment.id !== commentId);
       onCommentsUpdate(updatedComments.length);
       return updatedComments;
     } catch (error) {
       console.error("Error deleting comment:", error);
       toast({
         title: "Error",
-        description: "Failed to delete comment",
+        description: "Failed to delete the comment.",
         variant: "destructive",
       });
       return null;
     }
   };
 
-  // Refresh comments
   const refreshComments = async () => {
     try {
       const { data, error } = await supabase
-        .from("comments")
+        .from('comments')
         .select(`
           *,
           profile:profiles(username)
         `)
-        .eq("story_id", storyId)
-        .eq("story_position", currentPage)
-        .order("created_at", { ascending: false });
+        .eq('story_id', storyId)
+        .eq('story_position', currentPage)
+        .order('created_at', { ascending: false });
 
       if (error) {
         throw error;
@@ -67,7 +62,7 @@ export const useCommentOperations = (
       console.error("Error refreshing comments:", error);
       toast({
         title: "Error",
-        description: "Failed to refresh comments",
+        description: "Failed to refresh comments.",
         variant: "destructive",
       });
       return null;
@@ -77,10 +72,10 @@ export const useCommentOperations = (
   return { deleteComment, refreshComments };
 };
 
-// Format a comment to be added to the LLM context
 export const formatCommentForLlm = (comment: any) => {
   const commentType = comment.comment_type || 'general';
+  const typeLabel = commentTypeLabels[commentType as keyof typeof commentTypeLabels] || 'Comment';
   const username = comment.profile?.username || 'Anonymous';
   
-  return `COMMENT [${commentType.toUpperCase()}] from ${username}: ${comment.content}`;
+  return `[${typeLabel} from ${username}]: ${comment.content}`;
 };

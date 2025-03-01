@@ -2,7 +2,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Trash, ArrowUpRight } from "lucide-react";
+import { Trash } from "lucide-react";
 import { commentTypeLabels, commentTypeColors } from "@/lib/commentTypes";
 
 interface CommentItemProps {
@@ -18,14 +18,12 @@ interface CommentItemProps {
   };
   currentUserId?: string;
   onDelete: (commentId: string) => void;
-  onAddToLlmContext?: (comment: any) => void;
 }
 
 const CommentItem: React.FC<CommentItemProps> = ({
   comment,
   currentUserId,
   onDelete,
-  onAddToLlmContext,
 }) => {
   const commentType = comment.comment_type || 'general';
   const typeColor = commentTypeColors[commentType as keyof typeof commentTypeColors] || '#9ca3af';
@@ -50,28 +48,16 @@ const CommentItem: React.FC<CommentItemProps> = ({
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          {onAddToLlmContext && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onAddToLlmContext(comment)}
-              title="Add to LLM Context"
-            >
-              <ArrowUpRight className="h-4 w-4 text-blue-500" />
-            </Button>
-          )}
-          {currentUserId && currentUserId === comment.user_id && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onDelete(comment.id)}
-              title="Delete Comment"
-            >
-              <Trash className="h-4 w-4 text-red-500" />
-            </Button>
-          )}
-        </div>
+        {currentUserId && currentUserId === comment.user_id && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onDelete(comment.id)}
+            title="Delete Comment"
+          >
+            <Trash className="h-4 w-4 text-red-500" />
+          </Button>
+        )}
       </div>
       
       <div 
@@ -87,20 +73,6 @@ const CommentItem: React.FC<CommentItemProps> = ({
       <div className="mt-2 text-gray-700 whitespace-pre-wrap">
         {comment.content}
       </div>
-      
-      {onAddToLlmContext && (
-        <div className="mt-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onAddToLlmContext(comment)}
-            className="text-xs"
-          >
-            <ArrowUpRight className="h-3 w-3 mr-1" />
-            Add Comment and Type to Context
-          </Button>
-        </div>
-      )}
     </div>
   );
 };

@@ -7,14 +7,13 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import CommentForm from "./comments/CommentForm";
 import CommentsList from "./comments/CommentsList";
-import { useCommentOperations, formatCommentForLlm } from "./comments/commentUtils";
+import { useCommentOperations } from "./comments/commentUtils";
 
 interface CommentsViewProps {
   storyId: string;
   currentNode: string;
   onCommentsUpdate: (count: number) => void;
   currentPage: number;
-  onAddToLlmContext?: (text: string) => void;
 }
 
 interface Comment {
@@ -33,7 +32,6 @@ const CommentsView: React.FC<CommentsViewProps> = ({
   currentNode,
   onCommentsUpdate,
   currentPage,
-  onAddToLlmContext,
 }) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -96,18 +94,6 @@ const CommentsView: React.FC<CommentsViewProps> = ({
     setLoading(false);
   };
 
-  const handleAddToLlmContext = (comment: Comment) => {
-    if (!onAddToLlmContext) return;
-    
-    const formattedComment = formatCommentForLlm(comment);
-    onAddToLlmContext(formattedComment);
-    
-    toast({
-      title: "Added to context",
-      description: "Comment has been added to the LLM context",
-    });
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -151,7 +137,6 @@ const CommentsView: React.FC<CommentsViewProps> = ({
           loading={loading}
           currentUserId={user?.id}
           onDeleteComment={handleDeleteComment}
-          onAddToLlmContext={onAddToLlmContext ? handleAddToLlmContext : undefined}
         />
       </div>
     </div>

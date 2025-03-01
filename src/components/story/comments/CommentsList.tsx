@@ -20,7 +20,6 @@ interface CommentsListProps {
   loading: boolean;
   currentUserId?: string;
   onDeleteComment: (commentId: string) => void;
-  onAddToLlmContext?: (comment: Comment) => void;
 }
 
 const CommentsList: React.FC<CommentsListProps> = ({
@@ -28,7 +27,6 @@ const CommentsList: React.FC<CommentsListProps> = ({
   loading,
   currentUserId,
   onDeleteComment,
-  onAddToLlmContext,
 }) => {
   if (loading) {
     return (
@@ -57,7 +55,6 @@ const CommentsList: React.FC<CommentsListProps> = ({
             comment={comment}
             currentUserId={currentUserId}
             onDelete={onDeleteComment}
-            onAddToLlmContext={onAddToLlmContext}
           />
         ))}
       </div>
