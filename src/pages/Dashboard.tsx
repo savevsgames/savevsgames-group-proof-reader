@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Book, LogOut, User } from "lucide-react";
+import { Book } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import Header from "@/components/Header";
 
 // Define the book type
 interface BookType {
@@ -20,7 +20,7 @@ interface BookType {
 }
 
 const Dashboard = () => {
-  const { user, isGuest, signOut } = useAuth();
+  const { user, isGuest } = useAuth();
   const [selectedBook, setSelectedBook] = useState<BookType | null>(null);
   const [books, setBooks] = useState<BookType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -157,48 +157,8 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-[#F5F1E8]">
-      {/* Header */}
-      <header className="bg-[#3A2618] text-[#E8DCC4] py-4 px-6 shadow-md">
-        <div className="max-w-7xl mx-auto flex flex-col xs:flex-row justify-between items-center gap-4 xs:gap-0">
-          <div className="flex items-center space-x-3">
-            <img
-              src="/lovable-uploads/2386c015-8e81-4433-9997-ae0f0b94bb6a.png"
-              alt="saveVSgames logo"
-              className="h-8 w-8"
-            />
-            <div>
-              <h1 className="text-xl font-serif font-bold text-[#F97316]">
-                saveVSgames
-              </h1>
-              <p className="text-xs text-[#E8DCC4]">
-                Adventures on Shadowtide Island
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-sm">
-              {isGuest ? (
-                <span className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  Guest User
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  {user?.username || user?.email || "User"}
-                </span>
-              )}
-            </div>
-            <button
-              onClick={() => signOut().then(() => navigate("/"))}
-              className="flex items-center text-sm hover:text-white transition-colors"
-            >
-              <LogOut className="h-4 w-4 mr-1" />
-              Sign Out
-            </button>
-          </div>
-        </div>
-      </header>
+      {/* Use our new Header component */}
+      <Header />
 
       <main className="max-w-7xl mx-auto py-8 px-4">
         {/* Book Grid */}

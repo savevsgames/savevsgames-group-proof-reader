@@ -1,26 +1,19 @@
 
 import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { StoryEngine } from '@/components/StoryEngine';
-import { ArrowLeft } from 'lucide-react';
+import Header from '@/components/Header';
 
 const StoryPage = () => {
   const { storyId } = useParams();
-  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-[#3A2618] overflow-x-hidden">
-      <div className="max-w-7xl mx-auto px-4 py-4">
-        <button 
-          onClick={() => navigate('/dashboard')}
-          className="flex items-center text-[#E8DCC4] hover:text-[#F97316] transition-colors mb-4"
-        >
-          <ArrowLeft className="h-5 w-5 mr-2" />
-          Back to Library
-        </button>
-      </div>
+      <Header showBackButton={true} backTo="/dashboard" backLabel="Back to Library" />
       
-      <StoryEngine />
+      <div className="max-w-7xl mx-auto px-4">
+        <StoryEngine />
+      </div>
     </div>
   );
 };

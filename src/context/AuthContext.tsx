@@ -3,11 +3,12 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { signIn as authSignIn, signUp as authSignUp, signOut as authSignOut } from '@/lib/authUtils';
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  isGuest: boolean; // Added this property
+  isGuest: boolean; 
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, username: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -19,20 +20,22 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isGuest, setIsGuest] = useState(false); // Added state for guest mode
+  const [isGuest, setIsGuest] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     const getInitialSession = async () => {
       try {
+        console.log('[AuthContext] Checking initial session');
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user) {
+          console.log('[AuthContext] Found existing session', session.user);
           setUser(session.user as User);
-          setIsGuest(false); // Not a guest if logged in
+          setIsGuest(false);
         }
       } catch (error) {
-        console.error('Error checking initial auth session:', error);
+        console.error('[AuthContext] Error checking initial auth session:', error);
       } finally {
         setIsLoading(false);
       }
@@ -43,9 +46,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        console.log('[AuthContext] Auth state changed', { event: _event, user: session?.user });
         if (session?.user) {
           setUser(session.user as User);
-          setIsGuest(false); // Not a guest if logged in
+          setIsGuest(false);
         } else {
           setUser(null);
         }
@@ -55,24 +59,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Clean up subscription
     return () => {
+      console.log('[AuthContext] Cleaning up auth subscription');
       subscription.unsubscribe();
     };
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    console.log('[AuthContext] SignIn attempt', { email });
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { data, error } = await authSignIn(email, password);
       
       if (error) {
+        console.log('[AuthContext] SignIn error', error);
         return { error };
       }
       
       if (data?.user) {
         setUser(data.user as User);
-        setIsGuest(false); // Not a guest when signed in
+        setIsGuest(false);
         toast({
           title: "Signed in successfully",
           description: `Welcome back${data.user.email ? ', ' + data.user.email : ''}!`,
@@ -81,25 +85,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       return { error: null };
     } catch (error) {
-      console.error('Error during sign in:', error);
+      console.error('[AuthContext] Error during sign in:', error);
       return { error };
     }
   };
 
   const signUp = async (email: string, password: string, username: string) => {
+    console.log('[AuthContext] SignUp attempt', { email, username });
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            username,
-          },
-          emailRedirectTo: `${window.location.origin}/verify`,
-        },
-      });
+      const { data, error } = await authSignUp(email, password, username);
       
       if (error) {
+        console.log('[AuthContext] SignUp error', error);
         return { error };
       }
       
@@ -112,22 +109,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       return { error: null };
     } catch (error) {
-      console.error('Error during sign up:', error);
+      console.error('[AuthContext] Error during sign up:', error);
       return { error };
     }
   };
 
   const signOut = async () => {
+    console.log('[AuthContext] SignOut attempt');
     try {
-      await supabase.auth.signOut();
+      await authSignOut();
       setUser(null);
-      setIsGuest(false); // Reset guest status on sign out
+      setIsGuest(false);
       toast({
         title: "Signed out",
         description: "You have been signed out successfully.",
       });
     } catch (error) {
-      console.error('Error during sign out:', error);
+      console.error('[AuthContext] Error during sign out:', error);
       toast({
         title: "Sign out failed",
         description: "There was an error signing out. Please try again.",
@@ -137,8 +135,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const continueAsGuest = () => {
+    console.log('[AuthContext] Continuing as guest');
     setUser(null);
-    setIsGuest(true); // Set guest mode to true
+    setIsGuest(true);
     toast({
       title: "Guest mode",
       description: "You're browsing as a guest. Some features may be limited.",
@@ -150,7 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         isLoading,
-        isGuest, // Include isGuest in the context value
+        isGuest,
         signIn,
         signUp,
         signOut,

@@ -1,18 +1,25 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { BookOpen, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
+import Header from '@/components/Header';
+
 const Index = () => {
   const navigate = useNavigate();
-  const {
-    user
-  } = useAuth();
+  const { user } = useAuth();
+  
   React.useEffect(() => {
     if (user) {
       navigate('/dashboard');
     }
   }, [user, navigate]);
-  return <div className="min-h-screen bg-[#3A2618] flex flex-col">
+  
+  return (
+    <div className="min-h-screen bg-[#3A2618] flex flex-col">
+      {/* Header */}
+      <Header />
+      
       {/* Hero Section */}
       <div className="flex-1 flex flex-col items-center justify-center text-center px-4 py-20">
         <div className="mb-8">
@@ -50,6 +57,8 @@ const Index = () => {
           </div>
         </div>
       </footer>
-    </div>;
+    </div>
+  );
 };
+
 export default Index;

@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, ChevronLeft } from "lucide-react";
+import { BookOpen } from "lucide-react";
+import Header from "@/components/Header";
 
 const FAQ = () => {
   const faqs = [
@@ -34,27 +35,7 @@ const FAQ = () => {
   return (
     <div className="min-h-screen bg-[#3A2618] flex flex-col">
       {/* Header */}
-      <header className="bg-[#2E1D11] text-[#E8DCC4] py-6 px-4">
-        <div className="max-w-5xl mx-auto flex justify-between items-center">
-          <Link
-            to="/"
-            className="flex items-center gap-2 text-[#F97316] hover:text-[#E86305] transition-colors"
-          >
-            <ChevronLeft className="h-5 w-5" />
-            <span>Back to Home</span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <img
-              src="/lovable-uploads/2386c015-8e81-4433-9997-ae0f0b94bb6a.png"
-              alt="saveVSgames logo"
-              className="h-8 w-8"
-            />
-            <span className="text-[#F97316] font-serif text-xl">
-              saveVSgames
-            </span>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Main Content */}
       <main className="flex-1 py-12 px-4">
