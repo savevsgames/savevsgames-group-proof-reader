@@ -10,6 +10,7 @@ import EmptyState from "@/components/story/editor/EmptyState";
 import UnsavedChangesDialog from "@/components/story/editor/UnsavedChangesDialog";
 import { useStoryStore } from "@/stores/storyState";
 import { shallow } from "zustand/shallow";
+import { StoryStore } from "@/stores/storyState/types";
 
 const StoryEditPage = () => {
   const { id } = useParams();
@@ -31,7 +32,7 @@ const StoryEditPage = () => {
     handleNodeChange,
     handleStoryDataChange,
     handleSave,
-  } = useStoryStore(state => ({
+  } = useStoryStore((state: StoryStore) => ({
     storyData: state.storyData,
     title: state.title,
     loading: state.loading,

@@ -28,7 +28,7 @@ const ReaderView: React.FC<ReaderViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   
-  const totalPages = useStoryStore(state => state.totalPages);
+  const totalPages = useStoryStore((state: StoryStore) => state.totalPages);
   
   const [currentText, setCurrentText] = useState<string>("");
   const [choices, setChoices] = useState<any[]>([]);

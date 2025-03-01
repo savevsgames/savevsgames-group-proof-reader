@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
@@ -23,7 +22,7 @@ interface StoryTabsProps {
   onNodeChange?: (nodeName: string) => void;
 }
 
-export type TabType = "json" | "ink" | "reader" | "comments" | "llm";
+export const TabType = "json" | "ink" | "reader" | "comments" | "llm";
 
 const StoryTabs: React.FC<StoryTabsProps> = ({
   storyId,

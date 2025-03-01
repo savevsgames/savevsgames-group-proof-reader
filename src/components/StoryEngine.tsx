@@ -37,7 +37,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
     handleRestart,
     handlePageChange,
     setCommentCount
-  } = useStoryStore(state => ({
+  } = useStoryStore((state: StoryStore) => ({
     loading: state.loading,
     error: state.error,
     title: state.title,
