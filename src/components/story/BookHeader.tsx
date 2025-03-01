@@ -65,13 +65,19 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
     setPageInput(currentPage.toString());
   }, [currentPage]);
 
+  // Function to handle Back to Library click
+  const handleBackToLibraryClick = () => {
+    console.log("Navigating to dashboard");
+    navigate('/dashboard');
+  };
+
   return (
     <div className="w-full bg-[#F1F1F1] text-[#3A2618] shadow-md rounded-lg mb-6 p-3">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between">
         {/* Back to Library Button */}
         <Button
           variant="ghost"
-          onClick={() => navigate('/dashboard')}
+          onClick={handleBackToLibraryClick}
           className="text-[#3A2618] hover:bg-[#3A2618]/10 mb-3 sm:mb-0"
         >
           <ArrowLeft className="h-5 w-5 mr-2" />
