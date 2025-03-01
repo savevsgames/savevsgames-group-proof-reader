@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,20 +9,18 @@ import { supabase } from "@/lib/supabase";
 import { CommentType, commentTypeColors, commentTypeLabels } from "@/lib/commentTypes";
 import { User } from "@/lib/supabase";
 import { useNavigate } from 'react-router-dom';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 export interface Comment {
   id: string;
   user_id: string;
   story_id: string;
-  story_position: number;
+  story_position: number; // Changed to number
   text: string;
   comment_type: CommentType;
   created_at: string;
   updated_at: string;
   profile?: {
     username: string;
-    avatar_url: string;
   };
 }
 
@@ -29,7 +28,7 @@ interface CommentModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   storyId: string;
-  storyPosition: number;
+  storyPosition: number; // Changed to number
   currentUser: User | null;
 }
 
@@ -49,6 +48,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Check if current user is a comment moderator
   useEffect(() => {
     const checkModerator = async () => {
       if (!currentUser) {
@@ -63,7 +63,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
           .eq('user_id', currentUser.id)
           .single();
           
-        if (error && error.code !== 'PGRST116') {
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" which is expected
           console.error('Error checking moderator status:', error);
           setIsModerator(false);
           return;
@@ -79,10 +79,12 @@ export const CommentModal: React.FC<CommentModalProps> = ({
     checkModerator();
   }, [currentUser]);
 
+  // Fetch comments when the modal opens or story position changes
   useEffect(() => {
     if (isOpen && storyId && storyPosition) {
       fetchComments();
       
+      // Check if there's an editing comment in sessionStorage
       const storedEditingComment = sessionStorage.getItem('editingComment');
       if (storedEditingComment) {
         const parsedComment = JSON.parse(storedEditingComment);
@@ -90,6 +92,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
         setCommentText(parsedComment.text);
         setSelectedCommentType(parsedComment.comment_type);
         
+        // Clear the stored comment
         sessionStorage.removeItem('editingComment');
       }
     }
@@ -98,11 +101,12 @@ export const CommentModal: React.FC<CommentModalProps> = ({
   const fetchComments = async () => {
     setIsLoading(true);
     try {
+      // Updated query to join with profiles table to get usernames
       const { data, error } = await supabase
         .from('comments')
         .select(`
           *,
-          profile:profiles(username, avatar_url)
+          profile:profiles(username)
         `)
         .eq('story_id', storyId)
         .eq('story_position', storyPosition)
@@ -150,6 +154,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
     
     try {
       if (editingComment) {
+        // Update existing comment
         let query = supabase
           .from('comments')
           .update({ 
@@ -158,6 +163,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
           })
           .eq('id', editingComment.id);
           
+        // Only apply user_id filter if not a moderator
         if (!isModerator) {
           query = query.eq('user_id', currentUser.id);
         }
@@ -171,6 +177,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
           description: "The comment has been updated successfully.",
         });
       } else {
+        // Create new comment
         const { error } = await supabase
           .from('comments')
           .insert({
@@ -189,13 +196,16 @@ export const CommentModal: React.FC<CommentModalProps> = ({
         });
       }
 
+      // Reset form and refresh comments
       setCommentText('');
       setSelectedCommentType('edit');
       setEditingComment(null);
       fetchComments();
       
+      // Close the modal after successful submission
       setTimeout(() => {
         onOpenChange(false);
+        // Refresh the page to show updated comments
         window.location.reload();
       }, 1500);
     } catch (error) {
@@ -226,15 +236,18 @@ export const CommentModal: React.FC<CommentModalProps> = ({
     });
   };
 
+  // Check if a comment is owned by current user
   const isOwnComment = (comment: Comment) => {
     return currentUser && comment.user_id === currentUser.id;
   };
 
+  // Display either username or "Anonymous" based on ownership and available data
   const getDisplayName = (comment: Comment) => {
     if (isOwnComment(comment)) {
       return "You";
     }
     
+    // Return the username from the profile if available, otherwise show "Anonymous"
     return comment.profile?.username || "Anonymous";
   };
 
@@ -242,6 +255,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
     <Dialog open={isOpen} onOpenChange={(open) => {
       onOpenChange(open);
       if (!open) {
+        // Reset form when modal closes
         setEditingComment(null);
         setCommentText('');
         setSelectedCommentType('edit');
@@ -280,6 +294,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
 
         {!isLoading && (
           <>
+            {/* Only show comments list when not editing */}
             {!editingComment && (
               <div className="max-h-[300px] overflow-y-auto mb-4">
                 {comments.length === 0 ? (
@@ -294,23 +309,6 @@ export const CommentModal: React.FC<CommentModalProps> = ({
                         className="p-4 rounded-md border border-[#3A2618]/20 relative"
                         style={{ backgroundColor: `${commentTypeColors[comment.comment_type]}20` }}
                       >
-                        <div className="flex items-center mb-3">
-                          <Avatar className="h-8 w-8 mr-2">
-                            {comment.profile?.avatar_url ? (
-                              <AvatarImage src={comment.profile.avatar_url} alt={getDisplayName(comment)} />
-                            ) : (
-                              <AvatarFallback className="bg-[#F97316]/10 text-[#F97316] text-xs">
-                                {comment.profile?.username ? 
-                                  comment.profile.username.substring(0, 2).toUpperCase() : 
-                                  "AN"}
-                              </AvatarFallback>
-                            )}
-                          </Avatar>
-                          <span className="text-sm font-medium text-[#3A2618]">
-                            {getDisplayName(comment)}
-                          </span>
-                        </div>
-                        
                         <div 
                           className="inline-block px-2 py-1 rounded text-xs font-medium mb-2"
                           style={{ 
@@ -323,7 +321,8 @@ export const CommentModal: React.FC<CommentModalProps> = ({
                         
                         <p className="text-[#3A2618] mb-2">{comment.text}</p>
                         
-                        <div className="flex justify-end text-[#3A2618]/60 text-xs">
+                        <div className="flex justify-between items-center text-[#3A2618]/60 text-xs">
+                          <span>{getDisplayName(comment)}</span>
                           <span>{formatDate(comment.created_at)}</span>
                         </div>
                       </div>

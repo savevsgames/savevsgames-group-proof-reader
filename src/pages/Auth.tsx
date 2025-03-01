@@ -1,67 +1,102 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/context/useAuth';
-import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { MainHeader } from '@/components/MainHeader';
+import { useAuth } from '@/context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { AlertCircle } from 'lucide-react';
 
 const Auth = () => {
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [localLoading, setLocalLoading] = useState(false);
-  const { isAuthenticated, isLoading, error, signIn, signUp, continueAsGuest } = useAuth();
-  const { toast } = useToast();
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const { user, signIn, signUp, continueAsGuest } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect if user is already logged in
+  // Redirect if already logged in
   useEffect(() => {
-    if (isAuthenticated && !isLoading) {
+    if (user) {
       navigate('/dashboard');
     }
-  }, [isAuthenticated, isLoading, navigate]);
+  }, [user, navigate]);
+
+  const validateEmail = (email: string) => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLocalLoading(true);
-
-    if (isSignUp && !username.trim()) {
-      toast({
-        title: "Username required",
-        description: "Please enter a username to sign up.",
-        variant: "destructive",
-      });
-      setLocalLoading(false);
-      return;
-    }
+    setLoading(true);
+    setError('');
 
     try {
-      let result;
-      if (isSignUp) {
-        result = await signUp(email, password, username);
-      } else {
-        result = await signIn(email, password);
+      // Basic validation
+      if (!email || !password) {
+        setError('Email and password are required');
+        setLoading(false);
+        return;
       }
 
-      if (result?.error) {
-        // Error handling is done within the auth functions
-      } else if (!isSignUp) {
-        // Only redirect on successful sign-in, signup will show verification message
-        navigate('/dashboard');
+      if (!validateEmail(email)) {
+        setError('Please enter a valid email address');
+        setLoading(false);
+        return;
       }
-    } catch (error) {
-      console.error('Authentication error:', error);
-      toast({
-        title: "Authentication error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive",
-      });
+
+      if (password.length < 6) {
+        setError('Password must be at least 6 characters');
+        setLoading(false);
+        return;
+      }
+
+      if (isSignUp) {
+        if (!username) {
+          setError('Username is required');
+          setLoading(false);
+          return;
+        }
+        
+        if (username.length < 3) {
+          setError('Username must be at least 3 characters');
+          setLoading(false);
+          return;
+        }
+        
+        const { error } = await signUp(email, password, username);
+        
+        if (error) {
+          // Handle specific error cases
+          if (error.message.includes('email')) {
+            setError('This email is already in use. Please try another one or sign in.');
+          } else if (error.message.includes('username')) {
+            setError('This username is already taken. Please choose another one.');
+          } else {
+            setError(error.message || 'An error occurred during sign up');
+          }
+        } else {
+          navigate('/dashboard');
+        }
+      } else {
+        const { error } = await signIn(email, password);
+        
+        if (error) {
+          if (error.message.includes('Invalid login credentials')) {
+            setError('Invalid email or password');
+          } else {
+            setError(error.message || 'Invalid email or password');
+          }
+        } else {
+          navigate('/dashboard');
+        }
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+      console.error(err);
     } finally {
-      setLocalLoading(false);
+      setLoading(false);
     }
   };
 
@@ -71,92 +106,117 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F1F1F1] flex flex-col">
-      <MainHeader />
-      
-      <div className="flex flex-grow items-center justify-center p-4">
-        <div className="max-w-md w-full bg-[#E8DCC4] rounded-lg shadow-md p-8">
-          <h2 className="text-3xl font-serif font-bold text-[#3A2618] text-center mb-6">
-            {isSignUp ? 'Create Account' : 'Sign In'}
+    <div className="min-h-screen bg-[#3A2618] flex flex-col items-center justify-center px-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <img 
+              src="/lovable-uploads/2386c015-8e81-4433-9997-ae0f0b94bb6a.png" 
+              alt="saveVSgames logo" 
+              className="h-24 w-24"
+            />
+          </div>
+          <h1 className="text-4xl font-serif font-bold text-[#F97316] mb-2">saveVSgames</h1>
+          <p className="text-[#E8DCC4] opacity-75">Adventures on Shadowtide Island</p>
+        </div>
+
+        <div className="bg-[#E8DCC4] rounded-lg p-8 shadow-2xl">
+          <h2 className="text-2xl font-serif font-semibold text-[#3A2618] mb-6 text-center">
+            {isSignUp ? 'Create an Account' : 'Welcome Back'}
           </h2>
-          
+
           {error && (
-            <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded mb-4">
-              {error}
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 flex items-center">
+              <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+              <span>{error}</span>
             </div>
           )}
-          
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignUp && (
               <div>
-                <Label htmlFor="username" className="text-[#3A2618]">
+                <label htmlFor="username" className="block text-sm font-medium text-[#3A2618] mb-1">
                   Username
-                </Label>
-                <Input
+                </label>
+                <input
                   id="username"
                   type="text"
-                  placeholder="Enter username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="bg-white border-[#3A2618]/20 text-[#3A2618]"
+                  className="w-full px-3 py-2 border border-[#3A2618]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F97316]"
+                  placeholder="Choose a unique username"
                   required
                 />
+                <p className="mt-1 text-xs text-[#3A2618]/70">
+                  Must be at least 3 characters long and will be visible to other users
+                </p>
               </div>
             )}
+
             <div>
-              <Label htmlFor="email" className="text-[#3A2618]">
+              <label htmlFor="email" className="block text-sm font-medium text-[#3A2618] mb-1">
                 Email
-              </Label>
-              <Input
+              </label>
+              <input
                 id="email"
                 type="email"
-                placeholder="Enter email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="bg-white border-[#3A2618]/20 text-[#3A2618]"
+                className="w-full px-3 py-2 border border-[#3A2618]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F97316]"
+                placeholder="your@email.com"
                 required
               />
             </div>
+
             <div>
-              <Label htmlFor="password" className="text-[#3A2618]">
+              <label htmlFor="password" className="block text-sm font-medium text-[#3A2618] mb-1">
                 Password
-              </Label>
-              <Input
+              </label>
+              <input
                 id="password"
                 type="password"
-                placeholder="Enter password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="bg-white border-[#3A2618]/20 text-[#3A2618]"
+                className="w-full px-3 py-2 border border-[#3A2618]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F97316]"
+                placeholder={isSignUp ? "Create a secure password" : "Enter your password"}
                 required
               />
+              {isSignUp && (
+                <p className="mt-1 text-xs text-[#3A2618]/70">
+                  Must be at least 6 characters long
+                </p>
+              )}
             </div>
-            <Button
+
+            <button
               type="submit"
-              className="w-full bg-[#F97316] text-white hover:bg-[#F97316]/90"
-              disabled={localLoading || isLoading}
+              className="w-full bg-[#F97316] text-[#E8DCC4] py-2 rounded-md font-medium hover:bg-[#E86305] transition-colors duration-200 mt-6 flex items-center justify-center"
+              disabled={loading}
             >
-              {localLoading || isLoading ? (
-                isSignUp ? 'Creating...' : 'Signing In...'
+              {loading ? (
+                <>
+                  <span className="mr-2">Loading...</span>
+                  <span className="animate-spin h-4 w-4 border-2 border-[#E8DCC4] border-t-transparent rounded-full"></span>
+                </>
               ) : (
                 isSignUp ? 'Sign Up' : 'Sign In'
               )}
-            </Button>
+            </button>
           </form>
-          <div className="text-center mt-4">
+
+          <div className="mt-6">
             <button
-              type="button"
               onClick={() => setIsSignUp(!isSignUp)}
-              className="text-[#3A2618] hover:underline"
+              className="text-sm text-[#3A2618] hover:text-[#F97316] transition-colors duration-200"
             >
               {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
             </button>
           </div>
-          <div className="text-center mt-2">
+
+          <div className="mt-6 pt-4 border-t border-[#3A2618]/10 text-center">
             <button
-              type="button"
               onClick={handleGuestAccess}
-              className="text-[#3A2618] hover:underline"
+              className="text-sm text-[#3A2618] font-medium hover:text-[#F97316] transition-colors duration-200"
             >
               Continue as Guest
             </button>

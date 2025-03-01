@@ -1,457 +1,334 @@
 
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { MainHeader } from '@/components/MainHeader';
-import { useAuth } from '@/context/useAuth';
-import { BookOpenCheck, BookPlus, Loader2, Search, X, Database, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from '@/lib/supabase';
-import { toast } from "sonner";
+import React, { useState, useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { Book, LogOut, User } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
-interface Story {
+// Define the book type
+interface BookType {
   id: string;
   title: string;
-  description: string;
-  cover_url: string;
+  subtitle?: string;
+  description?: string;
+  coverImage?: string;
+  cover_url?: string;
+  isFree: boolean;
+  category: string;
+  lastUpdated: Date | string;
+  story_url?: string;
 }
 
 const Dashboard = () => {
-  const [stories, setStories] = useState<Story[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const { user, isGuest, signOut } = useAuth();
+  const [selectedBook, setSelectedBook] = useState<BookType | null>(null);
+  const [books, setBooks] = useState<BookType[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [rawData, setRawData] = useState<any>(null);
-  const [queryResponse, setQueryResponse] = useState<any>(null);
-  const { isAuthenticated, isGuest } = useAuth();
   const navigate = useNavigate();
 
-  const fetchStories = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      console.log("Fetching stories from Supabase...");
-      
-      // Log detailed auth state
-      console.log("Auth state:", { isAuthenticated, isGuest });
-      
-      // Verify Supabase connection
-      try {
-        // Test if supabase is configured properly
-        const { data: connectionTest, error: connectionError } = await supabase.from('books').select('count(*)', { count: 'exact', head: true });
-        
-        console.log("Connection test:", { data: connectionTest, error: connectionError });
-        
-        if (connectionError) {
-          console.error("Supabase connection test failed:", connectionError);
-          toast.error("Database connection test failed");
-          setError(`Connection error: ${connectionError.message}`);
-          setLoading(false);
-          return;
-        }
-      } catch (connectionTestError) {
-        console.error("Failed to test Supabase connection:", connectionTestError);
-      }
-      
-      // Perform the actual query with more details
-      console.log("Executing books query with explicit parameters...");
-      
-      const query = supabase
-        .from('books')
-        .select('*');
-      
-      console.log("Executing query:", query);
-      
-      const { data: booksData, error: booksError } = await query;
-      
-      // Store complete query response for debugging
-      setQueryResponse({ data: booksData, error: booksError });
-      
-      console.log("Raw response from Supabase:", { data: booksData, error: booksError });
-      
-      if (booksError) {
-        console.error("Error fetching books:", booksError);
-        setError(`Failed to fetch books: ${booksError.message}`);
-        toast.error(`Failed to fetch books: ${booksError.message}`);
-        setLoading(false);
-        return;
-      }
-      
-      // Store the raw data for debugging
-      setRawData(booksData);
-      
-      if (!booksData) {
-        console.log("No data returned from books table");
-        setStories([]);
-        setLoading(false);
-        return;
-      }
-      
-      console.log("Books data received:", booksData);
-      console.log("Number of books fetched:", booksData.length);
-      
-      if (booksData.length === 0) {
-        console.log("The books table exists but is empty");
-        toast.info("No stories found in the database");
-        setStories([]);
-        setLoading(false);
-        return;
-      }
-      
-      // Log each book to check their structure
-      booksData.forEach((book, index) => {
-        console.log(`Book ${index + 1}:`, book);
-        console.log(`- ID: ${book.id}`);
-        console.log(`- Title: ${book.title}`);
-        console.log(`- Subtitle: ${book.subtitle}`);
-        console.log(`- Cover URL: ${book.cover_url}`);
-      });
-      
-      const formattedStories = booksData.map(book => {
-        console.log("Processing book:", book);
-        
-        if (!book.id) console.warn("Book missing ID:", book);
-        if (!book.title) console.warn("Book missing title:", book);
-        
-        const story = {
-          id: book.id || 'missing-id',
-          title: book.title || 'Untitled Story',
-          description: book.subtitle || 'No description available',
-          cover_url: book.cover_url || '/placeholder.svg'
-        };
-        console.log("Formatted story:", story);
-        return story;
-      });
-      
-      console.log("Final formatted stories array:", formattedStories);
-      setStories(formattedStories);
-    } catch (error: any) {
-      console.error("Could not fetch stories:", error);
-      setError(`Failed to load stories: ${error.message}`);
-      toast.error(`Failed to load stories: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Fetch books from Supabase
   useEffect(() => {
-    // Check if supabase is initialized correctly
-    if (!supabase) {
-      console.error("Supabase client is not initialized");
-      setError("Database connection is not available");
-      setLoading(false);
-      return;
-    }
-
-    fetchStories();
-  }, [isAuthenticated, isGuest]);
-
-  // Function to try and diagnose database issues
-  const diagnoseDbIssues = async () => {
-    try {
-      toast.info("Running database diagnostics...");
-      console.log("Running database diagnostics...");
-      
-      // Check Supabase instance
-      console.log("Testing connection to Supabase API...");
-      
-      // Try a simple health check
-      console.log("Testing connection to Supabase...");
-      const { data: healthCheck, error: healthError } = await supabase
-        .from('books')
-        .select('count(*)', { count: 'exact', head: true });
-      
-      console.log("Health check results:", { healthCheck, healthError });
-      
-      // List available tables
-      console.log("Checking for available tables...");
+    const fetchBooks = async () => {
       try {
-        const { data: tableInfo, error: tableError } = await supabase
-          .rpc('get_schema_info');
-        
-        console.log("Table information:", { data: tableInfo, error: tableError });
-        
-        if (tableError) {
-          console.log("Couldn't get table information, trying alternative method");
-          const { data: tables } = await supabase
-            .from('pg_tables')
-            .select('*')
-            .eq('schemaname', 'public');
-          
-          console.log("Alternative table list:", tables);
+        const { data, error } = await supabase.from("books").select("*");
+
+        if (error) {
+          throw error;
         }
-      } catch (e) {
-        console.error("Error retrieving schema info:", e);
-      }
-      
-      // Check if the books table exists
-      console.log("Checking if 'books' table exists...");
-      const { data: booksCheck, error: booksCheckError } = await supabase
-        .from('books')
-        .select('id')
-        .limit(1);
-      
-      console.log("Books table check:", { 
-        data: booksCheck, 
-        error: booksCheckError,
-        tableExists: !booksCheckError || booksCheckError.code !== "PGRST116"
-      });
-      
-      // Check specific RLS policies if needed
-      console.log("Checking logged-in user permissions...");
-      const { data: userInfo, error: userError } = await supabase.auth.getUser();
-      console.log("Current user:", { data: userInfo, error: userError });
-      
-      if (userInfo?.user) {
-        console.log("Authenticated user found, testing book access...");
-        const { data: authTest, error: authError } = await supabase
-          .from('books')
-          .select('id')
-          .limit(1);
-        
-        console.log("Authenticated access test:", { data: authTest, error: authError });
-      }
 
-      toast.success("Diagnostics complete. Check browser console for details.");
-    } catch (error) {
-      console.error("Diagnostics failed:", error);
-      toast.error("Failed to run diagnostics");
+        if (data && data.length > 0) {
+          // Map Supabase data to our book format
+          const mappedBooks = data.map((book) => ({
+            id: book.id,
+            title: book.title || "Untitled Book",
+            subtitle: book.subtitle,
+            description:
+              book.description ||
+              "A mystical tale about love, sacrifice, and the meaning of existence.",
+            cover_url: book.cover_url,
+            story_url: book.story_url,
+            isFree: true,
+            category: book.category || "Fantasy",
+            lastUpdated: book.updated_at
+              ? new Date(book.updated_at)
+              : new Date(),
+          }));
+          setBooks(mappedBooks);
+          console.log("Fetched books:", mappedBooks);
+        } else {
+          // Fallback to sample data if no books in database
+          console.log("No books found, using fallback data");
+          setBooks([
+            {
+              id: "fallback-id",
+              title: "Shadowtide Island",
+              subtitle: "The Ending",
+              description:
+                "A mystical tale about love, sacrifice, and the meaning of existence.",
+              coverImage: "/shadowtidecover1.webp",
+              isFree: true,
+              category: "Fantasy",
+              lastUpdated: new Date(),
+              story_url:
+                "https://pakmcaxaxyvhjdddfpdh.supabase.co/storage/v1/object/public/stories//ShadowtideEndTestJSON.json",
+            },
+          ]);
+        }
+      } catch (error) {
+        console.error("Error fetching books:", error);
+        // Fallback to sample data on error
+        setBooks([
+          {
+            id: "fallback-id",
+            title: "Shadowtide Island",
+            subtitle: "The Ending",
+            description:
+              "A mystical tale about love, sacrifice, and the meaning of existence.",
+            coverImage: "/shadowtidecover1.webp",
+            isFree: true,
+            category: "Fantasy",
+            lastUpdated: new Date(),
+            story_url:
+              "https://pakmcaxaxyvhjdddfpdh.supabase.co/storage/v1/object/public/stories//ShadowtideEndTestJSON.json",
+          },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBooks();
+  }, []);
+
+  const handleBookClick = (book: BookType) => {
+    setSelectedBook(book);
+  };
+
+  const handleReadBook = () => {
+    if (selectedBook) {
+      navigate(`/story/${selectedBook.id}`);
     }
   };
 
-  // Function to add a test book to the database
-  const addTestBook = async () => {
-    try {
-      toast.info("Adding a test book to the database...");
-      
-      const testBook = {
-        title: "Test Book " + Math.floor(Math.random() * 1000),
-        subtitle: "This is an automatically created test book",
-        cover_url: "/placeholder.svg",
-        story_file: "placeholder-dog-story.json",
-        total_pages: 10
-      };
-      
-      const { data, error } = await supabase
-        .from('books')
-        .insert(testBook)
-        .select();
-      
-      console.log("Test book insert result:", { data, error });
-      
-      if (error) {
-        toast.error(`Failed to add test book: ${error.message}`);
-      } else {
-        toast.success("Test book added successfully!");
-        // Refresh the list
-        fetchStories();
-      }
-    } catch (error: any) {
-      console.error("Error adding test book:", error);
-      toast.error(`Failed to add test book: ${error.message}`);
+  const handleCloseDetails = () => {
+    setSelectedBook(null);
+  };
+
+  // Function to get the appropriate category color
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case "Fantasy":
+        return "text-[#8B5CF6] bg-[#8B5CF6]/10";
+      case "Adventure":
+        return "text-[#F97316] bg-[#F97316]/10";
+      case "Horror":
+        return "text-[#2E3A18] bg-[#2E3A18]/10";
+      case "Sci-Fi":
+        return "text-[#1A3A5A] bg-[#1A3A5A]/10";
+      default:
+        return "text-[#5A3A28] bg-[#5A3A28]/10";
     }
   };
 
-  const filteredStories = stories.filter(story =>
-    story.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    story.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
+  // Function to get the book cover image URL
+  const getBookCoverUrl = (book: BookType) => {
+    // First try to use the Supabase URL if available
+    if (book.cover_url) {
+      return book.cover_url;
+    }
+    // Then try to use the coverImage from our local data
+    if (book.coverImage) {
+      return book.coverImage;
+    }
+    // Fallback to default image in public folder
+    return "/shadowtidecover1.webp";
   };
 
-  const clearSearch = () => {
-    setSearchTerm('');
+  // Function to format the date
+  const formatDate = (date: Date | string) => {
+    if (!date) return "Unknown";
+    const d = typeof date === "string" ? new Date(date) : date;
+    return d.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
   };
 
   return (
-    <div className="min-h-screen bg-[#F1F1F1] flex flex-col">
-      <MainHeader />
-      
-      <div className="flex-1 pt-8 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-6 flex items-center">
-            <h1 className="text-3xl font-serif font-bold text-[#3A2618] mr-4">Library</h1>
-            {isGuest && (
-              <span className="text-sm text-[#3A2618]/70 italic">
-                (Browsing as guest)
-              </span>
-            )}
+    <div className="min-h-screen bg-[#F5F1E8]">
+      {/* Header */}
+      <header className="bg-[#3A2618] text-[#E8DCC4] py-4 px-6 shadow-md">
+        <div className="max-w-7xl mx-auto flex flex-col xs:flex-row justify-between items-center gap-4 xs:gap-0">
+          <div className="flex items-center space-x-3">
+            <img
+              src="/lovable-uploads/2386c015-8e81-4433-9997-ae0f0b94bb6a.png"
+              alt="saveVSgames logo"
+              className="h-8 w-8"
+            />
+            <div>
+              <h1 className="text-xl font-serif font-bold text-[#F97316]">
+                saveVSgames
+              </h1>
+              <p className="text-xs text-[#E8DCC4]">
+                Adventures on Shadowtide Island
+              </p>
+            </div>
           </div>
-
-          <div className="mb-6 flex items-center space-x-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#3A2618]/50" />
-              <Input
-                type="text"
-                placeholder="Search stories..."
-                value={searchTerm}
-                onChange={handleSearchChange}
-                className="bg-white border-[#3A2618]/20 text-[#3A2618] pl-10 pr-10"
-              />
-              {searchTerm && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={clearSearch}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full hover:bg-[#3A2618]/10"
-                >
-                  <X className="h-4 w-4 text-[#3A2618]" />
-                </Button>
+          <div className="flex items-center space-x-4">
+            <div className="text-sm">
+              {isGuest ? (
+                <span className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Guest User
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  {user?.username || user?.email || "User"}
+                </span>
               )}
             </div>
-            
-            <Button
-              onClick={fetchStories}
-              variant="outline"
-              className="border-[#3A2618]/20 text-[#3A2618]"
+            <button
+              onClick={() => signOut().then(() => navigate("/"))}
+              className="flex items-center text-sm hover:text-white transition-colors"
             >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
-            
-            {isAuthenticated && !isGuest && (
-              <Button
-                onClick={() => navigate('/story/new')}
-                className="bg-[#F97316] text-white hover:bg-[#F97316]/90"
-              >
-                <BookPlus className="h-4 w-4 mr-2" />
-                Add Story
-              </Button>
-            )}
+              <LogOut className="h-4 w-4 mr-1" />
+              Sign Out
+            </button>
           </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto py-8 px-4">
+        {/* Book Grid */}
+        <div className="mb-8">
+          <h2 className="text-3xl font-serif font-bold text-[#3A2618] mb-6">
+            {isGuest ? "Browse as Guest" : "Your Library"}
+          </h2>
 
           {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 text-[#F97316] animate-spin" />
-              <span className="ml-2 text-[#3A2618]">Loading stories...</span>
-            </div>
-          ) : error ? (
-            <div className="p-6 text-center text-red-600 bg-white rounded-md border border-[#3A2618]/20">
-              <p>{error}</p>
-              <p className="mt-2">Please check the console for more details.</p>
-              <div className="mt-4 flex justify-center space-x-4">
-                <Button onClick={diagnoseDbIssues} className="bg-[#3A2618] hover:bg-[#3A2618]/80">
-                  <Database className="h-4 w-4 mr-2" />
-                  Run Diagnostics
-                </Button>
-                
-                {isAuthenticated && (
-                  <Button onClick={addTestBook} className="bg-[#F97316] hover:bg-[#F97316]/90">
-                    <BookPlus className="h-4 w-4 mr-2" />
-                    Add Test Book
-                  </Button>
-                )}
-              </div>
+            <div className="text-center py-8">
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[#F97316] border-r-transparent"></div>
+              <p className="mt-2 text-[#3A2618]">Loading books...</p>
             </div>
           ) : (
-            <div className="rounded-md border border-[#3A2618]/20 bg-white p-4">
-              {filteredStories.length > 0 ? (
-                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                  {filteredStories.map(story => (
-                    <Card key={story.id} className="bg-[#E8DCC4] text-[#3A2618] hover:shadow-lg transition-shadow">
-                      <CardHeader>
-                        <CardTitle className="text-lg font-semibold line-clamp-1">{story.title}</CardTitle>
-                        <CardDescription className="line-clamp-2">{story.description}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-4">
-                        <img
-                          src={story.cover_url}
-                          alt={story.title}
-                          className="w-full h-32 object-cover rounded-md mb-4"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = '/placeholder.svg';
-                            console.log(`Image load error for story "${story.title}", using placeholder instead`);
-                          }}
-                        />
-                      </CardContent>
-                      <CardFooter className="flex justify-between items-center">
-                        <Link to={`/story/${story.id}`}>
-                          <Button className="bg-[#F97316] text-white hover:bg-[#F97316]/90">
-                            Read More <BookOpenCheck className="h-4 w-4 ml-2" />
-                          </Button>
-                        </Link>
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center text-[#3A2618]/70 py-8">
-                  {searchTerm ? (
-                    'No stories match your search.'
-                  ) : (
-                    <div>
-                      <p>No stories available in the database.</p>
-                      <p className="mt-2">
-                        {isAuthenticated ? (
-                          <div>
-                            <p>Try adding a story to get started.</p>
-                            <div className="mt-4">
-                              <Button 
-                                onClick={addTestBook} 
-                                className="bg-[#F97316] hover:bg-[#F97316]/90"
-                              >
-                                <BookPlus className="h-4 w-4 mr-2" />
-                                Add Test Book
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <>Stories may need to be added by an administrator.</>
-                        )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {books.map((book) => (
+                <div
+                  key={book.id}
+                  className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+                  onClick={() => handleBookClick(book)}
+                >
+                  <div className="h-48 bg-gray-200 relative">
+                    {/* Book cover image */}
+                    <img
+                      src={getBookCoverUrl(book)}
+                      alt={`${book.title} cover`}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        // Fallback if image fails to load
+                        const target = e.target as HTMLImageElement;
+                        target.src = "/shadowtidecover1.webp";
+                      }}
+                    />
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-serif font-bold text-lg text-[#3A2618] mb-1">
+                      {book.title}
+                    </h3>
+                    {book.subtitle && (
+                      <p className="text-sm text-gray-600 mb-2">
+                        {book.subtitle}
                       </p>
-                      {!isAuthenticated && (
-                        <p className="mt-2">
-                          You may need to <Link to="/auth" className="text-[#F97316] hover:underline">sign in</Link> to view stories.
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="mt-6 p-4 bg-gray-100 rounded-md">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold">Debug Information:</h3>
-                  <Button 
-                    onClick={diagnoseDbIssues} 
-                    className="bg-[#3A2618] hover:bg-[#3A2618]/80 text-sm"
-                    size="sm"
-                  >
-                    <Database className="h-3 w-3 mr-1" />
-                    Run Database Diagnostics
-                  </Button>
-                </div>
-                
-                <div className="space-y-2">
-                  <p><span className="font-semibold">Stories array length:</span> {stories.length}</p>
-                  <p><span className="font-semibold">Filtered stories length:</span> {filteredStories.length}</p>
-                  <p><span className="font-semibold">Search term:</span> "{searchTerm}"</p>
-                  <p><span className="font-semibold">Auth state:</span> {isAuthenticated ? "Authenticated" : "Not authenticated"} | {isGuest ? "Guest mode" : "Full user"}</p>
-                  
-                  <div className="mt-4">
-                    <h4 className="font-semibold mb-1">Query Response:</h4>
-                    <div className="max-h-32 overflow-auto bg-gray-200 p-2 rounded text-sm">
-                      <pre>{JSON.stringify(queryResponse, null, 2) || "No query response recorded"}</pre>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-4">
-                    <h4 className="font-semibold mb-1">Raw Database Response:</h4>
-                    <div className="max-h-32 overflow-auto bg-gray-200 p-2 rounded text-sm">
-                      <pre>{JSON.stringify(rawData, null, 2) || "No data received"}</pre>
+                    )}
+                    <p
+                      className={`text-sm px-2 py-1 rounded-full inline-block ${getCategoryColor(
+                        book.category
+                      )}`}
+                    >
+                      {book.category}
+                    </p>
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="text-xs text-gray-500">
+                        Updated: {formatDate(book.lastUpdated)}
+                      </span>
+                      <span className="text-xs font-medium bg-green-100 text-green-800 px-2 py-1 rounded">
+                        Free
+                      </span>
                     </div>
                   </div>
                 </div>
-              </div>
+              ))}
             </div>
           )}
         </div>
-      </div>
+      </main>
+
+      {/* Book Details Modal */}
+      {selectedBook && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4">
+          <div className="bg-[#E8DCC4] rounded-lg shadow-2xl max-w-2xl w-full overflow-hidden relative">
+            <button
+              onClick={handleCloseDetails}
+              className="absolute right-4 top-4 text-[#3A2618] hover:text-[#F97316] transition-colors"
+            >
+              ✕
+            </button>
+
+            <div className="flex flex-col md:flex-row">
+              <div className="md:w-1/3 p-6 flex items-center justify-center bg-gray-200">
+                {/* Book cover in the modal */}
+                <img
+                  src={getBookCoverUrl(selectedBook)}
+                  alt={`${selectedBook.title} cover`}
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    // Fallback if image fails to load
+                    const target = e.target as HTMLImageElement;
+                    target.src = "/shadowtidecover1.webp";
+                  }}
+                />
+              </div>
+
+              <div className="md:w-2/3 p-6">
+                <h2 className="text-2xl font-serif font-bold text-[#3A2618] mb-2">
+                  {selectedBook.title}
+                </h2>
+                {selectedBook.subtitle && (
+                  <p className="text-lg text-gray-700 mb-2">
+                    {selectedBook.subtitle}
+                  </p>
+                )}
+                <p
+                  className={`text-sm px-2 py-1 rounded-full inline-block mb-4 ${getCategoryColor(
+                    selectedBook.category
+                  )}`}
+                >
+                  {selectedBook.category}
+                </p>
+                <p className="text-gray-700 mb-6">{selectedBook.description}</p>
+
+                <div className="flex items-center justify-between mb-6">
+                  <span className="text-sm text-gray-600">
+                    Last updated: {formatDate(selectedBook.lastUpdated)}
+                  </span>
+                  <span className="text-sm font-medium bg-green-100 text-green-800 px-3 py-1 rounded">
+                    Free
+                  </span>
+                </div>
+
+                <button
+                  onClick={handleReadBook}
+                  className="w-full bg-[#F97316] text-[#E8DCC4] py-3 rounded-md font-medium hover:bg-[#E86305] transition-colors duration-200"
+                >
+                  Read Story
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

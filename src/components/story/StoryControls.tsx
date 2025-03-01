@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Comment } from '../CommentModal';
@@ -7,7 +8,6 @@ import { MessageSquare, Pencil, Trash, AlertTriangle, ShieldCheck } from 'lucide
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 interface StoryControlsProps {
   isEnding: boolean;
@@ -36,6 +36,7 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isModerator, setIsModerator] = useState(false);
   
+  // Check if current user is a comment moderator
   useEffect(() => {
     const checkModerator = async () => {
       if (!currentUser) {
@@ -76,31 +77,39 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
     });
   };
 
+  // Check if a comment is owned by current user
   const isOwnComment = (comment: Comment) => {
     return currentUser && comment.user_id === currentUser.id;
   };
 
+  // Display either username or "Anonymous" based on ownership and available data
   const getDisplayName = (comment: Comment) => {
     if (isOwnComment(comment)) {
       return "You";
     }
     
+    // Return the username from the profile if available, otherwise show "Anonymous"
     return comment.profile?.username || "Anonymous";
   };
 
+  // Check if user can modify this comment (as owner or moderator)
   const canModifyComment = (comment: Comment) => {
     return isOwnComment(comment) || isModerator;
   };
 
+  // Handle edit comment (open modal with comment data)
   const handleEditComment = (comment: Comment) => {
+    // Store comment data in session storage so the modal can access it
     sessionStorage.setItem('editingComment', JSON.stringify(comment));
     onOpenCommentModal();
   };
 
+  // Handle delete comment (show confirmation dialog)
   const handleDeleteComment = (comment: Comment) => {
     setCommentToDelete(comment);
   };
 
+  // Confirm delete comment
   const confirmDeleteComment = async () => {
     if (!commentToDelete || !currentUser) return;
     
@@ -111,6 +120,7 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
         .delete()
         .eq('id', commentToDelete.id);
         
+      // Only apply user_id filter if not a moderator
       if (!isModerator) {
         query = query.eq('user_id', currentUser.id);
       }
@@ -121,6 +131,8 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
         throw error;
       }
 
+      // Remove the comment from the local state
+      // Note: In a real app, you might want to refresh the comments from the server
       const updatedComments = comments.filter(c => c.id !== commentToDelete.id);
       
       toast({
@@ -128,6 +140,7 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
         description: "The comment has been deleted successfully.",
       });
 
+      // Refresh the page to show updated comments
       window.location.reload();
     } catch (error) {
       console.error('Error deleting comment:', error);
@@ -142,12 +155,14 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
     }
   };
 
+  // Cancel delete comment
   const cancelDeleteComment = () => {
     setCommentToDelete(null);
   };
 
   return (
     <div className="w-full bg-[#E8DCC4] p-4 md:p-6 lg:p-10 min-h-[300px] md:min-h-[600px] flex flex-col book-page border-0 rounded-lg md:rounded-none shadow-md md:shadow-none">
+      {/* Delete Confirmation Dialog */}
       {commentToDelete && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-[#E8DCC4] rounded-lg p-6 max-w-md w-full shadow-xl">
@@ -180,6 +195,7 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
         </div>
       )}
 
+      {/* Comments Header with Controls */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-2">
           <h3 className="text-[#3A2618] font-serif text-xl">Comments</h3>
@@ -191,6 +207,7 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
           )}
         </div>
         
+        {/* Controls for both mobile and desktop */}
         <div className="flex gap-3">
           {canGoBack && onBack && (
             <button 
@@ -221,6 +238,7 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
             </button>
             
             <div className="absolute -top-3 -right-3 bg-white text-[#3A2618] rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-sm border border-[#3A2618]/20 z-20">
+              {/* Get the comment count from the hidden element in the BookHeader */}
               {document.getElementById('comment-count-data')?.getAttribute('data-count') || 0}
             </div>
           </div>
@@ -240,6 +258,7 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
                 className="p-3 md:p-4 rounded-md border border-[#3A2618]/20 relative"
                 style={{ backgroundColor: `${commentTypeColors[comment.comment_type]}20` }}
               >
+                {/* Edit/Delete buttons for user's own comments or moderators */}
                 {canModifyComment(comment) && (
                   <div className="absolute top-3 right-3 flex space-x-2">
                     <button
@@ -259,23 +278,6 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
                   </div>
                 )}
                 
-                <div className="flex items-center mb-3">
-                  <Avatar className="h-8 w-8 mr-2">
-                    {comment.profile?.avatar_url ? (
-                      <AvatarImage src={comment.profile.avatar_url} alt={getDisplayName(comment)} />
-                    ) : (
-                      <AvatarFallback className="bg-[#F97316]/10 text-[#F97316] text-xs">
-                        {comment.profile?.username ? 
-                          comment.profile.username.substring(0, 2).toUpperCase() : 
-                          "AN"}
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
-                  <span className="text-sm font-medium text-[#3A2618]">
-                    {getDisplayName(comment)}
-                  </span>
-                </div>
-                
                 <div 
                   className="inline-block px-2 py-1 rounded text-xs font-medium mb-2"
                   style={{ 
@@ -288,7 +290,8 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
                 
                 <p className="text-[#3A2618] mb-2 text-sm md:text-base pr-16">{comment.text}</p>
                 
-                <div className="flex justify-end items-center text-[#3A2618]/60 text-xs">
+                <div className="flex justify-between items-center text-[#3A2618]/60 text-xs">
+                  <span>{getDisplayName(comment)}</span>
                   <span>{formatDate(comment.created_at)}</span>
                 </div>
               </div>
@@ -306,6 +309,7 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
         </Button>
       </div>
       
+      {/* Story Ending */}
       {isEnding && (
         <div className="text-center mt-6 md:mt-8">
           <p className="text-[#3A2618] font-serif mb-4 md:mb-6">The story has ended.</p>
