@@ -26,13 +26,14 @@ const CommentsView: React.FC<CommentsViewProps> = ({
   const [showAddComment, setShowAddComment] = useState(false);
   
   // Get comments from store
-  const { comments, commentCount, isLoading } = useStoryStore(state => ({
-    comments: state.comments,
-    commentCount: state.commentCount,
-    isLoading: state.commentsLoading
-  }));
+  const comments = useStoryStore(state => state.comments);
+  const commentCount = useStoryStore(state => state.commentCount);
+  const isLoading = useStoryStore(state => state.commentsLoading);
   
-  const { fetchComments, addComment, updateComment, deleteComment } = useStoryStore();
+  const fetchComments = useStoryStore(state => state.fetchComments);
+  const addComment = useStoryStore(state => state.addComment);
+  const updateComment = useStoryStore(state => state.updateComment);
+  const deleteComment = useStoryStore(state => state.deleteComment);
   
   useEffect(() => {
     if (storyId && currentPage) {
