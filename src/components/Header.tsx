@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -81,17 +80,6 @@ const Header: React.FC<HeaderProps> = ({
     <header className={`bg-[#3A2618] text-[#E8DCC4] py-4 px-6 shadow-md ${isStoryPage ? '' : 'mb-4'}`}>
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center">
-          {showBackButton && (
-            <Button 
-              onClick={() => navigate(backTo)}
-              variant="ghost" 
-              className="text-[#E8DCC4] hover:text-[#F97316] transition-colors mr-4"
-            >
-              <ChevronLeft className="h-5 w-5 mr-1" />
-              {backLabel}
-            </Button>
-          )}
-          
           <Link to="/" className="flex items-center space-x-3">
             <img
               src="/lovable-uploads/2386c015-8e81-4433-9997-ae0f0b94bb6a.png"
@@ -175,7 +163,6 @@ const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
       
-      {/* Mobile menu */}
       {showMobileMenu && (
         <div className="md:hidden absolute top-16 right-4 bg-[#2E1D11] rounded-md shadow-lg z-50 p-4 w-64">
           {user ? (
