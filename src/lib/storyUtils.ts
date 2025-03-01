@@ -55,46 +55,113 @@ export const pageToStoryNodeMap: Record<number, string> = Object.entries(storyNo
 export const generateNodeMappings = (storyData: CustomStory) => {
   if (!storyData) return { storyNodeToPageMap, pageToStoryNodeMap };
   
-  // Start with a fresh copy of our base mappings
-  const updatedNodeToPageMap: Record<string, number> = { ...storyNodeToPageMap };
+  // Start with a fresh mapping
+  const updatedNodeToPageMap: Record<string, number> = {};
   
-  // Collect all nodes from the story data
-  const storyNodes = Object.keys(storyData);
+  // Collect all valid story nodes from the story data
+  // (excluding metadata nodes)
+  const storyNodes = Object.keys(storyData).filter(key => 
+    key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
+  );
   
-  // First pass: ensure all known story nodes are in the map
-  let nextPageNumber = Math.max(...Object.values(updatedNodeToPageMap), 0) + 1;
+  // Create a sequence of nodes based on their relationships
+  const nodeSequence: string[] = [];
+  let currentNode = 'root';  // Always start with root
   
-  storyNodes.forEach(nodeName => {
-    // Skip meta nodes that aren't actual story nodes
-    if (nodeName === 'inkVersion' || nodeName === 'listDefs') {
-      return;
+  // First, add root node if it exists
+  if (storyNodes.includes('root') || storyNodes.includes('start')) {
+    currentNode = storyNodes.includes('root') ? 'root' : 'start';
+    nodeSequence.push(currentNode);
+  }
+  
+  // Then follow the node chain by looking at each node's choices
+  const MAX_NODES = storyNodes.length * 2; // Safety limit to prevent infinite loops
+  let count = 0;
+  
+  while (currentNode && count < MAX_NODES) {
+    count++;
+    
+    const node = storyData[currentNode];
+    if (!node) break;
+    
+    // For node with choices
+    if (node.choices && node.choices.length > 0) {
+      const nextNode = node.choices[0].nextNode;
+      if (nextNode && !nodeSequence.includes(nextNode) && storyData[nextNode]) {
+        nodeSequence.push(nextNode);
+        currentNode = nextNode;
+        continue;
+      }
     }
     
+    // Try to find the next node by other means if choices didn't work
+    // This will look for patterns in Ink JSON structure
+    if (storyData[currentNode]) {
+      // Function to extract next node name from Ink JSON structure
+      const findNextNodeInInkFormat = (nodeName: string): string | null => {
+        const node = storyData[nodeName];
+        // Check multiple formats that could indicate the next node
+        if (typeof node === 'object') {
+          // Direct next property
+          if (node['->']) return node['->'];
+          
+          // Array format with -> directive
+          if (Array.isArray(node)) {
+            for (const item of node) {
+              if (item && typeof item === 'object' && item['->']) {
+                return item['->'];
+              }
+            }
+          }
+        }
+        return null;
+      };
+      
+      const nextNode = findNextNodeInInkFormat(currentNode);
+      if (nextNode && !nodeSequence.includes(nextNode) && storyData[nextNode]) {
+        nodeSequence.push(nextNode);
+        currentNode = nextNode;
+        continue;
+      } else {
+        // If we can't find next node, move to next unused node in the list
+        const unusedNode = storyNodes.find(n => !nodeSequence.includes(n));
+        if (unusedNode) {
+          nodeSequence.push(unusedNode);
+          currentNode = unusedNode;
+          continue;
+        }
+      }
+    }
+    
+    // If we reach here, we can't find any more valid nodes
+    break;
+  }
+  
+  // Now create page numbers based on the sequence
+  nodeSequence.forEach((nodeName, index) => {
+    updatedNodeToPageMap[nodeName] = index + 1;
+  });
+  
+  // Add any remaining nodes not in the sequence
+  let nextPage = nodeSequence.length + 1;
+  storyNodes.forEach(nodeName => {
     if (!updatedNodeToPageMap[nodeName]) {
-      updatedNodeToPageMap[nodeName] = nextPageNumber++;
+      updatedNodeToPageMap[nodeName] = nextPage++;
     }
   });
   
   // Generate the reverse mapping
   const updatedPageToNodeMap: Record<number, string> = {};
   
-  // Build pageToNode map, prioritizing actual story nodes over metadata
   Object.entries(updatedNodeToPageMap).forEach(([nodeName, pageNum]) => {
-    // Skip non-story nodes when building page map
-    if (nodeName === 'inkVersion' || nodeName === 'listDefs') {
-      return;
-    }
-    
-    // Only add if node exists in story data or is a known node
-    if (storyData[nodeName]) {
-      updatedPageToNodeMap[pageNum] = nodeName;
-    }
+    updatedPageToNodeMap[pageNum] = nodeName;
   });
   
   console.log("Generated mappings:", {
     nodeToPage: updatedNodeToPageMap,
     pageToNode: updatedPageToNodeMap,
-    nodeCount: storyNodes.length
+    sequencedNodes: nodeSequence,
+    totalNodes: storyNodes.length
   });
   
   return {

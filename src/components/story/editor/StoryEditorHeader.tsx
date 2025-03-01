@@ -1,7 +1,13 @@
 
 import React from "react";
-import { AlertTriangle } from "lucide-react";
-import { BookHeader } from "@/components/story/BookHeader";
+import { AlertTriangle, BookOpen } from "lucide-react";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 
 interface StoryEditorHeaderProps {
   title: string;
@@ -20,24 +26,36 @@ const StoryEditorHeader: React.FC<StoryEditorHeaderProps> = ({
   isLoading,
   onPageChange
 }) => {
+  // Generate available page numbers
+  const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1);
+
   return (
     <div className="mb-6">
-      {!isLoading && (
-        <BookHeader
-          bookTitle={title || "Untitled Story"}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          canGoBack={false}
-          commentCount={0}
-          onBack={() => {}}
-          onRestart={() => {}}
-          onOpenComments={() => {}}
-          onPageChange={onPageChange}
-          hidePageSelector={true}
-        />
-      )}
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-3xl font-serif font-bold text-[#3A2618]">Edit Story</h1>
+        
+        {!isLoading && (
+          <div className="flex items-center space-x-2">
+            <BookOpen className="h-5 w-5 text-[#3A2618]" />
+            <Select 
+              value={currentPage.toString()} 
+              onValueChange={(value) => onPageChange(parseInt(value))}
+            >
+              <SelectTrigger className="w-[180px] bg-white border-[#3A2618] text-[#3A2618]">
+                <SelectValue placeholder={`Page ${currentPage} of ${totalPages}`} />
+              </SelectTrigger>
+              <SelectContent>
+                {pageNumbers.map((page) => (
+                  <SelectItem key={page} value={page.toString()}>
+                    Page {page} of {totalPages}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
 
-      <h1 className="text-3xl font-serif font-bold text-[#3A2618]">Edit Story</h1>
       {title && (
         <h2 className="text-xl text-[#5A3A28] mt-2">{title}</h2>
       )}

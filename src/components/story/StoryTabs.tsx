@@ -12,7 +12,7 @@ import {
   CustomStory, 
   generateNodeMappings
 } from "@/lib/storyUtils";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, BookOpen } from "lucide-react";
 
 interface StoryTabsProps {
   storyId: string;
@@ -108,6 +108,12 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
           )}
         </TabsTrigger>
         <TabsTrigger value="llm">LLM Integration</TabsTrigger>
+        
+        {/* Page indicator in the tab menu */}
+        <div className="ml-auto flex items-center text-sm text-gray-500">
+          <BookOpen className="h-4 w-4 mr-1 text-gray-400" />
+          <span>Page {currentPage} • Node: {currentNode}</span>
+        </div>
       </TabsList>
 
       <Card className="p-4">

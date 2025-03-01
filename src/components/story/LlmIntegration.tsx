@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -59,7 +58,7 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
         setSystemPrompt(data.system_prompt);
       } else {
         setSystemPrompt(
-          "You are a creative writing assistant helping the author craft an interactive story. Please follow the author's instructions carefully."
+          "You are a creative writing assistant helping the author craft an interactive story. Analyze the reader comments and current story content to suggest improvements. Maintain the style and tone of the story. Format your suggestions in the same structure as the story JSON."
         );
       }
     } catch (err) {
@@ -73,6 +72,14 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
       
       const commentsData = await fetchComments(storyId, currentPage);
       setComments(commentsData);
+      
+      if (!prompt || prompt === "") {
+        setPrompt(
+          `Integrate all reader comments with the current page context to offer suggestions that can be integrated into the JSON file. Focus on improving ${
+            llmType === "node" ? "the story text" : "the choices"
+          } while maintaining the story's style.`
+        );
+      }
     } catch (err) {
       console.error("Error loading comments:", err);
     }
@@ -122,25 +129,36 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
     setLlmOutput("");
 
     try {
-      // Prepare the current node data to send to the API
       const nodeData = storyData[currentNode] || {
         text: "",
         choices: [],
       };
 
-      // Format comments as a string for context
       const commentsText = comments.length > 0
         ? "\nReader comments for this page:\n" + comments.map(c => 
             `- ${c.profile?.username || 'Anonymous'}: "${c.content}"`
           ).join("\n")
         : "\nNo reader comments for this page.";
 
-      // Create the full prompt with context
+      const nodeMappings = generateNodeMappings(storyData);
+      const prevPageNum = currentPage > 1 ? currentPage - 1 : null;
+      const nextPageNum = currentPage < Object.keys(nodeMappings.pageToStoryNodeMap).length ? currentPage + 1 : null;
+      
+      const prevNodeName = prevPageNum ? nodeMappings.pageToStoryNodeMap[prevPageNum] : null;
+      const nextNodeName = nextPageNum ? nodeMappings.pageToStoryNodeMap[nextPageNum] : null;
+      
+      const prevNodeText = prevNodeName && storyData[prevNodeName] ? 
+        `\nPrevious page content: "${storyData[prevNodeName].text}"` : '';
+        
+      const nextNodeText = nextNodeName && storyData[nextNodeName] ? 
+        `\nNext page content: "${storyData[nextNodeName].text}"` : '';
+
       const fullPrompt = `
-Current story node: "${currentNode}"
+Story node: "${currentNode}" (Page ${currentPage})
 Current text: "${nodeData.text}"
 Current choices: ${JSON.stringify(nodeData.choices, null, 2)}
-Page number: ${currentPage}
+${prevNodeText}
+${nextNodeText}
 ${commentsText}
 
 User instruction: ${prompt}
@@ -152,7 +170,6 @@ User instruction: ${prompt}
         llmType,
       });
 
-      // Make the API call to your backend
       const response = await fetch("/api/generate-story-content", {
         method: "POST",
         headers: {
@@ -161,7 +178,7 @@ User instruction: ${prompt}
         body: JSON.stringify({
           systemPrompt,
           prompt: fullPrompt,
-          contentType: llmType, // 'node' or 'choices'
+          contentType: llmType,
         }),
       });
 
@@ -174,10 +191,8 @@ User instruction: ${prompt}
 
       const data = await response.json();
       
-      // Set the LLM output for display
       setLlmOutput(data.content);
       
-      // Update storyData with the new content if appropriate
       if (data.content && data.contentType === "node") {
         const updatedStory = { ...storyData };
         updatedStory[currentNode] = {

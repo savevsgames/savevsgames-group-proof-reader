@@ -25,13 +25,17 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<string>(currentNode);
   const [nodeOptions, setNodeOptions] = useState<string[]>([]);
+  const [highlightedText, setHighlightedText] = useState<string>("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
 
   // Update available nodes
   useEffect(() => {
     if (storyData) {
-      const nodes = Object.keys(storyData);
+      const nodes = Object.keys(storyData).filter(key => 
+        // Filter out metadata nodes that aren't story content
+        key !== 'inkVersion' && key !== 'listDefs'
+      );
       setNodeOptions(nodes);
       if (!nodes.includes(selectedNode) && nodes.length > 0) {
         setSelectedNode(nodes[0]);
@@ -59,34 +63,60 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
   useEffect(() => {
     if (currentNode && currentNode !== selectedNode) {
       setSelectedNode(currentNode);
-      
-      // Highlight the node in the JSON
-      setTimeout(() => {
-        if (textareaRef.current) {
-          const text = textareaRef.current.value;
-          const pattern = new RegExp(`"${currentNode}"\\s*:\\s*{`, 'g');
-          const match = pattern.exec(text);
-          
-          if (match && match.index) {
-            // Find position in text
-            const position = match.index;
-            // Set selection to highlight the node
-            textareaRef.current.focus();
-            textareaRef.current.setSelectionRange(position, position + currentNode.length + 2);
-            
-            // Scroll to the node
-            const lines = text.substring(0, position).split('\n');
-            const lineNumber = lines.length;
-            const lineHeight = 20; // Approximate line height in pixels
-            textareaRef.current.scrollTop = lineHeight * (lineNumber - 5); // Scroll a few lines above
-          }
-        }
-      }, 100);
+      highlightCurrentNode(currentNode);
     }
-  }, [currentNode, selectedNode]);
+  }, [currentNode, jsonText]);
+
+  // Focus and highlight the current node in the JSON
+  const highlightCurrentNode = (nodeName: string) => {
+    if (!textareaRef.current || !jsonText) return;
+    
+    const text = jsonText;
+    // Use a more robust pattern that can handle various node formats
+    const nodePattern = new RegExp(`(["\'])${nodeName}\\1\\s*:\\s*\\{`, 'g');
+    const match = nodePattern.exec(text);
+    
+    if (match && match.index !== undefined) {
+      // Find position in text
+      const position = match.index;
+      
+      // Find the opening brace position
+      const bracePos = text.indexOf('{', position);
+      if (bracePos === -1) return;
+      
+      // Find the closing brace position by counting braces
+      let braceCount = 1;
+      let closingBracePos = bracePos + 1;
+      
+      while (braceCount > 0 && closingBracePos < text.length) {
+        if (text[closingBracePos] === '{') braceCount++;
+        if (text[closingBracePos] === '}') braceCount--;
+        closingBracePos++;
+      }
+      
+      // The node's content is between these positions
+      const nodeContent = text.substring(position, closingBracePos);
+      setHighlightedText(nodeContent);
+      
+      // Set selection to highlight the node
+      textareaRef.current.focus();
+      textareaRef.current.setSelectionRange(position, position + nodeContent.length);
+      
+      // Scroll to the node
+      const lines = text.substring(0, position).split('\n');
+      const lineNumber = lines.length;
+      const lineHeight = 20; // Approximate line height in pixels
+      textareaRef.current.scrollTop = lineHeight * (lineNumber - 5); // Scroll a few lines above
+      
+      console.log(`Highlighted node ${nodeName} at position ${position}, length ${nodeContent.length}`);
+    } else {
+      console.warn(`Node ${nodeName} not found in JSON text`);
+    }
+  };
 
   const handleNodeChange = (value: string) => {
     setSelectedNode(value);
+    highlightCurrentNode(value);
     if (onNodeSelect) {
       onNodeSelect(value);
     }
@@ -100,7 +130,9 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
       onChange(parsed);
       
       // Update node options if structure changed
-      const nodes = Object.keys(parsed);
+      const nodes = Object.keys(parsed).filter(key => 
+        key !== 'inkVersion' && key !== 'listDefs'
+      );
       if (JSON.stringify(nodes) !== JSON.stringify(nodeOptions)) {
         setNodeOptions(nodes);
       }
@@ -121,6 +153,9 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
         description: "Your JSON has been successfully reformatted.",
         duration: 3000,
       });
+      
+      // Rehighlight current node after reformatting
+      setTimeout(() => highlightCurrentNode(selectedNode), 100);
     } catch (e) {
       setError("Cannot reformat: " + (e as Error).message);
       toast({
@@ -133,25 +168,16 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
   };
 
   const handleFocusNode = () => {
-    if (selectedNode && textareaRef.current) {
-      const text = textareaRef.current.value;
-      const pattern = new RegExp(`"${selectedNode}"\\s*:\\s*{`, 'g');
-      const match = pattern.exec(text);
-      
-      if (match && match.index) {
-        // Find position in text
-        const position = match.index;
-        // Set selection to highlight the node
-        textareaRef.current.focus();
-        textareaRef.current.setSelectionRange(position, position + selectedNode.length + 2);
-        
-        // Scroll to the node
-        const lines = text.substring(0, position).split('\n');
-        const lineNumber = lines.length;
-        const lineHeight = 20; // Approximate line height in pixels
-        textareaRef.current.scrollTop = lineHeight * (lineNumber - 5); // Scroll a few lines above
-      }
-    }
+    highlightCurrentNode(selectedNode);
+  };
+
+  // Custom styles for highlighting the current node
+  const textAreaStyle = {
+    fontFamily: 'monospace',
+    fontSize: '14px',
+    lineHeight: '1.5',
+    whiteSpace: 'pre',
+    tabSize: 2,
   };
 
   return (
@@ -211,6 +237,7 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
           onChange={handleTextChange}
           className="font-mono text-sm min-h-[500px] border-none focus-visible:ring-0"
           placeholder="Enter your story JSON here..."
+          style={textAreaStyle}
         />
       </ScrollArea>
     </div>
