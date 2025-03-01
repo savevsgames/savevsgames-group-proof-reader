@@ -18,16 +18,14 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
     (state) => ({
       loading: state.loading,
       error: state.error
-    }),
-    shallow
+    })
   );
   
   const metadataState = useStoryStore(
     (state) => ({
       bookTitle: state.title,
       totalPages: state.totalPages
-    }),
-    shallow
+    })
   );
   
   const navigationState = useStoryStore(
@@ -35,8 +33,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
       currentPage: state.currentPage,
       canGoBack: state.canGoBack,
       currentNode: state.currentNode
-    }),
-    shallow
+    })
   );
   
   const contentState = useStoryStore(
@@ -45,16 +42,14 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
       currentChoices: state.currentChoices,
       canContinue: state.canContinue,
       currentStoryPosition: state.currentStoryPosition
-    }),
-    shallow
+    })
   );
   
   const commentsState = useStoryStore(
     (state) => ({
       comments: state.comments,
       commentCount: state.commentCount
-    }),
-    shallow
+    })
   );
   
   // Actions don't need shallow comparison as they don't change

@@ -8,8 +8,9 @@
 
 // Core types
 export * from './core/story.types';
+export * from './core/navigation.types';
 
-// Store types
+// Store types - be careful not to duplicate selector types
 export * from './store/state.types';
 export * from './store/actions.types';
 export * from './store/store.types';
@@ -26,8 +27,5 @@ export * from './features/tabs.types';
 // External types for convenience
 export type { User } from '@supabase/supabase-js';
 
-// Selectors - exported last to avoid conflicts
+// Export selectors last to avoid conflicts
 export * from './store/selectors.types';
-
-// Navigation types - export after selectors to avoid conflicts
-export * from './core/navigation.types';

@@ -6,6 +6,8 @@
  */
 
 import { StoryStore } from './store.types';
+import { StoryChoice } from '../core/story.types';
+import { Comment } from '../features/comments.types';
 
 /**
  * Equality function for comparing previous and next state values.
@@ -16,7 +18,7 @@ export type EqualityFn<T> = (previous: T, next: T) => boolean;
  * Type for a selector function that extracts data from the store.
  * This allows for proper typing with shallow equality function.
  */
-export type StorySelector<U> = (state: StoryStore, equalityFn?: EqualityFn<U>) => U;
+export type StorySelector<U> = (state: StoryStore) => U;
 
 /**
  * UI state selector interface.
@@ -42,7 +44,7 @@ export interface NavigationSelector {
  */
 export interface ContentSelector {
   currentText: string;
-  currentChoices: import('../core/story.types').StoryChoice[];
+  currentChoices: StoryChoice[];
   canContinue: boolean;
   currentStoryPosition: number;
 }
@@ -59,7 +61,7 @@ export interface MetadataSelector {
  * Comments selector interface.
  */
 export interface CommentsSelector {
-  comments: import('../features/comments.types').Comment[];
+  comments: Comment[];
   commentCount: number;
   isLoading: boolean;
   error: string | null;

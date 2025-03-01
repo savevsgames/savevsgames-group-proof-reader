@@ -1,117 +1,150 @@
 
-import React, { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { CommentType } from '@/lib/commentTypes';
-import CommentForm from './comments/CommentForm';
-import CommentSection from './comments/CommentSection';
-import { useStoryStore } from '@/stores/storyState';
-import { Comment } from '@/types';
-import { useAuth } from '@/context/AuthContext';
-import { shallow } from 'zustand/shallow';
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { CommentsList } from "./CommentsList";
+import { CommentForm } from "./comments/CommentForm";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/AuthContext";
+import { User } from "@supabase/supabase-js";
+import { useStoryStore } from "@/stores/storyState";
 
 interface CommentsViewProps {
   storyId: string;
-  currentNode: string;
+  currentNode?: string;
   currentPage: number;
-  onCommentsUpdate?: (count: number) => void;
   onAddToLlmContext?: (commentType: string, commentText: string, username: string) => void;
 }
 
-const CommentsView = ({ 
-  storyId, 
-  currentNode, 
+const CommentsView: React.FC<CommentsViewProps> = ({
+  storyId,
+  currentNode,
   currentPage,
-  onCommentsUpdate,
-  onAddToLlmContext 
-}: CommentsViewProps) => {
-  const { bookId } = useParams();
+  onAddToLlmContext
+}) => {
+  const { toast } = useToast();
   const { user } = useAuth();
+  const [showAddComment, setShowAddComment] = useState(false);
   
-  // Use store selectors for comments state with shallow comparison
+  // Get comments from store
   const { comments, commentCount, isLoading } = useStoryStore(state => ({
     comments: state.comments,
     commentCount: state.commentCount,
     isLoading: state.commentsLoading
-  }), shallow);
+  }));
   
-  // Use store actions for comments operations
-  const fetchComments = useStoryStore(state => state.fetchComments);
+  const { fetchComments, addComment, updateComment, deleteComment } = useStoryStore();
   
-  // Local UI state for the comment form
-  const [commentText, setCommentText] = React.useState('');
-  const [commentType, setCommentType] = React.useState<CommentType>('general');
-  const [isEditing, setIsEditing] = React.useState(false);
-  const [editingCommentId, setEditingCommentId] = React.useState<string | null>(null);
-  
-  // Fetch comments when page or node changes
   useEffect(() => {
-    if (storyId && currentPage > 0) {
-      console.log(`[CommentsView] Fetching comments for page ${currentPage}, node: ${currentNode}`);
+    if (storyId && currentPage) {
       fetchComments(storyId, currentPage);
     }
-  }, [storyId, currentPage, currentNode, fetchComments]);
+  }, [fetchComments, storyId, currentPage]);
   
-  // Notify parent component when comment count changes
-  useEffect(() => {
-    if (onCommentsUpdate) {
-      onCommentsUpdate(commentCount);
+  const handleAddComment = async (text: string, commentType: string) => {
+    if (!user?.id) {
+      toast({
+        title: "Authentication Required",
+        description: "You need to sign in to add comments",
+        variant: "destructive",
+      });
+      return;
     }
-  }, [commentCount, onCommentsUpdate]);
-  
-  // Comment editing handlers
-  const handleEditComment = (comment: Comment) => {
-    setIsEditing(true);
-    setEditingCommentId(comment.id);
-    setCommentText(comment.text);
-    setCommentType(comment.comment_type as CommentType || 'general');
+    
+    try {
+      await addComment(
+        storyId, 
+        currentPage, 
+        text, 
+        commentType, 
+        user.id,
+        currentNode || ''
+      );
+      
+      setShowAddComment(false);
+      
+      toast({
+        title: "Comment Added",
+        description: "Your comment has been added successfully",
+      });
+    } catch (error: any) {
+      console.error("Error adding comment:", error);
+      toast({
+        title: "Error",
+        description: error.message || "There was an error adding your comment",
+        variant: "destructive",
+      });
+    }
   };
   
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    setEditingCommentId(null);
-    setCommentText('');
-    setCommentType('general');
+  const handleUpdateComment = async (commentId: string, text: string, commentType: string) => {
+    try {
+      await updateComment(commentId, storyId, currentPage, text, commentType);
+      
+      toast({
+        title: "Comment Updated",
+        description: "Your comment has been updated successfully",
+      });
+    } catch (error: any) {
+      console.error("Error updating comment:", error);
+      toast({
+        title: "Error",
+        description: error.message || "There was an error updating your comment",
+        variant: "destructive",
+      });
+    }
   };
   
-  // Comment delete handler
-  const handleDeleteComment = (commentId: string) => {
-    useStoryStore.getState().deleteComment(commentId, storyId, currentPage);
+  const handleDeleteComment = async (commentId: string) => {
+    try {
+      await deleteComment(commentId, storyId, currentPage);
+      
+      toast({
+        title: "Comment Deleted",
+        description: "Your comment has been deleted successfully",
+      });
+    } catch (error: any) {
+      console.error("Error deleting comment:", error);
+      toast({
+        title: "Error",
+        description: error.message || "There was an error deleting your comment",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
-    <div className="h-full flex flex-col">
-      <h2 className="text-2xl font-serif mb-4 text-[#3A2618] flex-shrink-0">Reader Comments</h2>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">
+          Comments {commentCount > 0 && `(${commentCount})`}
+        </h2>
+        
+        {!showAddComment && (
+          <Button
+            onClick={() => setShowAddComment(true)}
+            className="bg-[#6D4B34] hover:bg-[#5A3F2B]"
+          >
+            Add Comment
+          </Button>
+        )}
+      </div>
       
-      <ScrollArea className="flex-grow overflow-y-auto pr-1">
-        <div className="flex flex-col pb-4">
-          {user ? (
-            <CommentForm
-              user={user}
-              storyId={storyId}
-              currentNode={currentNode}
-              currentPage={currentPage}
-              isEditing={isEditing}
-              editingCommentId={editingCommentId}
-              commentText={commentText}
-              commentType={commentType}
-              onCommentTextChange={setCommentText}
-              onCommentTypeChange={setCommentType}
-              onCancelEdit={handleCancelEdit}
-              onCommentsUpdate={() => {}} // No longer needed as store handles updates
-              comments={comments}
-            />
-          ) : null}
-          
-          <CommentSection
-            user={user}
-            comments={comments}
-            onEditComment={handleEditComment}
-            onDeleteComment={handleDeleteComment}
-            onAddToLlmContext={onAddToLlmContext}
-          />
-        </div>
-      </ScrollArea>
+      {showAddComment && (
+        <CommentForm
+          onSubmit={handleAddComment}
+          onCancel={() => setShowAddComment(false)}
+          user={user as User}
+        />
+      )}
+      
+      <CommentsList
+        comments={comments}
+        currentUserId={user?.id}
+        isLoading={isLoading}
+        onUpdate={handleUpdateComment}
+        onDelete={handleDeleteComment}
+        onAddToContext={onAddToLlmContext}
+      />
     </div>
   );
 };
