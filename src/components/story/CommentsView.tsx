@@ -82,7 +82,7 @@ const CommentsView: React.FC<CommentsViewProps> = ({
     loadComments();
   }, [loadComments]);
 
-  const handleCommentAdded = (newComment: Comment) => {
+  const handleCommentAdded = useCallback((newComment: Comment) => {
     // Use a function update to ensure we have the latest state
     setComments(prevComments => {
       const updatedComments = [newComment, ...prevComments];
@@ -90,15 +90,9 @@ const CommentsView: React.FC<CommentsViewProps> = ({
       notifyCommentCount(updatedComments.length);
       return updatedComments;
     });
-  };
+  }, [notifyCommentCount]);
 
-  const handleEditComment = (comment: Comment) => {
-    // This would typically open a form to edit the comment
-    console.log("Edit comment:", comment);
-    // In this simplified version, we're not implementing edit functionality
-  };
-
-  const handleDeleteComment = async (commentId: string) => {
+  const handleDeleteComment = useCallback(async (commentId: string) => {
     if (!user) return;
     
     const updatedComments = await deleteComment(commentId, user.id, comments);
@@ -107,7 +101,7 @@ const CommentsView: React.FC<CommentsViewProps> = ({
       // Update count after deletion
       notifyCommentCount(updatedComments.length);
     }
-  };
+  }, [user, deleteComment, comments, notifyCommentCount]);
 
   return (
     <div className="space-y-6">
@@ -135,8 +129,9 @@ const CommentsView: React.FC<CommentsViewProps> = ({
           comments={comments}
           isLoading={loading}
           currentUser={user}
-          isModerator={false} // We would need to implement this check
-          onEditComment={handleEditComment}
+          isModerator={false}
+          onEditComment={() => {}} // We'll implement this later
+          onDeleteComment={handleDeleteComment}
         />
       </div>
     </div>

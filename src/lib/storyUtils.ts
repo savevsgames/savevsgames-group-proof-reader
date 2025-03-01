@@ -1,4 +1,3 @@
-
 import { Story } from 'inkjs';
 import { supabase } from './supabase';
 
@@ -517,7 +516,7 @@ export const fetchCommentCount = async (storyId: string, position: number) => {
 };
 
 // Fetch comments for a specific story position
-export const fetchComments = async (storyId: string, position: number) => {
+export const fetchComments = async (storyId: string, storyPosition: number) => {
   try {
     const { data, error } = await supabase
       .from('comments')
@@ -526,17 +525,22 @@ export const fetchComments = async (storyId: string, position: number) => {
         profile:profiles(username)
       `)
       .eq('story_id', storyId)
-      .eq('story_position', position)
+      .eq('story_position', storyPosition)
       .order('created_at', { ascending: false });
 
     if (error) {
+      console.error('Error fetching comments:', error);
       throw error;
     }
 
-    return data || [];
+    // Handle the case where some comments might have 'content' field instead of 'text'
+    return (data || []).map(comment => ({
+      ...comment,
+      text: comment.text || comment.content || '',
+    }));
   } catch (error) {
-    console.error('Error fetching comments:', error);
-    throw new Error('Failed to fetch comments');
+    console.error('Error in fetchComments:', error);
+    return [];
   }
 };
 

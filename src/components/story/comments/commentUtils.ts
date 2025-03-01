@@ -3,6 +3,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { commentTypeLabels } from "@/lib/commentTypes";
 import { useCallback } from "react";
+import { Comment } from "@/components/comments/types";
 
 export const useCommentOperations = (
   storyId: string,
@@ -11,7 +12,7 @@ export const useCommentOperations = (
 ) => {
   const { toast } = useToast();
 
-  const deleteComment = useCallback(async (commentId: string, userId: string, currentComments: any[]) => {
+  const deleteComment = useCallback(async (commentId: string, userId: string, currentComments: Comment[]) => {
     try {
       const { error } = await supabase
         .from('comments')
@@ -29,7 +30,7 @@ export const useCommentOperations = (
       });
 
       const updatedComments = currentComments.filter(comment => comment.id !== commentId);
-      // Move this outside the function to avoid unnecessary updates
+      onCommentsUpdate(updatedComments.length);
       return updatedComments;
     } catch (error) {
       console.error("Error deleting comment:", error);
@@ -40,7 +41,7 @@ export const useCommentOperations = (
       });
       return null;
     }
-  }, [toast]);
+  }, [toast, onCommentsUpdate]);
 
   const refreshComments = useCallback(async () => {
     try {
@@ -58,7 +59,9 @@ export const useCommentOperations = (
         throw error;
       }
 
-      // Moved this out from here to avoid extra rerenders
+      if (data) {
+        onCommentsUpdate(data.length);
+      }
       return data;
     } catch (error) {
       console.error("Error refreshing comments:", error);
@@ -69,15 +72,16 @@ export const useCommentOperations = (
       });
       return null;
     }
-  }, [storyId, currentPage, toast]);
+  }, [storyId, currentPage, toast, onCommentsUpdate]);
 
   return { deleteComment, refreshComments };
 };
 
-export const formatCommentForLlm = (comment: any) => {
-  const commentType = comment.comment_type || 'general';
+export const formatCommentForLlm = (comment: Comment) => {
+  const commentType = comment.comment_type || 'edit';
   const typeLabel = commentTypeLabels[commentType as keyof typeof commentTypeLabels] || 'Comment';
   const username = comment.profile?.username || 'Anonymous';
+  const content = comment.text || comment.content || '';
   
-  return `[${typeLabel} from ${username}]: ${comment.content}`;
+  return `[${typeLabel} from ${username}]: ${content}`;
 };

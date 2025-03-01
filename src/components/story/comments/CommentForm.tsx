@@ -5,13 +5,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
-
-interface CommentFormProps {
-  storyId: string;
-  currentNode: string;
-  currentPage: number;
-  onCommentAdded: (newComment: any) => void;
-}
+import CommentTypeSelector from "@/components/comments/CommentTypeSelector";
+import { CommentType } from "@/lib/commentTypes";
+import { Comment, CommentFormProps } from "@/components/comments/types";
 
 const CommentForm: React.FC<CommentFormProps> = ({
   storyId,
@@ -21,6 +17,7 @@ const CommentForm: React.FC<CommentFormProps> = ({
 }) => {
   const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [selectedCommentType, setSelectedCommentType] = useState<CommentType>("edit");
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -30,11 +27,12 @@ const CommentForm: React.FC<CommentFormProps> = ({
     setSubmitting(true);
     try {
       const { data, error } = await supabase.from("comments").insert({
-        content: newComment.trim(),
+        text: newComment.trim(),
         user_id: user.id,
         story_id: storyId,
         story_position: currentPage,
         story_node: currentNode,
+        comment_type: selectedCommentType,
       }).select(`
         *,
         profile:profiles(username)
@@ -43,7 +41,7 @@ const CommentForm: React.FC<CommentFormProps> = ({
       if (error) throw error;
 
       if (data && data[0]) {
-        onCommentAdded(data[0]);
+        onCommentAdded(data[0] as Comment);
         setNewComment("");
         
         toast({
@@ -65,12 +63,18 @@ const CommentForm: React.FC<CommentFormProps> = ({
 
   return (
     <div className="space-y-4">
+      <CommentTypeSelector
+        selectedCommentType={selectedCommentType}
+        setSelectedCommentType={setSelectedCommentType}
+      />
+      
       <Textarea
         placeholder="Add your comment..."
         value={newComment}
         onChange={(e) => setNewComment(e.target.value)}
         className="min-h-[100px]"
       />
+      
       <Button
         onClick={handleSubmitComment}
         disabled={!newComment.trim() || submitting}

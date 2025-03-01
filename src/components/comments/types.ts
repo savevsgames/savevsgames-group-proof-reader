@@ -7,6 +7,7 @@ export interface Comment {
   user_id: string;
   story_id: string;
   story_position: number;
+  story_node?: string;
   text: string;
   created_at: string;
   updated_at: string;
@@ -14,6 +15,7 @@ export interface Comment {
   profile?: {
     username: string;
   };
+  content?: string; // For backward compatibility
 }
 
 // Props for the CommentModal component
@@ -30,6 +32,7 @@ export interface CommentItemProps {
   comment: Comment;
   isOwnComment: boolean;
   onEdit: (comment: Comment) => void;
+  onDelete?: (commentId: string) => void;
   isModerator: boolean;
 }
 
@@ -40,4 +43,13 @@ export interface CommentsListProps {
   currentUser: User | null;
   isModerator: boolean;
   onEditComment: (comment: Comment) => void;
+  onDeleteComment?: (commentId: string) => void;
+}
+
+// Props for CommentForm component
+export interface CommentFormProps {
+  storyId: string;
+  currentNode: string;
+  currentPage: number;
+  onCommentAdded: (newComment: Comment) => void;
 }
