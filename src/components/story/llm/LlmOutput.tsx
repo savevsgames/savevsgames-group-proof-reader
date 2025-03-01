@@ -15,11 +15,33 @@ const LlmOutput: React.FC<LlmOutputProps> = ({ output, error }) => {
     if (!text) return text;
     
     try {
-      // Try to parse as JSON
-      const parsedJSON = JSON.parse(text);
-      return JSON.stringify(parsedJSON, null, 2);
+      // First check if the text itself is JSON
+      if ((text.trim().startsWith('{') && text.trim().endsWith('}')) ||
+          (text.trim().startsWith('[') && text.trim().endsWith(']'))) {
+        const parsedJSON = JSON.parse(text);
+        return JSON.stringify(parsedJSON, null, 2);
+      }
+      
+      // If not direct JSON, try to find JSON content within the text
+      // Common pattern from AI responses: look for JSON blocks
+      const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || 
+                        text.match(/```\n([\s\S]*?)\n```/) ||
+                        text.match(/({[\s\S]*})/);
+                        
+      if (jsonMatch && jsonMatch[1]) {
+        try {
+          const parsedJSON = JSON.parse(jsonMatch[1]);
+          return JSON.stringify(parsedJSON, null, 2);
+        } catch (e) {
+          // If parsing the potential JSON block fails, return original
+          return text;
+        }
+      }
+      
+      // Return original if no JSON patterns found
+      return text;
     } catch (e) {
-      // If not JSON, return the original text
+      // If parsing fails, return the original text
       return text;
     }
   };

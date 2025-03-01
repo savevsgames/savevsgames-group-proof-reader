@@ -12,23 +12,45 @@ export const generateContent = async (
   temperature: number = 0.7
 ) => {
   try {
-    const response = await fetch("/api/generate-story-content", {
+    // Direct OpenAI API call instead of using a Next.js API route
+    const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+    
+    if (!OPENAI_API_KEY) {
+      throw new Error("OpenAI API key is not configured. Please set the VITE_OPENAI_API_KEY environment variable.");
+    }
+
+    const finalSystemPrompt = systemPrompt + (
+      llmType === "edit_json" 
+        ? "\nYou are a JSON editor. Your task is to generate valid JSON for story nodes based on user instructions and context provided."
+        : "\nYou are a creative writing assistant providing suggestions and ideas to improve the story."
+    );
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Authorization": `Bearer ${OPENAI_API_KEY}`
       },
       body: JSON.stringify({
-        systemPrompt,
-        prompt: fullPrompt,
-        contentType: llmType,
-        model,
-        temperature
-      }),
+        model: model,
+        messages: [
+          {
+            role: "system",
+            content: finalSystemPrompt
+          },
+          {
+            role: "user",
+            content: fullPrompt
+          }
+        ],
+        temperature: temperature,
+        max_tokens: 2000,
+      })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("API error response:", errorText);
+      console.error("OpenAI API error response:", errorText);
       try {
         // Try to parse as JSON in case it's a structured error
         const errorData = JSON.parse(errorText);
@@ -46,7 +68,13 @@ export const generateContent = async (
     }
     
     try {
-      return JSON.parse(responseText);
+      const data = JSON.parse(responseText);
+      const generatedContent = data.choices[0]?.message?.content || "";
+      
+      return { 
+        content: generatedContent, 
+        contentType: llmType 
+      };
     } catch (e) {
       console.error("Failed to parse JSON response:", e, "Response text:", responseText);
       throw new Error("Invalid JSON response from API");
