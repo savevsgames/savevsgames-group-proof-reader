@@ -1,53 +1,45 @@
 
 import React from 'react';
-import { Button } from "@/components/ui/button";
-import { useNavigate } from 'react-router-dom';
+import { User } from '@supabase/supabase-js';
+import CommentItem from './CommentItem';
 import { Comment } from '@/components/comments/types';
-import CommentsList from '@/components/comments/CommentsList';
-import { User } from '@/lib/supabase';
 
 interface CommentSectionProps {
   user: User | null;
   comments: Comment[];
   onEditComment: (comment: Comment) => void;
-  onDeleteComment: (commentId: string) => void;
-  onAddToLlmContext?: (text: string) => void;
+  onDeleteComment?: (commentId: string) => void;
+  onAddToLlmContext?: (commentType: string, commentText: string, username: string) => void;
 }
 
-const CommentSection = ({
+const CommentSection: React.FC<CommentSectionProps> = ({
   user,
   comments,
   onEditComment,
   onDeleteComment,
   onAddToLlmContext
-}: CommentSectionProps) => {
-  const navigate = useNavigate();
+}) => {
+  if (!comments.length) {
+    return (
+      <div className="text-center py-6 text-gray-500">
+        No comments yet. Be the first to comment!
+      </div>
+    );
+  }
 
   return (
-    <div className="book-page-texture rounded-md p-4 mb-2">
-      <h3 className="font-medium text-[#3A2618] mb-4 font-serif">{comments.length} Comments</h3>
-      {user ? (
-        <CommentsList 
-          comments={comments}
-          isLoading={false}
-          currentUser={user}
-          isModerator={false}
-          onEditComment={onEditComment}
-          onDeleteComment={onDeleteComment}
+    <div className="space-y-4 mt-4">
+      {comments.map((comment) => (
+        <CommentItem
+          key={comment.id}
+          comment={comment}
+          isOwnComment={user?.id === comment.user_id}
+          isModerator={false} // This would need additional logic to determine
+          onEdit={onEditComment}
+          onDelete={onDeleteComment}
           onAddToLlmContext={onAddToLlmContext}
         />
-      ) : (
-        <div className="bg-[#FDF8EC] border border-[#3A2618]/20 p-4 rounded-md mb-6">
-          <p className="text-[#3A2618] font-serif mb-2">Sign in to leave comments.</p>
-          <Button 
-            onClick={() => navigate("/auth")} 
-            variant="outline"
-            className="bg-[#3A2618] text-[#E8DCC4] hover:bg-[#3A2618]/80"
-          >
-            Sign in
-          </Button>
-        </div>
-      )}
+      ))}
     </div>
   );
 };

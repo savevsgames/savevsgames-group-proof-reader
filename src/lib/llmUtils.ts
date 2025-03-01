@@ -2,6 +2,13 @@
 import { supabase } from "@/lib/supabase";
 import { fetchComments } from "@/lib/storyUtils";
 
+// Interface for comment context
+interface CommentContextItem {
+  type: string;
+  text: string;
+  username: string;
+}
+
 // Load system prompt from Supabase
 export const loadSystemPrompt = async (storyId: string): Promise<string> => {
   try {
@@ -102,7 +109,8 @@ export const preparePromptData = (
   currentPage: number,
   comments: any[],
   prompt: string,
-  llmType: "node" | "choices"
+  llmType: "node" | "choices",
+  commentContext: CommentContextItem[] = []
 ) => {
   const nodeData = storyData[currentNode] || {
     text: "",
@@ -114,6 +122,13 @@ export const preparePromptData = (
         `- ${c.profile?.username || 'Anonymous'}: "${c.content}"`
       ).join("\n")
     : "\nNo reader comments for this page.";
+
+  // Format selected comment context
+  const formattedCommentContext = commentContext.length > 0
+    ? "\nSelected comments for context:\n" + commentContext.map(item => 
+        `- "${item.type}": "${item.text}" (by ${item.username})`
+      ).join("\n")
+    : "";
 
   const nodeMappings = generateNodeMappings(storyData);
   const prevPageNum = currentPage > 1 ? currentPage - 1 : null;
@@ -135,6 +150,7 @@ Current choices: ${JSON.stringify(nodeData.choices, null, 2)}
 ${prevNodeText}
 ${nextNodeText}
 ${commentsText}
+${formattedCommentContext}
 
 User instruction: ${prompt}
 `;

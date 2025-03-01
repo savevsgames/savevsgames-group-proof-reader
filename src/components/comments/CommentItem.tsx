@@ -2,7 +2,7 @@
 import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from "@/components/ui/button";
-import { Trash, Edit, Plus, Send } from 'lucide-react';
+import { Trash, Edit, Send } from 'lucide-react';
 import { Comment } from './types';
 import { commentTypeColors, commentTypeLabels } from '@/lib/commentTypes';
 
@@ -12,7 +12,7 @@ interface CommentItemProps {
   isModerator: boolean;
   onEdit: (comment: Comment) => void;
   onDelete?: (commentId: string) => void;
-  onAddToLlmContext?: (text: string) => void;
+  onAddToLlmContext?: (commentType: string, commentText: string, username: string) => void;
 }
 
 const CommentItem: React.FC<CommentItemProps> = ({
@@ -30,8 +30,11 @@ const CommentItem: React.FC<CommentItemProps> = ({
   
   const handleAddToContext = () => {
     if (onAddToLlmContext) {
-      const contextText = `${commentTypeLabel} from ${comment.user_name}: ${comment.text}`;
-      onAddToLlmContext(contextText);
+      onAddToLlmContext(
+        commentTypeLabel, 
+        comment.text,
+        comment.user_name || 'Anonymous'
+      );
     }
   };
 
@@ -77,17 +80,6 @@ const CommentItem: React.FC<CommentItemProps> = ({
               className="h-8 w-8 p-0 text-red-500"
             >
               <Trash className="h-4 w-4" />
-            </Button>
-          )}
-          
-          {onAddToLlmContext && (
-            <Button
-              onClick={handleAddToContext}
-              variant="ghost"
-              className="h-8 w-8 p-0 text-blue-500"
-              title="Add to AI Context"
-            >
-              <Plus className="h-4 w-4" />
             </Button>
           )}
           

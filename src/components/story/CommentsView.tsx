@@ -12,7 +12,7 @@ interface CommentsViewProps {
   currentNode: string;
   currentPage: number;
   onCommentsUpdate: (count: number) => void;
-  onAddToLlmContext?: (text: string) => void;
+  onAddToLlmContext?: (commentType: string, commentText: string, username: string) => void;
 }
 
 const CommentsView = ({ 

@@ -3,8 +3,16 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { saveSystemPrompt } from "@/lib/llmUtils";
+
+interface CommentContextItem {
+  type: string;
+  text: string;
+  username: string;
+}
 
 interface LlmSettingsProps {
   storyId: string;
@@ -16,6 +24,8 @@ interface LlmSettingsProps {
   setPrompt: (prompt: string) => void;
   onGenerateContent: () => void;
   isLoading: boolean;
+  commentContext: CommentContextItem[];
+  onClearCommentContext: () => void;
 }
 
 const LlmSettings: React.FC<LlmSettingsProps> = ({
@@ -28,6 +38,8 @@ const LlmSettings: React.FC<LlmSettingsProps> = ({
   setPrompt,
   onGenerateContent,
   isLoading,
+  commentContext,
+  onClearCommentContext
 }) => {
   const { toast } = useToast();
 
@@ -53,6 +65,11 @@ const LlmSettings: React.FC<LlmSettingsProps> = ({
     }
   };
 
+  // Format comment context for display
+  const formattedCommentContext = commentContext.map((item) => 
+    `"${item.type}": "${item.text}" (by ${item.username})`
+  ).join('\n');
+
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold mb-2">LLM Settings</h3>
@@ -74,6 +91,25 @@ const LlmSettings: React.FC<LlmSettingsProps> = ({
           Save System Prompt
         </Button>
       </div>
+      
+      {commentContext.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium">Comment Context</label>
+            <Button 
+              onClick={onClearCommentContext}
+              size="sm"
+              variant="ghost"
+              className="h-8 w-8 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <ScrollArea className="h-[100px] w-full border rounded-md bg-gray-50 p-2">
+            <pre className="text-xs font-mono whitespace-pre-wrap">{formattedCommentContext}</pre>
+          </ScrollArea>
+        </div>
+      )}
       
       <div className="space-y-2">
         <label className="text-sm font-medium">Generation Type</label>

@@ -109,6 +109,11 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
     }
   };
 
+  // Handler for adding comments to LLM context
+  const handleAddToLlmContext = (commentType: string, commentText: string, username: string) => {
+    // This is now properly typed to match the updated components
+  };
+
   return (
     <Tabs
       defaultValue="json"
@@ -199,6 +204,7 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
             currentNode={currentNode}
             onCommentsUpdate={handleCommentsUpdate}
             currentPage={currentPage}
+            onAddToLlmContext={handleAddToLlmContext}
           />
         </TabsContent>
 

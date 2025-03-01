@@ -22,6 +22,12 @@ interface LlmIntegrationProps {
   currentPage: number;
 }
 
+interface CommentContextItem {
+  type: string;
+  text: string;
+  username: string;
+}
+
 const LlmIntegration: React.FC<LlmIntegrationProps> = ({
   storyId,
   storyData,
@@ -35,6 +41,7 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
   const [comments, setComments] = useState<any[]>([]);
   const [llmOutput, setLlmOutput] = useState<string>("");
   const [llmType, setLlmType] = useState<"node" | "choices">("node");
+  const [commentContext, setCommentContext] = useState<CommentContextItem[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -79,7 +86,8 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
         currentPage,
         comments,
         prompt,
-        llmType
+        llmType,
+        commentContext
       );
 
       console.log("Sending prompt to OpenAI:", {
@@ -140,15 +148,28 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
     }
   };
 
-  const handleAddToLlmContext = (text: string) => {
-    setPrompt(prev => {
-      const newPrompt = prev ? `${prev}\n\n${text}` : text;
-      return newPrompt;
-    });
+  const handleAddToLlmContext = (commentType: string, commentText: string, username: string) => {
+    // Add to comment context in the format "comment_type": "comment_text"
+    setCommentContext(prev => [
+      ...prev,
+      {
+        type: commentType,
+        text: commentText,
+        username: username
+      }
+    ]);
     
     toast({
-      title: "Added to prompt",
-      description: "Comment information has been added to your prompt.",
+      title: "Added to LLM context",
+      description: `${commentType} comment has been added to your LLM context.`,
+    });
+  };
+
+  const clearCommentContext = () => {
+    setCommentContext([]);
+    toast({
+      title: "Context cleared",
+      description: "Comment context has been cleared.",
     });
   };
 
@@ -166,6 +187,8 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
             setPrompt={setPrompt}
             onGenerateContent={handleGenerateContent}
             isLoading={isLoading}
+            commentContext={commentContext}
+            onClearCommentContext={clearCommentContext}
           />
         </Card>
         
