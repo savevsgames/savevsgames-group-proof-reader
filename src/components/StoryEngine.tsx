@@ -37,29 +37,26 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
     handleRestart,
     handlePageChange,
     setCommentCount
-  } = useStoryStore(
-    (state: StoryStore) => ({
-      loading: state.loading,
-      error: state.error,
-      title: state.title,
-      currentPage: state.currentPage,
-      totalPages: state.totalPages,
-      currentText: state.currentText,
-      currentChoices: state.currentChoices,
-      canContinue: state.canContinue,
-      canGoBack: state.canGoBack,
-      commentCount: state.commentCount,
-      currentStoryPosition: state.currentStoryPosition,
-      currentNode: state.currentNode,
-      handleContinue: state.handleContinue,
-      handleChoice: state.handleChoice,
-      goBack: state.goBack,
-      handleRestart: state.handleRestart,
-      handlePageChange: state.handlePageChange,
-      setCommentCount: state.setCommentCount
-    }),
-    shallow
-  );
+  } = useStoryStore(state => ({
+    loading: state.loading,
+    error: state.error,
+    title: state.title,
+    currentPage: state.currentPage,
+    totalPages: state.totalPages,
+    currentText: state.currentText,
+    currentChoices: state.currentChoices,
+    canContinue: state.canContinue,
+    canGoBack: state.canGoBack,
+    commentCount: state.commentCount,
+    currentStoryPosition: state.currentStoryPosition,
+    currentNode: state.currentNode,
+    handleContinue: state.handleContinue,
+    handleChoice: state.handleChoice,
+    goBack: state.goBack,
+    handleRestart: state.handleRestart,
+    handlePageChange: state.handlePageChange,
+    setCommentCount: state.setCommentCount
+  }), shallow);
 
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);

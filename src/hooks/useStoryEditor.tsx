@@ -2,9 +2,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useStoryStore } from "@/stores/storyState";
 import { shallow } from "zustand/shallow";
-import type { NodeMappings } from "@/lib/storyNodeMapping";
-import { CustomStory } from "@/lib/storyUtils";
-import { StoryStore } from "@/stores/storyState/types";
 
 export const useStoryEditor = (storyId: string) => {
   console.log("[StoryEditor] Initializing story editor for ID:", storyId);
@@ -29,27 +26,24 @@ export const useStoryEditor = (storyId: string) => {
     handleNodeChange,
     handleStoryDataChange,
     handleSave,
-  } = useStoryStore(
-    (state: StoryStore) => ({
-      storyData: state.storyData,
-      story: state.story,
-      loading: state.loading,
-      error: state.error,
-      saving: state.saving,
-      hasUnsavedChanges: state.hasUnsavedChanges,
-      currentNode: state.currentNode,
-      currentPage: state.currentPage,
-      totalPages: state.totalPages,
-      nodeMappings: state.nodeMappings,
-      
-      initializeStory: state.initializeStory,
-      handlePageChange: state.handlePageChange,
-      handleNodeChange: state.handleNodeChange,
-      handleStoryDataChange: state.handleStoryDataChange,
-      handleSave: state.handleSave,
-    }),
-    shallow
-  );
+  } = useStoryStore(state => ({
+    storyData: state.storyData,
+    story: state.story,
+    loading: state.loading,
+    error: state.error,
+    saving: state.saving,
+    hasUnsavedChanges: state.hasUnsavedChanges,
+    currentNode: state.currentNode,
+    currentPage: state.currentPage,
+    totalPages: state.totalPages,
+    nodeMappings: state.nodeMappings,
+    
+    initializeStory: state.initializeStory,
+    handlePageChange: state.handlePageChange,
+    handleNodeChange: state.handleNodeChange,
+    handleStoryDataChange: state.handleStoryDataChange,
+    handleSave: state.handleSave,
+  }), shallow);
   
   // Initialize story when component mounts
   useEffect(() => {

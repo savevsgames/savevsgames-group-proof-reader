@@ -1,5 +1,5 @@
 
-import { StoryState } from './types';
+import { StoryState, StoryStore } from './types';
 
 // Navigation selectors
 export const selectCurrentNode = (state: StoryState) => state.currentNode;
@@ -27,3 +27,7 @@ export const selectStoryHistory = (state: StoryState) => state.storyHistory;
 export const selectStoryData = (state: StoryState) => state.storyData;
 export const selectStoryId = (state: StoryState) => state.storyId;
 export const selectTitle = (state: StoryState) => state.title;
+
+// Compound selectors
+export const selectStoryIsReady = (state: StoryState) => 
+  !state.loading && state.storyData !== null && !state.error;

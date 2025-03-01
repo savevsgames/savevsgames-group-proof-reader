@@ -10,7 +10,6 @@ import EmptyState from "@/components/story/editor/EmptyState";
 import UnsavedChangesDialog from "@/components/story/editor/UnsavedChangesDialog";
 import { useStoryStore } from "@/stores/storyState";
 import { shallow } from "zustand/shallow";
-import { StoryStore } from "@/stores/storyState/types";
 
 const StoryEditPage = () => {
   const { id } = useParams();
@@ -32,25 +31,22 @@ const StoryEditPage = () => {
     handleNodeChange,
     handleStoryDataChange,
     handleSave,
-  } = useStoryStore(
-    (state: StoryStore) => ({
-      storyData: state.storyData,
-      title: state.title,
-      loading: state.loading,
-      error: state.error,
-      saving: state.saving,
-      hasUnsavedChanges: state.hasUnsavedChanges,
-      currentNode: state.currentNode,
-      currentPage: state.currentPage,
-      totalPages: state.totalPages,
-      initializeStory: state.initializeStory,
-      handlePageChange: state.handlePageChange,
-      handleNodeChange: state.handleNodeChange,
-      handleStoryDataChange: state.handleStoryDataChange,
-      handleSave: state.handleSave,
-    }),
-    shallow
-  );
+  } = useStoryStore(state => ({
+    storyData: state.storyData,
+    title: state.title,
+    loading: state.loading,
+    error: state.error,
+    saving: state.saving,
+    hasUnsavedChanges: state.hasUnsavedChanges,
+    currentNode: state.currentNode,
+    currentPage: state.currentPage,
+    totalPages: state.totalPages,
+    initializeStory: state.initializeStory,
+    handlePageChange: state.handlePageChange,
+    handleNodeChange: state.handleNodeChange,
+    handleStoryDataChange: state.handleStoryDataChange,
+    handleSave: state.handleSave,
+  }), shallow);
   
   // State for leave dialog
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = React.useState(false);
