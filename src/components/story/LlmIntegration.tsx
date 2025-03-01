@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { CustomStory } from "@/lib/storyUtils";
 import { Card } from "@/components/ui/card";
@@ -10,13 +11,15 @@ import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, FileText, AlertCircle, Trash2 } from "lucide-react";
+import { fetchComments } from "@/lib/storyUtils";
+import { Loader2, Upload, FileText, AlertCircle, Trash2, MessageSquare } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface LlmIntegrationProps {
   storyId: string;
   storyData: CustomStory;
   currentNode?: string;
+  currentPage?: number;
   onStoryUpdate: (updatedStory: CustomStory) => void;
 }
 
@@ -37,6 +40,15 @@ interface ContextFile {
   created_at: string;
 }
 
+interface Comment {
+  id: string;
+  content: string;
+  created_at: string;
+  profile: {
+    username: string;
+  };
+}
+
 const DEFAULT_SETTINGS = {
   book_id: "",
   model_version: "gpt-4o",
@@ -54,6 +66,7 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
   storyId, 
   storyData, 
   currentNode = "root",
+  currentPage = 1,
   onStoryUpdate 
 }) => {
   const [settings, setSettings] = useState<any>({ ...DEFAULT_SETTINGS, book_id: storyId });
@@ -62,6 +75,9 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
   const [uploading, setUploading] = useState(false);
   const [generationPrompt, setGenerationPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState<string>("");
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -126,6 +142,30 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
       fetchSettingsAndFiles();
     }
   }, [storyId, toast]);
+
+  // Fetch comments for the current page
+  useEffect(() => {
+    const loadComments = async () => {
+      if (!storyId || !currentPage) return;
+      
+      setLoadingComments(true);
+      try {
+        const commentsData = await fetchComments(storyId, currentPage);
+        setComments(commentsData);
+      } catch (error) {
+        console.error('Error fetching comments:', error);
+        toast({
+          title: "Error loading comments",
+          description: "Failed to load comments for this page",
+          variant: "destructive"
+        });
+      } finally {
+        setLoadingComments(false);
+      }
+    };
+    
+    loadComments();
+  }, [storyId, currentPage, toast]);
 
   const saveSettings = async () => {
     setLoading(true);
@@ -266,6 +306,7 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
     }
 
     setGenerating(true);
+    setGeneratedContent("");
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -295,16 +336,13 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
       const result = await response.json();
       
       if (result.success && result.data.content) {
-        const updatedStory = { ...storyData };
-        if (updatedStory[currentNode]) {
-          updatedStory[currentNode].text = result.data.content;
-          onStoryUpdate(updatedStory);
-          
-          toast({
-            title: "Content generated",
-            description: `Content for node "${currentNode}" has been updated.`
-          });
-        }
+        // Store the generated content in the state first
+        setGeneratedContent(result.data.content);
+        
+        toast({
+          title: "Content generated",
+          description: "Generated content is available in the output area below."
+        });
       }
     } catch (error) {
       toast({
@@ -317,13 +355,120 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
     }
   };
 
+  const applyGeneratedContent = () => {
+    if (!generatedContent || !currentNode) {
+      toast({
+        title: "No content to apply",
+        description: "Please generate content first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const updatedStory = { ...storyData };
+      if (updatedStory[currentNode]) {
+        updatedStory[currentNode].text = generatedContent;
+        onStoryUpdate(updatedStory);
+        
+        toast({
+          title: "Content applied",
+          description: `Content for node "${currentNode}" has been updated.`
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error applying content",
+        description: (error as Error).message,
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
-    <Tabs defaultValue="settings" className="w-full">
+    <Tabs defaultValue="generate" className="w-full">
       <TabsList className="mb-4">
+        <TabsTrigger value="generate">Generate Content</TabsTrigger>
         <TabsTrigger value="settings">Model Settings</TabsTrigger>
         <TabsTrigger value="context">Context Files</TabsTrigger>
-        <TabsTrigger value="generate">Generate Content</TabsTrigger>
+        <TabsTrigger value="comments">Reader Comments</TabsTrigger>
       </TabsList>
+
+      <TabsContent value="generate" className="space-y-4">
+        <Card className="p-4">
+          <h3 className="text-lg font-medium mb-4">Generate Content for Node: {currentNode}</h3>
+          
+          <div className="space-y-4">
+            <div className="rounded-md bg-blue-50 border border-blue-100 p-3">
+              <p className="text-sm text-blue-800">
+                You are generating content for the story node: <strong>{currentNode}</strong> (Page {currentPage})
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="generation-prompt">Prompt</Label>
+              <Textarea
+                id="generation-prompt"
+                placeholder="Describe what content you want to generate..."
+                value={generationPrompt}
+                onChange={(e) => setGenerationPrompt(e.target.value)}
+                className="min-h-[150px]"
+              />
+              <p className="text-xs text-gray-500">
+                Provide specific instructions about the content you want to generate for this node.
+              </p>
+            </div>
+
+            <Button 
+              onClick={generateContent} 
+              disabled={generating || !generationPrompt.trim()}
+              className="w-full"
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                "Generate Content"
+              )}
+            </Button>
+
+            {/* Generated Content Output Area */}
+            {(generatedContent || generating) && (
+              <div className="mt-6 space-y-4">
+                <div className="flex justify-between items-center">
+                  <h4 className="font-medium">Generated Output</h4>
+                  {generatedContent && (
+                    <Button 
+                      variant="outline" 
+                      onClick={applyGeneratedContent}
+                      className="text-sm"
+                    >
+                      Apply to Story
+                    </Button>
+                  )}
+                </div>
+                <div className="border rounded-md bg-gray-50 p-4 min-h-[200px]">
+                  {generating ? (
+                    <div className="flex justify-center items-center h-[200px]">
+                      <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                    </div>
+                  ) : generatedContent ? (
+                    <div className="prose prose-sm max-w-none">
+                      {generatedContent.split('\n').map((paragraph, idx) => (
+                        <p key={idx} className="mb-4">{paragraph}</p>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-400 italic text-center">Output will appear here after generation</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+      </TabsContent>
 
       <TabsContent value="settings" className="space-y-4">
         <Card className="p-4">
@@ -475,45 +620,55 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
         </Card>
       </TabsContent>
 
-      <TabsContent value="generate" className="space-y-4">
+      <TabsContent value="comments" className="space-y-4">
         <Card className="p-4">
-          <h3 className="text-lg font-medium mb-4">Generate Content for Node: {currentNode}</h3>
+          <h3 className="text-lg font-medium mb-4">
+            Reader Comments for Page {currentPage}
+          </h3>
           
           <div className="space-y-4">
-            <div className="rounded-md bg-blue-50 border border-blue-100 p-3">
-              <p className="text-sm text-blue-800">
-                You are generating content for the story node: <strong>{currentNode}</strong>
+            <div className="rounded-md bg-amber-50 border border-amber-100 p-3">
+              <p className="text-sm text-amber-800 flex items-center">
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Comments from readers can provide useful feedback for your story generation
               </p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="generation-prompt">Prompt</Label>
-              <Textarea
-                id="generation-prompt"
-                placeholder="Describe what content you want to generate..."
-                value={generationPrompt}
-                onChange={(e) => setGenerationPrompt(e.target.value)}
-                className="min-h-[150px]"
-              />
+            {loadingComments ? (
+              <div className="flex justify-center items-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+              </div>
+            ) : comments.length > 0 ? (
+              <ScrollArea className="h-[300px] border rounded-md">
+                <div className="p-4 space-y-4">
+                  {comments.map((comment) => (
+                    <div 
+                      key={comment.id}
+                      className="p-3 rounded-md border bg-gray-50"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <p className="text-sm font-medium">{comment.profile.username}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(comment.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                      <p className="text-sm">{comment.content}</p>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            ) : (
+              <div className="text-center py-8 border rounded-md bg-gray-50">
+                <MessageSquare className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                <p className="text-sm text-gray-500">No comments available for this page</p>
+              </div>
+            )}
+
+            <div className="pt-2">
               <p className="text-xs text-gray-500">
-                Provide specific instructions about the content you want to generate for this node.
+                You can suggest readers to add comments on this page for better feedback.
               </p>
             </div>
-
-            <Button 
-              onClick={generateContent} 
-              disabled={generating || !generationPrompt.trim()}
-              className="w-full"
-            >
-              {generating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                "Generate Content"
-              )}
-            </Button>
           </div>
         </Card>
       </TabsContent>

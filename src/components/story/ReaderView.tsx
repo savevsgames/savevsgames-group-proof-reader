@@ -44,28 +44,34 @@ const ReaderView: React.FC<ReaderViewProps> = ({
         nodeToPage: generatedMappings.storyNodeToPageMap,
         pageToNode: generatedMappings.pageToStoryNodeMap
       });
+      console.log("ReaderView: Generated mappings", generatedMappings);
     } else {
       setMappings(nodeMappings);
+      console.log("ReaderView: Using provided mappings", nodeMappings);
     }
   }, [storyData, nodeMappings]);
 
   // Get current page number from node name using provided mappings
-  const currentPage = mappings.nodeToPage[currentNode] || 1;
+  const currentPage = currentNode && mappings.nodeToPage ? mappings.nodeToPage[currentNode] || 1 : 1;
   
   // Calculate total pages based on number of nodes in the story
-  const totalPages = Object.keys(mappings.pageToNode).length || 
-                    Object.keys(storyData).length;
+  const totalPages = mappings.pageToNode ? Object.keys(mappings.pageToNode).length : 
+                    (storyData ? Object.keys(storyData).length : 1);
 
   // Load the story node's content when currentNode changes
   useEffect(() => {
-    if (!storyData || !currentNode) return;
-    
-    const node = storyData[currentNode];
-    if (!node) {
-      console.error(`Node "${currentNode}" not found in story data`);
+    if (!storyData || !currentNode) {
+      console.log("ReaderView: No storyData or currentNode", { storyData, currentNode });
       return;
     }
     
+    const node = storyData[currentNode];
+    if (!node) {
+      console.error(`ReaderView: Node "${currentNode}" not found in story data`);
+      return;
+    }
+    
+    console.log(`ReaderView: Loading node "${currentNode}"`, node);
     setCurrentText(node.text || "");
     setChoices(node.choices || []);
     setCanContinue(node.choices && node.choices.length === 1 && node.choices[0].text === "Continue");
@@ -75,7 +81,7 @@ const ReaderView: React.FC<ReaderViewProps> = ({
   // Handler for navigating to a specific node
   const handleNavigateToNode = (nodeName: string) => {
     if (!storyData[nodeName]) {
-      console.error(`Node "${nodeName}" not found in story data`);
+      console.error(`ReaderView: Node "${nodeName}" not found in story data`);
       return;
     }
     
@@ -135,11 +141,14 @@ const ReaderView: React.FC<ReaderViewProps> = ({
 
   // Handler for going to a specific page by number
   const handleGoToPage = (pageNumber: number) => {
-    if (pageNumber < 1 || pageNumber > totalPages) return;
+    if (pageNumber < 1 || pageNumber > totalPages) {
+      console.error(`ReaderView: Invalid page number ${pageNumber}, total pages: ${totalPages}`);
+      return;
+    }
     
     const nodeName = mappings.pageToNode[pageNumber];
     if (!nodeName || !storyData[nodeName]) {
-      console.error(`No node found for page ${pageNumber}`);
+      console.error(`ReaderView: No node found for page ${pageNumber}`, mappings.pageToNode);
       toast({
         title: "Navigation Error",
         description: `Could not find content for page ${pageNumber}`,
@@ -147,6 +156,8 @@ const ReaderView: React.FC<ReaderViewProps> = ({
       });
       return;
     }
+    
+    console.log(`ReaderView: Navigating to page ${pageNumber}, node: ${nodeName}`);
     
     // Save current node to history for back navigation
     setHistory(prev => [...prev, currentNode]);
@@ -219,9 +230,15 @@ const ReaderView: React.FC<ReaderViewProps> = ({
       
       {/* Story Content */}
       <div className="bg-[#E8DCC4] p-6 rounded-lg min-h-[300px] prose prose-lg max-w-none prose-headings:font-serif prose-p:font-serif">
-        <div className="text-[#3A2618] font-serif leading-relaxed text-lg mb-8">
-          {formatText(currentText)}
-        </div>
+        {currentText ? (
+          <div className="text-[#3A2618] font-serif leading-relaxed text-lg mb-8">
+            {formatText(currentText)}
+          </div>
+        ) : (
+          <div className="text-[#3A2618] font-serif leading-relaxed text-lg mb-8 italic text-center">
+            No content available for this node.
+          </div>
+        )}
         
         {/* Story Controls */}
         <div className="mt-8">

@@ -1,20 +1,21 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/context/AuthContext";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { fetchComments } from "@/lib/storyUtils";
-import { CommentType, commentTypeColors, commentTypeLabels } from "@/lib/commentTypes";
 import { supabase } from "@/lib/supabase";
-import { MessageCircle, Trash, Copy, Check, X } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { Trash, RefreshCw, MessageCircle } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface CommentsViewProps {
   storyId: string;
   currentNode: string;
-  onCommentsUpdate?: () => void;
-  currentPage?: number;
+  onCommentsUpdate: (count: number) => void;
+  currentPage: number;
 }
 
 interface Comment {
@@ -22,81 +23,87 @@ interface Comment {
   content: string;
   created_at: string;
   user_id: string;
-  comment_type: CommentType;
-  profile?: {
+  profile: {
     username: string;
   };
 }
 
-const CommentsView: React.FC<CommentsViewProps> = ({ 
-  storyId, 
+const CommentsView: React.FC<CommentsViewProps> = ({
+  storyId,
   currentNode,
   onCommentsUpdate,
-  currentPage
+  currentPage,
 }) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
-  const [selectedType, setSelectedType] = useState<CommentType>("suggestion");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Use provided currentPage or default to 1
-  const pageToUse = currentPage || 1;
-
+  // Load comments for the current page
   useEffect(() => {
+    const loadComments = async () => {
+      if (!storyId || currentPage === undefined) return;
+      
+      setLoading(true);
+      try {
+        console.log(`Loading comments for story ${storyId}, page ${currentPage}`);
+        const commentsData = await fetchComments(storyId, currentPage);
+        setComments(commentsData);
+        
+        // Update the comment count in the parent component
+        onCommentsUpdate(commentsData.length);
+      } catch (error) {
+        console.error("Error loading comments:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load comments",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
     loadComments();
-  }, [storyId, currentNode, pageToUse]);
+  }, [storyId, currentPage, onCommentsUpdate, toast]);
 
-  const loadComments = async () => {
-    setLoading(true);
-    try {
-      const commentsData = await fetchComments(storyId, pageToUse);
-      setComments(commentsData);
-      setError(null);
-    } catch (err) {
-      console.error("Error fetching comments:", err);
-      setError("Failed to load comments. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleSubmitComment = async () => {
+    if (!newComment.trim() || !user || !storyId) return;
 
-  const handleAddComment = async () => {
-    if (!user || !newComment.trim()) return;
-    
     setSubmitting(true);
     try {
-      const { data, error } = await supabase
-        .from('comments')
-        .insert({
-          story_id: storyId,
-          user_id: user.id,
-          content: newComment.trim(),
-          story_position: pageToUse,
-          comment_type: selectedType
-        })
-        .select('*, profile:profiles(username)');
+      const { data, error } = await supabase.from("comments").insert({
+        content: newComment.trim(),
+        user_id: user.id,
+        story_id: storyId,
+        story_position: currentPage,
+        story_node: currentNode,
+      }).select(`
+        *,
+        profile:profiles(username)
+      `);
 
       if (error) throw error;
-      
-      setComments(prev => [data[0], ...prev]);
-      setNewComment("");
-      toast({
-        title: "Comment added",
-        description: "Your comment has been added successfully.",
-      });
-      
-      if (onCommentsUpdate) {
-        onCommentsUpdate();
+
+      if (data && data[0]) {
+        setComments([data[0], ...comments]);
+        setNewComment("");
+        
+        // Update the comment count
+        onCommentsUpdate(comments.length + 1);
+        
+        toast({
+          title: "Success",
+          description: "Your comment has been added!",
+        });
       }
-    } catch (err) {
-      console.error("Error adding comment:", err);
+    } catch (error: any) {
+      console.error("Error submitting comment:", error);
       toast({
-        title: "Failed to add comment",
-        description: "There was an error adding your comment. Please try again.",
+        title: "Error",
+        description: error.message || "Failed to submit comment",
         variant: "destructive",
       });
     } finally {
@@ -105,180 +112,163 @@ const CommentsView: React.FC<CommentsViewProps> = ({
   };
 
   const handleDeleteComment = async (commentId: string) => {
+    if (!user || !commentId) return;
+
     try {
       const { error } = await supabase
-        .from('comments')
+        .from("comments")
         .delete()
-        .eq('id', commentId);
+        .eq("id", commentId)
+        .eq("user_id", user.id);
 
       if (error) throw error;
+
+      // Remove the deleted comment from the list
+      const updatedComments = comments.filter((c) => c.id !== commentId);
+      setComments(updatedComments);
       
-      setComments(prev => prev.filter(comment => comment.id !== commentId));
+      // Update the comment count
+      onCommentsUpdate(updatedComments.length);
+      
       toast({
-        title: "Comment deleted",
-        description: "The comment has been deleted successfully.",
+        title: "Success",
+        description: "Comment deleted successfully",
       });
-      
-      if (onCommentsUpdate) {
-        onCommentsUpdate();
-      }
-    } catch (err) {
-      console.error("Error deleting comment:", err);
+    } catch (error: any) {
+      console.error("Error deleting comment:", error);
       toast({
-        title: "Failed to delete comment",
-        description: "There was an error deleting the comment. Please try again.",
+        title: "Error",
+        description: error.message || "Failed to delete comment",
         variant: "destructive",
       });
     }
   };
 
-  const handleCopyToClipboard = async (content: string) => {
+  const refreshComments = async () => {
+    if (!storyId || currentPage === undefined) return;
+    
+    setLoading(true);
     try {
-      await navigator.clipboard.writeText(content);
+      const refreshedComments = await fetchComments(storyId, currentPage);
+      setComments(refreshedComments);
+      
+      // Update the comment count
+      onCommentsUpdate(refreshedComments.length);
+      
       toast({
-        title: "Comment copied",
-        description: "The comment has been copied to clipboard.",
+        title: "Refreshed",
+        description: "Comments have been refreshed",
       });
-    } catch (err) {
+    } catch (error) {
+      console.error("Error refreshing comments:", error);
       toast({
-        title: "Copy failed",
-        description: "Failed to copy to clipboard.",
+        title: "Error",
+        description: "Failed to refresh comments",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
   };
 
   return (
-    <div className="flex flex-col h-full space-y-4">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium">Comments for Page {pageToUse}</h3>
-        {loading && <span className="text-sm text-gray-500">Loading...</span>}
+        <h3 className="text-lg font-medium">
+          Comments for Page {currentPage}
+        </h3>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={refreshComments}
+          disabled={loading}
+          title="Refresh Comments"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+        </Button>
       </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-3 text-red-600">
-          {error}
+      {user ? (
+        <div className="space-y-4">
+          <Textarea
+            placeholder="Add your comment..."
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            className="min-h-[100px]"
+          />
+          <Button
+            onClick={handleSubmitComment}
+            disabled={!newComment.trim() || submitting}
+            className="w-full"
+          >
+            {submitting ? "Submitting..." : "Add Comment"}
+          </Button>
+        </div>
+      ) : (
+        <div className="bg-slate-100 p-4 rounded-md text-center">
+          <p className="text-slate-600">
+            Please sign in to leave a comment.
+          </p>
         </div>
       )}
 
-      <div className="flex flex-col space-y-4">
-        {user ? (
-          <>
-            <Textarea
-              placeholder="Add a comment..."
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              className="min-h-[100px] resize-none"
-            />
-            
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium">Type:</span>
-                <div className="flex space-x-1">
-                  {(Object.keys(commentTypeLabels) as CommentType[]).map((type) => (
-                    <Button
-                      key={type}
-                      type="button"
-                      variant={selectedType === type ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setSelectedType(type)}
-                      className={`px-2 py-1 ${selectedType === type ? 'bg-[#F97316]' : ''}`}
-                    >
-                      {commentTypeLabels[type]}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              
-              <Button
-                onClick={handleAddComment}
-                disabled={!newComment.trim() || submitting}
-                className="bg-[#F97316] hover:bg-[#E86305] text-white"
-              >
-                {submitting ? (
-                  <>
-                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent mr-2"></span>
-                    Posting...
-                  </>
-                ) : (
-                  <>
-                    <MessageCircle className="h-4 w-4 mr-2" />
-                    Add Comment
-                  </>
-                )}
-              </Button>
-            </div>
-          </>
-        ) : (
-          <div className="bg-gray-50 p-4 text-center rounded-md">
-            Please log in to add comments
-          </div>
-        )}
+      <div className="border-t pt-4">
+        <h4 className="font-medium mb-4 flex items-center">
+          <MessageCircle className="h-4 w-4 mr-2" />
+          {comments.length} {comments.length === 1 ? "Comment" : "Comments"}
+        </h4>
 
-        <ScrollArea className="h-[300px] border rounded-md p-4">
-          {comments.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">
-              No comments yet for this page.
-            </div>
-          ) : (
+        {loading ? (
+          <div className="py-12 text-center">
+            <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-current border-r-transparent"></div>
+            <p className="mt-2 text-sm text-gray-500">Loading comments...</p>
+          </div>
+        ) : comments.length > 0 ? (
+          <ScrollArea className="h-[400px] pr-4">
             <div className="space-y-4">
               {comments.map((comment) => (
-                <div 
-                  key={comment.id} 
-                  className="p-3 rounded-md border"
-                  style={{ 
-                    backgroundColor: `${commentTypeColors[comment.comment_type as CommentType] || '#F8F9FA'}` 
-                  }}
+                <div
+                  key={comment.id}
+                  className="p-4 border rounded-md bg-slate-50"
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <span className="font-medium">
-                        {comment.profile?.username || 'Anonymous'}
-                      </span>
-                      <span className="text-xs text-gray-500 ml-2">
-                        {formatDate(comment.created_at)}
-                      </span>
-                      <span className="text-xs ml-2 px-1.5 py-0.5 rounded bg-white/50">
-                        {commentTypeLabels[comment.comment_type as CommentType] || 'Comment'}
-                      </span>
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center">
+                      <Avatar className="h-8 w-8 mr-2">
+                        <AvatarFallback>
+                          {comment.profile.username.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{comment.profile.username}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(comment.created_at).toLocaleString()}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex space-x-1">
+                    {user && user.id === comment.user_id && (
                       <Button
                         variant="ghost"
-                        size="sm"
-                        onClick={() => handleCopyToClipboard(comment.content)}
-                        className="h-6 w-6 p-0"
+                        size="icon"
+                        onClick={() => handleDeleteComment(comment.id)}
+                        title="Delete Comment"
                       >
-                        <Copy className="h-3.5 w-3.5" />
+                        <Trash className="h-4 w-4 text-red-500" />
                       </Button>
-                      {(user?.id === comment.user_id) && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteComment(comment.id)}
-                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                        >
-                          <Trash className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </div>
+                    )}
                   </div>
-                  <p className="whitespace-pre-wrap text-sm">{comment.content}</p>
+                  <p className="mt-2 text-gray-700 whitespace-pre-wrap">
+                    {comment.content}
+                  </p>
                 </div>
               ))}
             </div>
-          )}
-        </ScrollArea>
+          </ScrollArea>
+        ) : (
+          <div className="py-12 text-center border rounded-md">
+            <MessageCircle className="h-12 w-12 mx-auto text-gray-300" />
+            <p className="mt-2 text-gray-500">No comments yet</p>
+          </div>
+        )}
       </div>
     </div>
   );

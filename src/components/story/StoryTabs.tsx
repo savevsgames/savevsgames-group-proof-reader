@@ -51,6 +51,8 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
         nodeToPage: storyNodeToPageMap,
         pageToNode: pageToStoryNodeMap
       });
+      
+      console.log("StoryTabs: Generated mappings", { storyNodeToPageMap, pageToStoryNodeMap });
     }
   }, [storyData]);
   
@@ -65,9 +67,9 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
     setActiveTab(value as TabType);
   };
 
-  const handleCommentsUpdate = () => {
-    // Trigger comment count refresh
-    setCommentCount(prev => prev + 1);
+  const handleCommentsUpdate = (count: number) => {
+    // Update comment count with the provided value
+    setCommentCount(count);
   };
 
   // Calculate current page number from node name
@@ -144,6 +146,7 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
               onStoryDataChange(data);
               onUnsavedChanges(true);
             }}
+            currentPage={currentPage}
           />
         </TabsContent>
       </Card>
