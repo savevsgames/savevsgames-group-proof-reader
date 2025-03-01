@@ -84,8 +84,7 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
         
         {/* Comments page - only shows comments */}
         <div className="w-full md:w-3/5 lg:w-[55%] mb-4 md:mb-0">
-          <div className="w-full bg-white p-4 md:p-6 lg:p-8 min-h-[400px] md:min-h-[600px] rounded-lg md:rounded-none">
-            <h3 className="text-xl font-serif mb-4">Comments</h3>
+          <div className="w-full bg-[#E8DCC4] p-4 md:p-6 lg:p-8 min-h-[400px] md:min-h-[600px] rounded-lg md:rounded-none book-page">
             <CommentsView 
               storyId={storyId}
               currentNode={currentNode}
