@@ -1,36 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { MessageSquare, Send, X, ShieldCheck } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { MessageSquare, ShieldCheck } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
-import { CommentType, commentTypeColors, commentTypeLabels } from "@/lib/commentTypes";
-import { User } from "@/lib/supabase";
+import { CommentType } from "@/lib/commentTypes";
 import { useNavigate } from 'react-router-dom';
+import { Button } from "@/components/ui/button";
+import CommentsList from './comments/CommentsList';
+import CommentForm from './comments/CommentForm';
+import { Comment, CommentModalProps } from './comments/types';
 
-export interface Comment {
-  id: string;
-  user_id: string;
-  story_id: string;
-  story_position: number; // Changed to number
-  text: string;
-  comment_type: CommentType;
-  created_at: string;
-  updated_at: string;
-  profile?: {
-    username: string;
-  };
-}
-
-interface CommentModalProps {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  storyId: string;
-  storyPosition: number; // Changed to number
-  currentUser: User | null;
-}
+export { Comment } from './comments/types';
 
 export const CommentModal: React.FC<CommentModalProps> = ({
   isOpen,
@@ -226,29 +207,10 @@ export const CommentModal: React.FC<CommentModalProps> = ({
     setSelectedCommentType('edit');
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  // Check if a comment is owned by current user
-  const isOwnComment = (comment: Comment) => {
-    return currentUser && comment.user_id === currentUser.id;
-  };
-
-  // Display either username or "Anonymous" based on ownership and available data
-  const getDisplayName = (comment: Comment) => {
-    if (isOwnComment(comment)) {
-      return "You";
-    }
-    
-    // Return the username from the profile if available, otherwise show "Anonymous"
-    return comment.profile?.username || "Anonymous";
+  const handleEditComment = (comment: Comment) => {
+    setEditingComment(comment);
+    setCommentText(comment.text);
+    setSelectedCommentType(comment.comment_type);
   };
 
   return (
@@ -278,134 +240,48 @@ export const CommentModal: React.FC<CommentModalProps> = ({
           </DialogTitle>
           <DialogDescription className="text-[#3A2618]/70 font-serif">
             {editingComment 
-              ? (isOwnComment(editingComment) 
+              ? (editingComment.user_id === currentUser?.id 
                   ? "Edit your comment below" 
                   : "Edit this comment (moderator mode)")
               : "Leave feedback or notes for the author about this part of the story."}
           </DialogDescription>
         </DialogHeader>
 
-        {isLoading && !editingComment && (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3A2618] mx-auto"></div>
-            <p className="mt-2 text-[#3A2618]/70">Loading comments...</p>
-          </div>
+        {/* Only show comments list when not editing */}
+        {!editingComment && (
+          <CommentsList
+            comments={comments}
+            isLoading={isLoading}
+            currentUser={currentUser}
+            isModerator={isModerator}
+            onEditComment={handleEditComment}
+          />
         )}
-
-        {!isLoading && (
-          <>
-            {/* Only show comments list when not editing */}
-            {!editingComment && (
-              <div className="max-h-[300px] overflow-y-auto mb-4">
-                {comments.length === 0 ? (
-                  <div className="text-center py-8 text-[#3A2618]/60 italic">
-                    No comments yet. Be the first to leave feedback!
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {comments.map((comment) => (
-                      <div 
-                        key={comment.id} 
-                        className="p-4 rounded-md border border-[#3A2618]/20 relative"
-                        style={{ backgroundColor: `${commentTypeColors[comment.comment_type]}20` }}
-                      >
-                        <div 
-                          className="inline-block px-2 py-1 rounded text-xs font-medium mb-2"
-                          style={{ 
-                            backgroundColor: commentTypeColors[comment.comment_type],
-                            color: ['suggestion', 'spelling'].includes(comment.comment_type) ? '#3A2618' : 'white'
-                          }}
-                        >
-                          {commentTypeLabels[comment.comment_type]}
-                        </div>
-                        
-                        <p className="text-[#3A2618] mb-2">{comment.text}</p>
-                        
-                        <div className="flex justify-between items-center text-[#3A2618]/60 text-xs">
-                          <span>{getDisplayName(comment)}</span>
-                          <span>{formatDate(comment.created_at)}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {(!currentUser && !editingComment) ? (
-              <div className="bg-[#3A2618]/10 p-4 rounded-md text-center">
-                <p className="text-[#3A2618] mb-2">Please sign in to add comments</p>
-                <Button 
-                  onClick={() => {
-                    onOpenChange(false);
-                    navigate('/auth');
-                  }}
-                  className="bg-[#F97316] hover:bg-[#E86305] text-[#E8DCC4]"
-                >
-                  Sign In
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-[#3A2618] mb-1">
-                    Comment Type
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {Object.entries(commentTypeLabels).map(([type, label]) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => setSelectedCommentType(type as CommentType)}
-                        className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                          selectedCommentType === type ? 'ring-2 ring-[#3A2618]' : ''
-                        }`}
-                        style={{ 
-                          backgroundColor: commentTypeColors[type as CommentType],
-                          color: ['suggestion', 'spelling'].includes(type as CommentType) ? '#3A2618' : 'white'
-                        }}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-[#3A2618] mb-1">
-                    {editingComment ? "Edit Comment" : "Your Comment"}
-                  </label>
-                  <Textarea
-                    placeholder="Add your comment or feedback here..."
-                    className="bg-white border-[#3A2618]/20 text-[#3A2618] min-h-[100px]"
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                  />
-                </div>
-
-                <DialogFooter className="flex sm:justify-between">
-                  {editingComment && (
-                    <Button
-                      variant="outline"
-                      onClick={cancelEdit}
-                      className="border-[#3A2618]/20 text-[#3A2618]"
-                    >
-                      <X className="mr-2 h-4 w-4" />
-                      Cancel
-                    </Button>
-                  )}
-                  <Button 
-                    onClick={handleSubmit}
-                    disabled={isLoading}
-                    className="bg-[#F97316] hover:bg-[#E86305] text-[#E8DCC4] ml-auto"
-                  >
-                    <Send className="mr-2 h-4 w-4" />
-                    {editingComment ? "Save Changes" : "Submit Comment"}
-                  </Button>
-                </DialogFooter>
-              </div>
-            )}
-          </>
+        
+        {(!currentUser && !editingComment) ? (
+          <div className="bg-[#3A2618]/10 p-4 rounded-md text-center">
+            <p className="text-[#3A2618] mb-2">Please sign in to add comments</p>
+            <Button 
+              onClick={() => {
+                onOpenChange(false);
+                navigate('/auth');
+              }}
+              className="bg-[#F97316] hover:bg-[#E86305] text-[#E8DCC4]"
+            >
+              Sign In
+            </Button>
+          </div>
+        ) : (
+          <CommentForm
+            commentText={commentText}
+            setCommentText={setCommentText}
+            selectedCommentType={selectedCommentType}
+            setSelectedCommentType={setSelectedCommentType}
+            handleSubmit={handleSubmit}
+            isLoading={isLoading}
+            editingComment={editingComment}
+            cancelEdit={cancelEdit}
+          />
         )}
       </DialogContent>
     </Dialog>
