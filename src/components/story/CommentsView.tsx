@@ -39,36 +39,34 @@ const CommentsView = ({
 
   return (
     <div className="flex flex-col h-full">
-      <h2 className="text-2xl font-serif mb-6 text-[#3A2618]">Reader Comments</h2>
+      <h2 className="text-2xl font-serif mb-4 text-[#3A2618]">Reader Comments</h2>
       
-      <ScrollArea className="flex-1 overflow-hidden">
-        <div className="space-y-6 pr-4">
-          {user ? (
-            <CommentForm
-              user={user}
-              storyId={storyId}
-              currentNode={currentNode}
-              currentPage={currentPage}
-              isEditing={isEditing}
-              editingCommentId={editingCommentId}
-              commentText={commentText}
-              commentType={commentType as CommentType}
-              onCommentTextChange={setCommentText}
-              onCommentTypeChange={setCommentType}
-              onCancelEdit={handleCancelEdit}
-              onCommentsUpdate={onCommentsUpdate}
-              comments={comments}
-            />
-          ) : null}
-          
-          <CommentSection
-            user={user}
-            comments={comments}
-            onEditComment={handleEditComment}
-            onDeleteComment={deleteComment}
-            onAddToLlmContext={onAddToLlmContext}
-          />
-        </div>
+      {user ? (
+        <CommentForm
+          user={user}
+          storyId={storyId}
+          currentNode={currentNode}
+          currentPage={currentPage}
+          isEditing={isEditing}
+          editingCommentId={editingCommentId}
+          commentText={commentText}
+          commentType={commentType as CommentType}
+          onCommentTextChange={setCommentText}
+          onCommentTypeChange={setCommentType}
+          onCancelEdit={handleCancelEdit}
+          onCommentsUpdate={onCommentsUpdate}
+          comments={comments}
+        />
+      ) : null}
+      
+      <ScrollArea className="flex-1 min-h-0 overflow-hidden">
+        <CommentSection
+          user={user}
+          comments={comments}
+          onEditComment={handleEditComment}
+          onDeleteComment={deleteComment}
+          onAddToLlmContext={onAddToLlmContext}
+        />
       </ScrollArea>
     </div>
   );

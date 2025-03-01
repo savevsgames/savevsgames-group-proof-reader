@@ -24,7 +24,7 @@ const CommentSection = ({
   const navigate = useNavigate();
 
   return (
-    <div className="book-page-texture rounded-md p-4">
+    <div className="book-page-texture rounded-md p-4 mb-4">
       <h3 className="font-medium text-[#3A2618] mb-4 font-serif">{comments.length} Comments</h3>
       {user ? (
         <CommentsList 
