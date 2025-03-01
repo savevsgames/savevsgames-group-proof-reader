@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useBeforeUnload } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
@@ -41,28 +40,54 @@ const StoryEditPage = () => {
     )
   );
 
-  // Calculate total pages based on story data
+  // Calculate total pages based on story data - updated to match reader behavior
   useEffect(() => {
     if (storyData) {
-      const numberOfNodes = Object.keys(storyData).length;
-      setTotalPages(Math.max(numberOfNodes, 1));
+      // For our story format, we consider each node to be a page
+      // Using Object.keys().length gives us accurate count including all nodes
+      const totalNodes = Object.keys(storyData).length;
+      
+      // Set total pages based on number of nodes, or use story.total_pages if available
+      const calculatedPages = Math.max(totalNodes, 1);
+      setTotalPages(story?.total_pages || calculatedPages);
+      
+      console.log(`Total story nodes: ${totalNodes}, Set total pages to: ${calculatedPages}`);
     }
-  }, [storyData]);
+  }, [storyData, story]);
 
   // Handle page change
   const handlePageChange = (newPage: number) => {
-    // Calculate node name from page number
-    const nodeName = Object.keys(storyData || {})[newPage - 1] || "root";
-      
+    if (newPage < 1 || newPage > totalPages) return;
+    
+    // Get the node name for this page
+    const nodeName = pageToStoryNodeMap[newPage] || Object.keys(storyData || {})[newPage - 1] || "root";
+    
+    console.log(`Page changed to ${newPage}, corresponding to node: ${nodeName}`);
     setCurrentNode(nodeName);
     setCurrentPage(newPage);
   };
 
   // Handle node change
   const handleNodeChange = (nodeName: string) => {
+    if (!nodeName || !storyData || !storyData[nodeName]) return;
+    
     setCurrentNode(nodeName);
-    // Calculate page number from node name using the storyNodeToPageMap
-    const pageNumber = storyNodeToPageMap[nodeName] || 1;
+    
+    // Calculate page number from node
+    let pageNumber = 1;
+    if (storyNodeToPageMap[nodeName]) {
+      // If we have a direct mapping, use it
+      pageNumber = storyNodeToPageMap[nodeName];
+    } else {
+      // Otherwise calculate position in nodes array
+      const nodes = Object.keys(storyData);
+      const nodeIndex = nodes.indexOf(nodeName);
+      if (nodeIndex !== -1) {
+        pageNumber = nodeIndex + 1;
+      }
+    }
+    
+    console.log(`Node changed to ${nodeName}, corresponding to page: ${pageNumber}`);
     setCurrentPage(pageNumber);
   };
 
@@ -136,9 +161,7 @@ const StoryEditPage = () => {
             setStoryData(storyContent);
             setError(null);
             
-            // Calculate total pages
-            const numberOfNodes = Object.keys(storyContent).length;
-            setTotalPages(Math.max(numberOfNodes, 1));
+            // We'll calculate total pages in the useEffect
           } else {
             // Create a default empty story structure as fallback
             console.log("No valid story content found, creating default structure");
@@ -170,6 +193,7 @@ const StoryEditPage = () => {
 
   const handleStoryDataChange = (data: CustomStory) => {
     setStoryData(data);
+    setHasUnsavedChanges(true);
   };
 
   const handleSave = async () => {
