@@ -4,6 +4,8 @@ import { ChevronLeft, ChevronRight, SkipBack, BookOpen, AlertCircle, Code } from
 import { CustomStory } from "@/lib/storyUtils";
 import { useToast } from "@/hooks/use-toast";
 import { NodeMappings } from "@/lib/storyNodeMapping";
+import { useStoryStore } from "@/stores/storyState";
+import { shallow } from "zustand/shallow";
 
 interface ReaderViewProps {
   storyId: string;
@@ -23,13 +25,21 @@ const ReaderView: React.FC<ReaderViewProps> = ({
     pageToNode: {}
   }
 }) => {
+  const { toast } = useToast();
+  const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<string[]>([]);
+  
+  const { totalPages } = useStoryStore(
+    state => ({
+      totalPages: state.totalPages
+    }),
+    shallow
+  );
+  
   const [currentText, setCurrentText] = useState<string>("");
   const [choices, setChoices] = useState<any[]>([]);
   const [canContinue, setCanContinue] = useState<boolean>(false);
   const [isEnding, setIsEnding] = useState<boolean>(false);
-  const [history, setHistory] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
   
   console.log("[ReaderView] Rendering with:", { 
     currentNode, 
@@ -37,7 +47,6 @@ const ReaderView: React.FC<ReaderViewProps> = ({
   });
 
   const currentPage = currentNode ? (nodeMappings.nodeToPage[currentNode] || 1) : 1;
-  const totalPages = Object.keys(nodeMappings.pageToNode).length || 1;
   
   console.log(`[ReaderView] Navigation state: Page ${currentPage}/${totalPages}`);
 
@@ -369,10 +378,7 @@ const ReaderView: React.FC<ReaderViewProps> = ({
         </div>
         <p>Current Page: <span className="font-mono">{currentPage}</span></p>
         <p>Available Choices: {choices.length}</p>
-        <p>Valid Pages: {validPages.length > 10 ? 
-          `${validPages.slice(0, 5).join(', ')}... (${validPages.length} total)` : 
-          validPages.join(', ')}
-        </p>
+        <p>Store Total Pages: {totalPages}</p>
       </div>
     </div>
   );

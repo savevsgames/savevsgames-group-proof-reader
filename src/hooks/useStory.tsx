@@ -1,65 +1,99 @@
 
-import { useState, useEffect, useCallback } from 'react';
-import { useToast } from '@/hooks/use-toast';
-import { useStoryLoading } from './useStoryLoading';
-import { useNavigation } from './navigation/useNavigation';
+import { useEffect } from "react";
+import { useStoryStore } from "@/stores/storyState";
+import { shallow } from "zustand/shallow";
 
 export const useStory = (storyId: string | undefined) => {
   const {
-    story,
-    customStory,
-    usingCustomFormat,
-    bookTitle,
-    isLoading,
-    error,
-    totalPages,
-    nodeMappings
-  } = useStoryLoading(storyId);
-
-  // Initialize navigation with loaded story data
-  const [navigationState, navigationActions] = useNavigation({
-    storyData: customStory,
-    story,
-    usingCustomFormat,
-    storyId,
-    nodeMappings,
-    totalPages
-  });
-
+    initializeStory,
+    updateCommentCount,
+    loading,
+    // ... extract all other state/actions we need
+  } = useStoryStore(
+    state => ({
+      // Story state
+      story: state.story,
+      storyData: state.storyData,
+      usingCustomFormat: state.usingCustomFormat,
+      loading: state.loading,
+      error: state.error,
+      title: state.title,
+      totalPages: state.totalPages,
+      
+      // Navigation state
+      currentNode: state.currentNode,
+      currentPage: state.currentPage,
+      currentText: state.currentText,
+      currentChoices: state.currentChoices,
+      canContinue: state.canContinue,
+      canGoBack: state.canGoBack,
+      commentCount: state.commentCount,
+      currentStoryPosition: state.currentStoryPosition,
+      
+      // Actions
+      initializeStory: state.initializeStory,
+      updateCommentCount: () => {
+        if (storyId) {
+          state.setCommentCount(state.commentCount);
+        }
+      },
+      handleContinue: state.handleContinue,
+      handleChoice: state.handleChoice,
+      handleBack: state.goBack,
+      handleRestart: state.handleRestart,
+      handlePageChange: state.handlePageChange,
+    }),
+    shallow
+  );
+  
+  // Initialize story when the component mounts
+  useEffect(() => {
+    if (storyId) {
+      initializeStory(storyId);
+    }
+  }, [storyId, initializeStory]);
+  
   // Load comment count when navigation state changes
   useEffect(() => {
-    if (!isLoading && storyId) {
-      navigationActions.updateCommentCount();
+    if (!loading && storyId) {
+      updateCommentCount();
     }
-  }, [isLoading, navigationState.currentStoryPosition, storyId, navigationActions]);
-
-  // Destructure and return all the components of our hook
-  return {
-    // Story state
-    story,
-    customStory,
-    usingCustomFormat,
-    isLoading,
-    error,
-    bookTitle,
-    totalPages,
-    
-    // Navigation state
-    currentNode: navigationState.currentNode,
-    currentPage: navigationState.currentPage,
-    currentText: navigationState.currentText,
-    currentChoices: navigationState.currentChoices,
-    canContinue: navigationState.canContinue,
-    canGoBack: navigationState.canGoBack,
-    commentCount: navigationState.commentCount,
-    currentStoryPosition: navigationState.currentStoryPosition,
-    
-    // Navigation actions
-    handleContinue: navigationActions.handleContinue,
-    handleChoice: navigationActions.handleChoice,
-    handleBack: navigationActions.handleBack,
-    handleRestart: navigationActions.handleRestart,
-    handlePageChange: navigationActions.handlePageChange,
-    updateCommentCount: navigationActions.updateCommentCount,
-  };
+  }, [loading, storyId, updateCommentCount]);
+  
+  // Return all the state and actions from the store
+  return useStoryStore(
+    state => ({
+      // Story state
+      story: state.story,
+      customStory: state.storyData,
+      usingCustomFormat: state.usingCustomFormat,
+      isLoading: state.loading,
+      error: state.error,
+      bookTitle: state.title,
+      totalPages: state.totalPages,
+      
+      // Navigation state
+      currentNode: state.currentNode,
+      currentPage: state.currentPage,
+      currentText: state.currentText,
+      currentChoices: state.currentChoices,
+      canContinue: state.canContinue,
+      canGoBack: state.canGoBack,
+      commentCount: state.commentCount,
+      currentStoryPosition: state.currentStoryPosition,
+      
+      // Navigation actions
+      handleContinue: state.handleContinue,
+      handleChoice: state.handleChoice,
+      handleBack: state.goBack,
+      handleRestart: state.handleRestart,
+      handlePageChange: state.handlePageChange,
+      updateCommentCount: () => {
+        if (storyId) {
+          state.setCommentCount(state.commentCount);
+        }
+      },
+    }),
+    shallow
+  );
 };

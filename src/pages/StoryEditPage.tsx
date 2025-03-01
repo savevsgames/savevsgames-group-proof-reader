@@ -1,4 +1,5 @@
-import React, { useCallback } from "react";
+
+import React, { useCallback, useEffect } from "react";
 import { useParams, useBeforeUnload } from "react-router-dom";
 import Header from "@/components/Header";
 import StoryEditorHeader from "@/components/story/editor/StoryEditorHeader";
@@ -7,15 +8,17 @@ import LoadingState from "@/components/story/editor/LoadingState";
 import ErrorState from "@/components/story/editor/ErrorState";
 import EmptyState from "@/components/story/editor/EmptyState";
 import UnsavedChangesDialog from "@/components/story/editor/UnsavedChangesDialog";
-import { useStoryEditor } from "@/hooks/useStoryEditor";
+import { useStoryStore } from "@/stores/storyState";
+import { shallow } from "zustand/shallow";
 
 const StoryEditPage = () => {
   const { id } = useParams();
   const storyId = id as string;
   
+  // Select only the state we need from the store
   const {
-    story,
     storyData,
+    title,
     loading,
     error,
     saving,
@@ -23,15 +26,48 @@ const StoryEditPage = () => {
     currentNode,
     currentPage,
     totalPages,
-    isLeaveDialogOpen,
-    setIsLeaveDialogOpen,
+    initializeStory,
     handlePageChange,
     handleNodeChange,
-    handleNavigation,
-    confirmNavigation,
+    handleNavigate,
     handleStoryDataChange,
     handleSave,
-  } = useStoryEditor(storyId);
+  } = useStoryStore(
+    state => ({
+      storyData: state.storyData,
+      title: state.title,
+      loading: state.loading,
+      error: state.error,
+      saving: state.saving,
+      hasUnsavedChanges: state.hasUnsavedChanges,
+      currentNode: state.currentNode,
+      currentPage: state.currentPage,
+      totalPages: state.totalPages,
+      initializeStory: state.initializeStory,
+      handlePageChange: state.handlePageChange,
+      handleNodeChange: state.handleNodeChange,
+      handleNavigate: (target: string) => {
+        if (target === 'back' && state.canGoBack) {
+          state.goBack();
+        } else if (target === 'restart') {
+          state.handleRestart();
+        }
+      },
+      handleStoryDataChange: state.handleStoryDataChange,
+      handleSave: state.handleSave,
+    }),
+    shallow // Use shallow comparison to prevent unnecessary rerenders
+  );
+  
+  // State for leave dialog
+  const [isLeaveDialogOpen, setIsLeaveDialogOpen] = React.useState(false);
+  
+  // Initialize story on component mount
+  useEffect(() => {
+    if (storyId) {
+      initializeStory(storyId);
+    }
+  }, [storyId, initializeStory]);
 
   // Warn the user if they try to close the tab with unsaved changes
   useBeforeUnload(
@@ -45,6 +81,10 @@ const StoryEditPage = () => {
       [hasUnsavedChanges]
     )
   );
+  
+  const confirmNavigation = () => {
+    setIsLeaveDialogOpen(false);
+  };
 
   return (
     <div className="bg-[#F5F1E8] min-h-screen">
@@ -53,7 +93,7 @@ const StoryEditPage = () => {
       <main className="container mx-auto py-8 px-4">
         {/* Header with page navigation */}
         <StoryEditorHeader
-          title={story?.title || "Untitled Story"}
+          title={title}
           currentPage={currentPage}
           totalPages={totalPages}
           hasUnsavedChanges={hasUnsavedChanges}
@@ -79,7 +119,7 @@ const StoryEditPage = () => {
                 onUnsavedChanges={setIsLeaveDialogOpen}
                 onNodeChange={handleNodeChange}
                 onSave={handleSave}
-                onNavigate={handleNavigation}
+                onNavigate={handleNavigate}
               />
             ) : (
               <EmptyState />

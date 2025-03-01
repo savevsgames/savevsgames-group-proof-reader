@@ -1,12 +1,13 @@
 
-import React, { useState } from 'react';
-import { useStory } from '@/hooks/useStory';
-import { CommentModal } from './CommentModal';
-import { BookLayout } from './story/BookLayout';
-import { useAuth } from '@/context/AuthContext';
-import { fetchComments } from '@/lib/storyUtils';
-import { Comment } from './comments/types';
-import { User } from '@supabase/supabase-js';
+import React, { useState, useEffect } from "react";
+import { CommentModal } from "./CommentModal";
+import { BookLayout } from "./story/BookLayout";
+import { useAuth } from "@/context/AuthContext";
+import { fetchComments } from "@/lib/storyUtils";
+import { Comment } from "./comments/types";
+import { User } from "@supabase/supabase-js";
+import { useStoryStore } from "@/stores/storyState";
+import { shallow } from "zustand/shallow";
 
 interface StoryEngineProps {
   storyId: string;
@@ -15,10 +16,11 @@ interface StoryEngineProps {
 export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
   const { user } = useAuth();
   
+  // Get state from our global store
   const {
-    isLoading,
+    loading,
     error,
-    bookTitle,
+    title: bookTitle,
     currentPage,
     totalPages,
     currentText,
@@ -30,11 +32,36 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
     currentNode,
     handleContinue,
     handleChoice,
-    handleBack,
+    goBack: handleBack,
     handleRestart,
     handlePageChange,
     updateCommentCount,
-  } = useStory(storyId);
+  } = useStoryStore(state => ({
+    loading: state.loading,
+    error: state.error,
+    title: state.title,
+    currentPage: state.currentPage,
+    totalPages: state.totalPages,
+    currentText: state.currentText,
+    currentChoices: state.currentChoices,
+    canContinue: state.canContinue,
+    canGoBack: state.canGoBack,
+    commentCount: state.commentCount,
+    currentStoryPosition: state.currentStoryPosition,
+    currentNode: state.currentNode,
+    handleContinue: state.handleContinue,
+    handleChoice: state.handleChoice,
+    goBack: state.goBack,
+    handleRestart: state.handleRestart,
+    handlePageChange: state.handlePageChange,
+    updateCommentCount: () => {
+      if (storyId) {
+        fetchCommentCount(storyId, state.currentStoryPosition).then(count => {
+          state.setCommentCount(count);
+        });
+      }
+    }
+  }), shallow);
 
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -55,7 +82,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
     }
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex justify-center items-center h-[60vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8DCC4]"></div>
@@ -80,7 +107,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
         currentPage={currentPage}
         totalPages={totalPages}
         currentText={currentText}
-        currentNode={currentNode || 'root'}
+        currentNode={currentNode}
         canContinue={canContinue}
         choices={currentChoices}
         isEnding={!canContinue && currentChoices.length === 0}
