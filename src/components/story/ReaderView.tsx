@@ -1,23 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, SkipBack, BookOpen, AlertCircle } from "lucide-react";
-import { 
-  CustomStory,
-  storyNodeToPageMap,
-  pageToStoryNodeMap,
-  parseInkNode
-} from "@/lib/storyUtils";
+import { ChevronLeft, ChevronRight, SkipBack, BookOpen, AlertCircle, Code } from "lucide-react";
+import { CustomStory } from "@/lib/storyUtils";
 import { useToast } from "@/hooks/use-toast";
+import { NodeMappings } from "@/lib/storyEditorUtils";
 
 interface ReaderViewProps {
   storyId: string;
   storyData: CustomStory;
   currentNode: string;
   onNodeChange?: (nodeName: string) => void;
-  nodeMappings?: {
-    nodeToPage: Record<string, number>;
-    pageToNode: Record<number, string>;
-  };
+  nodeMappings?: NodeMappings;
 }
 
 const ReaderView: React.FC<ReaderViewProps> = ({
@@ -26,8 +19,8 @@ const ReaderView: React.FC<ReaderViewProps> = ({
   currentNode,
   onNodeChange,
   nodeMappings = { 
-    nodeToPage: storyNodeToPageMap, 
-    pageToNode: pageToStoryNodeMap
+    nodeToPage: {}, 
+    pageToNode: {}
   }
 }) => {
   const [currentText, setCurrentText] = useState<string>("");
@@ -37,13 +30,23 @@ const ReaderView: React.FC<ReaderViewProps> = ({
   const [history, setHistory] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  
+  console.log("[ReaderView] Rendering with:", { 
+    currentNode, 
+    mappedPage: nodeMappings.nodeToPage[currentNode] 
+  });
 
   const currentPage = currentNode ? (nodeMappings.nodeToPage[currentNode] || 1) : 1;
-  const totalPages = Object.keys(nodeMappings.pageToNode).length;
+  const totalPages = Object.keys(nodeMappings.pageToNode).length || 1;
+  
+  console.log(`[ReaderView] Navigation state: Page ${currentPage}/${totalPages}`);
 
   useEffect(() => {
     if (!storyData || !currentNode) {
-      console.log("ReaderView: No storyData or currentNode", { storyData, currentNode });
+      console.log("[ReaderView] No storyData or currentNode", { 
+        hasStoryData: !!storyData, 
+        currentNode 
+      });
       setError("No story data available.");
       return;
     }
@@ -52,12 +55,16 @@ const ReaderView: React.FC<ReaderViewProps> = ({
     
     const node = storyData[currentNode];
     if (!node) {
-      console.error(`ReaderView: Node "${currentNode}" not found in story data`);
+      console.error(`[ReaderView] Node "${currentNode}" not found in story data`);
       setError(`Node "${currentNode}" not found in story data.`);
       return;
     }
     
-    console.log(`ReaderView: Loading node "${currentNode}"`, node);
+    console.log(`[ReaderView] Loading node "${currentNode}"`, {
+      textLength: node.text?.length || 0,
+      choicesCount: node.choices?.length || 0,
+      isEnding: !!node.isEnding
+    });
     
     setCurrentText(node.text || "");
     setChoices(node.choices || []);
@@ -182,9 +189,12 @@ const ReaderView: React.FC<ReaderViewProps> = ({
   };
 
   const getValidPageNumbers = () => {
-    if (!nodeMappings?.pageToNode) return [1];
+    if (!nodeMappings?.pageToNode) {
+      console.warn("[ReaderView] No node mappings available");
+      return [1];
+    }
     
-    return Object.entries(nodeMappings.pageToNode)
+    const validPages = Object.entries(nodeMappings.pageToNode)
       .filter(([_, node]) => {
         const nodeName = node as string;
         return nodeName !== "inkVersion" && 
@@ -194,6 +204,9 @@ const ReaderView: React.FC<ReaderViewProps> = ({
       })
       .map(([page]) => parseInt(page))
       .sort((a, b) => a - b);
+    
+    console.log(`[ReaderView] Found ${validPages.length} valid pages`);
+    return validPages;
   };
 
   const validPages = getValidPageNumbers();
@@ -260,7 +273,11 @@ const ReaderView: React.FC<ReaderViewProps> = ({
           <select
             className="border rounded p-1 text-sm"
             value={currentPage}
-            onChange={(e) => handleGoToPage(parseInt(e.target.value))}
+            onChange={(e) => {
+              const page = parseInt(e.target.value);
+              console.log(`[ReaderView] Page selection changed to ${page}`);
+              handleGoToPage(page);
+            }}
           >
             {validPages.map(page => (
               <option key={page} value={page}>
@@ -346,10 +363,16 @@ const ReaderView: React.FC<ReaderViewProps> = ({
       </div>
       
       <div className="border-t pt-4 text-sm text-gray-500">
-        <p>Current Node: <span className="font-mono">{currentNode}</span></p>
+        <div className="flex items-center">
+          <Code className="h-4 w-4 mr-1 text-gray-400" />
+          <p>Current Node: <span className="font-mono">{currentNode}</span></p>
+        </div>
         <p>Current Page: <span className="font-mono">{currentPage}</span></p>
         <p>Available Choices: {choices.length}</p>
-        <p>Valid Pages: {validPages.join(', ')}</p>
+        <p>Valid Pages: {validPages.length > 10 ? 
+          `${validPages.slice(0, 5).join(', ')}... (${validPages.length} total)` : 
+          validPages.join(', ')}
+        </p>
       </div>
     </div>
   );

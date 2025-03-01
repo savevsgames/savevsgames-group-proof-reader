@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
@@ -9,13 +8,9 @@ import LlmIntegration from "./LlmIntegration";
 import CommentsView from "./CommentsView";
 import ReaderView from "./ReaderView";
 import { useAuth } from "@/context/AuthContext";
-import { 
-  CustomStory, 
-  generateNodeMappings,
-  storyNodeToPageMap,
-  pageToStoryNodeMap
-} from "@/lib/storyUtils";
-import { NodeMappings } from "@/lib/storyMapping";
+import { generateNodeMappings } from "@/lib/story/mappings";
+import { CustomStory } from "@/lib/storyUtils";
+import { NodeMappings } from "@/lib/storyEditorUtils";
 import { AlertCircle, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface StoryTabsProps {
@@ -41,35 +36,41 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
   const [commentCount, setCommentCount] = useState<number>(0);
   const { user } = useAuth();
   
-  // Generate mappings when storyData changes
-  const [mappings, setMappings] = useState({
-    nodeToPage: storyNodeToPageMap,
-    pageToNode: pageToStoryNodeMap
+  const [mappings, setMappings] = useState<NodeMappings>({
+    nodeToPage: {},
+    pageToNode: {}
   });
   
   useEffect(() => {
-    if (storyData) {
-      // Generate fresh mappings from the story data
-      const { storyNodeToPageMap, pageToStoryNodeMap } = generateNodeMappings(storyData);
-      
-      // Update mappings state
-      setMappings({
-        nodeToPage: storyNodeToPageMap,
-        pageToNode: pageToStoryNodeMap
-      });
-      
-      console.log("StoryTabs: Using node mappings", { 
-        storyNodeToPageMap, 
-        pageToStoryNodeMap,
-        nodeCount: Object.keys(storyData).filter(key => 
-          key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
-        ).length
-      });
+    if (!storyData) {
+      console.log("[StoryTabs] No story data available for mapping");
+      return;
     }
+    
+    console.log("[StoryTabs] Generating node mappings for tabs");
+    
+    const { storyNodeToPageMap, pageToStoryNodeMap, totalPages } = generateNodeMappings(storyData);
+    
+    console.log(`[StoryTabs] Generated mappings with ${Object.keys(storyNodeToPageMap).length} nodes and ${totalPages} pages`);
+    
+    const previewCount = Math.min(5, Object.keys(storyNodeToPageMap).length);
+    const previewMappings = Object.entries(storyNodeToPageMap)
+      .slice(0, previewCount)
+      .reduce((acc, [node, page]) => {
+        acc[node] = page;
+        return acc;
+      }, {} as Record<string, number>);
+    
+    console.log(`[StoryTabs] First ${previewCount} mappings:`, previewMappings);
+    
+    setMappings({
+      nodeToPage: storyNodeToPageMap,
+      pageToNode: pageToStoryNodeMap
+    });
   }, [storyData]);
   
-  // Update parent component when JSON editor changes node selection
   const handleNodeSelection = (nodeName: string) => {
+    console.log(`[StoryTabs] Node selection changed to: ${nodeName}`);
     if (onNodeChange) {
       onNodeChange(nodeName);
     }
@@ -80,37 +81,47 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
   };
 
   const handleCommentsUpdate = (count: number) => {
-    // Update comment count with the provided value
     setCommentCount(count);
   };
 
-  // Calculate current page number from node name
-  const currentPage = currentNode ? (mappings.nodeToPage[currentNode] || 1) : 1;
+  const currentPage = currentNode && mappings.nodeToPage ? 
+    (mappings.nodeToPage[currentNode] || 1) : 1;
   
-  // Calculate total pages
-  const totalPages = Object.keys(mappings.pageToNode).length;
+  const totalPages = mappings.pageToNode ? Object.keys(mappings.pageToNode).length : 0;
+  
+  console.log(`[StoryTabs] Navigation state:`, {
+    currentNode,
+    currentPage,
+    totalPages,
+    mappedNodes: Object.keys(mappings.nodeToPage).length
+  });
 
-  // Navigate to previous page
   const handlePreviousPage = () => {
     if (currentPage > 1) {
-      const prevNodeName = mappings.pageToNode[currentPage - 1];
+      const prevPage = currentPage - 1;
+      const prevNodeName = mappings.pageToNode[prevPage];
+      
+      console.log(`[StoryTabs] Navigating to previous page ${prevPage}, node: ${prevNodeName}`);
+      
       if (prevNodeName && onNodeChange) {
         onNodeChange(prevNodeName);
       }
     }
   };
 
-  // Navigate to next page
   const handleNextPage = () => {
     if (currentPage < totalPages) {
-      const nextNodeName = mappings.pageToNode[currentPage + 1];
+      const nextPage = currentPage + 1;
+      const nextNodeName = mappings.pageToNode[nextPage];
+      
+      console.log(`[StoryTabs] Navigating to next page ${nextPage}, node: ${nextNodeName}`);
+      
       if (nextNodeName && onNodeChange) {
         onNodeChange(nextNodeName);
       }
     }
   };
 
-  // Handler for adding comments to LLM context
   const handleAddToLlmContext = (commentType: string, commentText: string, username: string) => {
     // This is now properly typed to match the updated components
   };
@@ -136,7 +147,6 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
         </TabsTrigger>
         <TabsTrigger value="llm">LLM Integration</TabsTrigger>
         
-        {/* Page navigation with chevron buttons */}
         <div className="ml-auto flex items-center space-x-2">
           <Button 
             variant="ghost" 
@@ -152,7 +162,7 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
           
           <div className="flex items-center text-sm text-gray-500">
             <BookOpen className="h-4 w-4 mr-1 text-gray-400" />
-            <span>Page {currentPage}/{totalPages}</span>
+            <span>Page {currentPage}/{totalPages || 1}</span>
           </div>
           
           <Button 
@@ -174,6 +184,7 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
           <JsonEditor
             storyData={storyData}
             onChange={(data) => {
+              console.log("[StoryTabs] Story data changed in JSON editor");
               onStoryDataChange(data);
               onUnsavedChanges(true);
             }}
@@ -215,6 +226,7 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
             storyData={storyData}
             currentNode={currentNode} 
             onStoryUpdate={(data) => {
+              console.log("[StoryTabs] Story updated from LLM integration");
               onStoryDataChange(data);
               onUnsavedChanges(true);
             }}

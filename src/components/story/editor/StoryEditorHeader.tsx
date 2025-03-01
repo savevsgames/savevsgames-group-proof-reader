@@ -1,6 +1,6 @@
 
 import React from "react";
-import { AlertTriangle, BookOpen } from "lucide-react";
+import { AlertTriangle, BookOpen, Code } from "lucide-react";
 import { 
   Select, 
   SelectContent, 
@@ -26,6 +26,8 @@ const StoryEditorHeader: React.FC<StoryEditorHeaderProps> = ({
   isLoading,
   onPageChange
 }) => {
+  console.log("[StoryEditorHeader] Rendering with:", { currentPage, totalPages });
+  
   // Generate available page numbers
   const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1);
 
@@ -39,7 +41,11 @@ const StoryEditorHeader: React.FC<StoryEditorHeaderProps> = ({
             <BookOpen className="h-5 w-5 text-[#3A2618]" />
             <Select 
               value={currentPage.toString()} 
-              onValueChange={(value) => onPageChange(parseInt(value))}
+              onValueChange={(value) => {
+                const page = parseInt(value);
+                console.log(`[StoryEditorHeader] Page selection changed to ${page}`);
+                onPageChange(page);
+              }}
             >
               <SelectTrigger className="w-[180px] bg-white border-[#3A2618] text-[#3A2618]">
                 <SelectValue placeholder={`Page ${currentPage} of ${totalPages}`} />
@@ -52,6 +58,11 @@ const StoryEditorHeader: React.FC<StoryEditorHeaderProps> = ({
                 ))}
               </SelectContent>
             </Select>
+            
+            <div className="ml-4 text-gray-500 text-sm flex items-center">
+              <Code className="h-4 w-4 mr-1" />
+              <span>Total Pages: {totalPages}</span>
+            </div>
           </div>
         )}
       </div>

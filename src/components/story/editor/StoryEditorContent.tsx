@@ -1,10 +1,9 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Save } from "lucide-react";
 import StoryTabs from "@/components/story/StoryTabs";
 import { CustomStory } from "@/lib/storyUtils";
-import { useNavigate } from "react-router-dom";
 
 interface StoryEditorContentProps {
   storyId: string;
@@ -14,9 +13,9 @@ interface StoryEditorContentProps {
   hasUnsavedChanges: boolean;
   onStoryDataChange: (data: CustomStory) => void;
   onUnsavedChanges: (hasChanges: boolean) => void;
+  onSave: () => void;
   onNodeChange: (nodeName: string) => void;
-  onSave: () => Promise<void>;
-  onNavigate: (path: string) => void;
+  onNavigate: (target: string) => void;
 }
 
 const StoryEditorContent: React.FC<StoryEditorContentProps> = ({
@@ -27,49 +26,37 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = ({
   hasUnsavedChanges,
   onStoryDataChange,
   onUnsavedChanges,
-  onNodeChange,
   onSave,
+  onNodeChange,
   onNavigate
 }) => {
-  const navigate = useNavigate();
-
+  console.log("[StoryEditorContent] Rendering with node:", currentNode);
+  
   return (
-    <div className="bg-white shadow-md rounded-lg p-6">
-      <StoryTabs 
-        storyId={storyId} 
-        storyData={storyData} 
+    <div className="bg-white rounded-lg border border-[#E8DCC4] p-6 mb-6">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-xl font-serif text-[#3A2618]">
+          Editing Node: <span className="font-mono text-sm bg-[#F5F1E8] px-2 py-1 rounded">{currentNode}</span>
+        </h3>
+        
+        <Button
+          onClick={onSave}
+          disabled={saving || !hasUnsavedChanges}
+          className={`bg-[#3A2618] hover:bg-[#5A3A28] text-white`}
+        >
+          <Save className="h-4 w-4 mr-2" />
+          {saving ? "Saving..." : "Save Changes"}
+        </Button>
+      </div>
+      
+      <StoryTabs
+        storyId={storyId}
+        storyData={storyData}
         onStoryDataChange={onStoryDataChange}
         onUnsavedChanges={onUnsavedChanges}
         currentNode={currentNode}
         onNodeChange={onNodeChange}
       />
-      
-      <div className="mt-6 flex justify-between items-center">
-        <Button 
-          variant="outline" 
-          onClick={() => onNavigate('/dashboard')}
-        >
-          Back to Dashboard
-        </Button>
-        
-        <Button 
-          onClick={onSave}
-          disabled={saving || !hasUnsavedChanges}
-          className={`${hasUnsavedChanges ? 'bg-[#F97316] hover:bg-[#E86305]' : 'bg-gray-400'} text-white`}
-        >
-          {saving ? (
-            <>
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent mr-2"></span>
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4 mr-2" />
-              Save Changes
-            </>
-          )}
-        </Button>
-      </div>
     </div>
   );
 };
