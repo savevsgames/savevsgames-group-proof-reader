@@ -201,6 +201,7 @@ export const useStory = (storyId: string | undefined) => {
   const handleContinue = async () => {
     if (!story || !storyId) return;
     
+    // Save current state to history for back navigation
     const currentState = story.state.toJson();
     setStoryHistory(prev => [...prev, currentState]);
     setCanGoBack(true);
@@ -301,6 +302,8 @@ export const useStory = (storyId: string | undefined) => {
   const handleBack = async () => {
     if (!storyId || storyHistory.length === 0) return;
 
+    console.log("Back navigation triggered, history length:", storyHistory.length);
+
     const newHistory = [...storyHistory];
     const previousState = newHistory.pop();
     
@@ -311,47 +314,59 @@ export const useStory = (storyId: string | undefined) => {
       if (usingCustomFormat && customStory) {
         const prevNode = previousState;
         if (customStory[prevNode]) {
+          console.log(`Back navigation: Moving to node ${prevNode}`);
           setCurrentNode(prevNode);
           setCurrentText(customStory[prevNode].text);
           setCurrentChoices(customStory[prevNode].choices || []);
           
           // Update page based on node mapping or decrement
           const newPage = storyNodeToPageMap[prevNode] || Math.max(currentPage - 1, 1);
+          console.log(`Back navigation: Page ${currentPage} → ${newPage}`);
           setCurrentPage(newPage);
           setCurrentStoryPosition(newPage);
           
           const count = await fetchCommentCount(storyId, newPage);
           setCommentCount(count);
+        } else {
+          console.error(`Back navigation error: Node "${prevNode}" not found`);
         }
       } else if (story) {
-        story.state.LoadJson(previousState);
-        
-        // Reset text and rebuild from the beginning of this state
-        setCurrentText('');
-        
-        // Get the text for this state
-        if (story.canContinue) {
-          const text = story.Continue();
-          setCurrentText(text);
+        console.log("Back navigation: Loading previous story state");
+        try {
+          story.state.LoadJson(previousState);
+          
+          // Reset text and rebuild from the beginning of this state
+          setCurrentText('');
+          
+          // Get the text for this state
+          if (story.canContinue) {
+            const text = story.Continue();
+            setCurrentText(text);
+          }
+          
+          setCanContinue(story.canContinue);
+          
+          if (!story.canContinue) {
+            setCurrentChoices(story.currentChoices);
+          } else {
+            setCurrentChoices([]);
+          }
+          
+          // Update page and use it as position
+          const newPage = Math.max(currentPage - 1, 1);
+          console.log(`Back navigation: Page ${currentPage} → ${newPage}`);
+          setCurrentPage(newPage);
+          setCurrentStoryPosition(newPage);
+          
+          // Fetch comments for the new page
+          const count = await fetchCommentCount(storyId, newPage);
+          setCommentCount(count);
+        } catch (error) {
+          console.error("Error loading previous state:", error);
         }
-        
-        setCanContinue(story.canContinue);
-        
-        if (!story.canContinue) {
-          setCurrentChoices(story.currentChoices);
-        } else {
-          setCurrentChoices([]);
-        }
-        
-        // Update page and use it as position
-        const newPage = Math.max(currentPage - 1, 1);
-        setCurrentPage(newPage);
-        setCurrentStoryPosition(newPage);
-        
-        // Fetch comments for the new page
-        const count = await fetchCommentCount(storyId, newPage);
-        setCommentCount(count);
       }
+    } else {
+      console.error("Back navigation: No previous state found in history");
     }
   };
 
@@ -396,6 +411,7 @@ export const useStory = (storyId: string | undefined) => {
   // Add direct page navigation function
   const handlePageChange = async (newPage: number) => {
     if (!storyId || newPage === currentPage || newPage < 1 || newPage > totalPages) {
+      console.log(`Invalid page navigation attempt: current=${currentPage}, target=${newPage}, max=${totalPages}`);
       return;
     }
     
@@ -441,70 +457,99 @@ export const useStory = (storyId: string | undefined) => {
       setCanGoBack(true);
       
       if (newPage < currentPage) {
+        console.log(`Backwards navigation from ${currentPage} to ${newPage}`);
         // For going back, we need to restart and play forward
-        const originalState = story.state.toJson();
-        story.ResetState();
-        
-        // Simulate continuing to the desired page
-        let currentPageCounter = 1;
-        
-        while (currentPageCounter < newPage && story.canContinue) {
-          story.Continue();
-          currentPageCounter++;
-        }
-        
-        if (currentPageCounter === newPage) {
-          setCurrentText(story.currentText);
-          setCanContinue(story.canContinue);
-          setCurrentChoices(story.canContinue ? [] : story.currentChoices);
-          setCurrentPage(newPage);
-          setCurrentStoryPosition(newPage);
-        } else {
-          // Failed to reach the page, restore original state
-          story.state.LoadJson(originalState);
+        try {
+          const originalState = story.state.toJson();
+          story.ResetState();
+          
+          // Simulate continuing to the desired page
+          let currentPageCounter = 1;
+          
+          while (currentPageCounter < newPage && story.canContinue) {
+            story.Continue();
+            currentPageCounter++;
+            console.log(`Navigation progress: at page ${currentPageCounter}`);
+          }
+          
+          if (currentPageCounter === newPage) {
+            setCurrentText(story.currentText);
+            setCanContinue(story.canContinue);
+            setCurrentChoices(story.canContinue ? [] : story.currentChoices);
+            setCurrentPage(newPage);
+            setCurrentStoryPosition(newPage);
+            console.log(`Successfully navigated to page ${newPage}`);
+          } else {
+            // Failed to reach the page, restore original state
+            console.error(`Failed to navigate to page ${newPage}, only reached ${currentPageCounter}`);
+            story.state.LoadJson(originalState);
+            toast({
+              title: "Navigation Error",
+              description: `Could not navigate to page ${newPage}`,
+              variant: "destructive"
+            });
+            return;
+          }
+        } catch (error) {
+          console.error("Error during backward navigation:", error);
           toast({
             title: "Navigation Error",
-            description: `Could not navigate to page ${newPage}`,
+            description: "An error occurred during navigation",
             variant: "destructive"
           });
           return;
         }
       } else {
+        console.log(`Forward navigation from ${currentPage} to ${newPage}`);
         // For going forward, we continue from current position
-        let currentPageCounter = currentPage;
-        let success = false;
-        
-        while (currentPageCounter < newPage) {
-          if (story.canContinue) {
-            story.Continue();
-            currentPageCounter++;
-          } else if (story.currentChoices.length > 0) {
-            // Always choose the first option at choice points
-            story.ChooseChoiceIndex(0);
+        try {
+          let currentPageCounter = currentPage;
+          let success = false;
+          
+          while (currentPageCounter < newPage) {
             if (story.canContinue) {
               story.Continue();
+              currentPageCounter++;
+              console.log(`Navigation progress: at page ${currentPageCounter}`);
+            } else if (story.currentChoices.length > 0) {
+              // Always choose the first option at choice points
+              story.ChooseChoiceIndex(0);
+              if (story.canContinue) {
+                story.Continue();
+              }
+              currentPageCounter++;
+              console.log(`Navigation progress (after choice): at page ${currentPageCounter}`);
+            } else {
+              console.log(`Navigation stuck at page ${currentPageCounter}, no way to continue`);
+              break;
             }
-            currentPageCounter++;
-          } else {
-            break;
+            
+            if (currentPageCounter === newPage) {
+              success = true;
+              break;
+            }
           }
           
-          if (currentPageCounter === newPage) {
-            success = true;
-            break;
+          if (success) {
+            setCurrentText(story.currentText);
+            setCanContinue(story.canContinue);
+            setCurrentChoices(story.canContinue ? [] : story.currentChoices);
+            setCurrentPage(newPage);
+            setCurrentStoryPosition(newPage);
+            console.log(`Successfully navigated to page ${newPage}`);
+          } else {
+            toast({
+              title: "Navigation Error",
+              description: `Could not navigate to page ${newPage}`,
+              variant: "destructive"
+            });
+            return;
           }
-        }
-        
-        if (success) {
-          setCurrentText(story.currentText);
-          setCanContinue(story.canContinue);
-          setCurrentChoices(story.canContinue ? [] : story.currentChoices);
-          setCurrentPage(newPage);
-          setCurrentStoryPosition(newPage);
-        } else {
+        } catch (error) {
+          console.error("Error during forward navigation:", error);
           toast({
             title: "Navigation Error",
-            description: `Could not navigate to page ${newPage}`,
+            description: "An error occurred during navigation",
             variant: "destructive"
           });
           return;

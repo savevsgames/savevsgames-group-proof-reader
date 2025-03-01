@@ -49,17 +49,20 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
     setIsEditing(false);
   };
 
+  // Directly use onPageChange for navigation to ensure story state is properly updated
   const goToPreviousPage = () => {
     if (currentPage > 1) {
-      console.log("Going to previous page", currentPage - 1);
-      onPageChange(currentPage - 1);
+      const targetPage = currentPage - 1;
+      console.log("Going to previous page:", targetPage);
+      onPageChange(targetPage);
     }
   };
 
   const goToNextPage = () => {
     if (currentPage < totalPages) {
-      console.log("Going to next page", currentPage + 1);
-      onPageChange(currentPage + 1);
+      const targetPage = currentPage + 1;
+      console.log("Going to next page:", targetPage);
+      onPageChange(targetPage);
     }
   };
 
@@ -100,7 +103,7 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
             </div>
           </div>
 
-          {/* Page Navigation - Replaced Button components with custom buttons */}
+          {/* Page Navigation using the same styling as StoryControls */}
           <div className="flex items-center gap-2">
             {/* Previous page button */}
             <button
