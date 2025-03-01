@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useStory } from '@/hooks/useStory';
 import { CommentModal } from './CommentModal';
@@ -36,6 +37,13 @@ export const StoryEngine: React.FC = () => {
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
 
+  // Memoize the onCommentsUpdate callback to avoid recreation on each render
+  const handleCommentsUpdate = useCallback((count: number) => {
+    if (updateCommentCount) {
+      updateCommentCount();
+    }
+  }, [updateCommentCount]);
+
   // Fetch comments for current story position
   useEffect(() => {
     const getComments = async () => {
@@ -43,8 +51,8 @@ export const StoryEngine: React.FC = () => {
         try {
           const commentsData = await fetchComments(storyId, currentStoryPosition);
           setComments(commentsData);
-          // Update the comment count based on fetched comments
-          if (updateCommentCount) {
+          // Only update comment count if needed, not on every fetch
+          if (commentsData.length !== commentCount && updateCommentCount) {
             updateCommentCount();
           }
         } catch (error) {
@@ -54,7 +62,7 @@ export const StoryEngine: React.FC = () => {
     };
     
     getComments();
-  }, [storyId, currentStoryPosition, updateCommentCount]);
+  }, [storyId, currentStoryPosition, updateCommentCount, commentCount]);
 
   // Refresh comments when modal closes
   const handleCommentModalOpenChange = (open: boolean) => {

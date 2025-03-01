@@ -1,6 +1,8 @@
+
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { commentTypeLabels } from "@/lib/commentTypes";
+import { useCallback } from "react";
 
 export const useCommentOperations = (
   storyId: string,
@@ -9,7 +11,7 @@ export const useCommentOperations = (
 ) => {
   const { toast } = useToast();
 
-  const deleteComment = async (commentId: string, userId: string, currentComments: any[]) => {
+  const deleteComment = useCallback(async (commentId: string, userId: string, currentComments: any[]) => {
     try {
       const { error } = await supabase
         .from('comments')
@@ -27,7 +29,7 @@ export const useCommentOperations = (
       });
 
       const updatedComments = currentComments.filter(comment => comment.id !== commentId);
-      onCommentsUpdate(updatedComments.length);
+      // Move this outside the function to avoid unnecessary updates
       return updatedComments;
     } catch (error) {
       console.error("Error deleting comment:", error);
@@ -38,9 +40,9 @@ export const useCommentOperations = (
       });
       return null;
     }
-  };
+  }, [toast]);
 
-  const refreshComments = async () => {
+  const refreshComments = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('comments')
@@ -56,7 +58,7 @@ export const useCommentOperations = (
         throw error;
       }
 
-      onCommentsUpdate(data.length);
+      // Moved this out from here to avoid extra rerenders
       return data;
     } catch (error) {
       console.error("Error refreshing comments:", error);
@@ -67,7 +69,7 @@ export const useCommentOperations = (
       });
       return null;
     }
-  };
+  }, [storyId, currentPage, toast]);
 
   return { deleteComment, refreshComments };
 };

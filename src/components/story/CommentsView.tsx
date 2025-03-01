@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { fetchComments } from "@/lib/storyUtils";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -25,26 +25,46 @@ const CommentsView: React.FC<CommentsViewProps> = ({
 }) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [lastFetchTime, setLastFetchTime] = useState(0);
   const { user } = useAuth();
   const { toast } = useToast();
+
+  // Use a ref to prevent unnecessary re-renders
+  const onCommentsUpdateRef = useRef(onCommentsUpdate);
+  useEffect(() => {
+    onCommentsUpdateRef.current = onCommentsUpdate;
+  }, [onCommentsUpdate]);
+
+  const notifyCommentCount = useCallback((count: number) => {
+    onCommentsUpdateRef.current(count);
+  }, []);
+
   const { deleteComment, refreshComments } = useCommentOperations(
     storyId,
     currentPage,
-    onCommentsUpdate
+    notifyCommentCount
   );
 
-  // Create a memoized loadComments function to prevent infinite loops
+  // Create a memoized loadComments function with fewer dependencies
   const loadComments = useCallback(async () => {
     if (!storyId || currentPage === undefined) return;
     
+    // Implement throttling - don't fetch if we fetched recently (within last second)
+    const now = Date.now();
+    if (now - lastFetchTime < 1000) {
+      return;
+    }
+    
     setLoading(true);
+    setLastFetchTime(now);
+    
     try {
       console.log(`Loading comments for story ${storyId}, page ${currentPage}`);
       const commentsData = await fetchComments(storyId, currentPage);
       setComments(commentsData);
       
       // Update the comment count in the parent component
-      onCommentsUpdate(commentsData.length);
+      notifyCommentCount(commentsData.length);
     } catch (error) {
       console.error("Error loading comments:", error);
       toast({
@@ -55,7 +75,7 @@ const CommentsView: React.FC<CommentsViewProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [storyId, currentPage, onCommentsUpdate, toast]);
+  }, [storyId, currentPage, toast, lastFetchTime, notifyCommentCount]);
 
   // Load comments for the current page
   useEffect(() => {
@@ -63,8 +83,13 @@ const CommentsView: React.FC<CommentsViewProps> = ({
   }, [loadComments]);
 
   const handleCommentAdded = (newComment: Comment) => {
-    setComments([newComment, ...comments]);
-    onCommentsUpdate(comments.length + 1);
+    // Use a function update to ensure we have the latest state
+    setComments(prevComments => {
+      const updatedComments = [newComment, ...prevComments];
+      // Update count after state is updated
+      notifyCommentCount(updatedComments.length);
+      return updatedComments;
+    });
   };
 
   const handleEditComment = (comment: Comment) => {
@@ -79,6 +104,8 @@ const CommentsView: React.FC<CommentsViewProps> = ({
     const updatedComments = await deleteComment(commentId, user.id, comments);
     if (updatedComments) {
       setComments(updatedComments);
+      // Update count after deletion
+      notifyCommentCount(updatedComments.length);
     }
   };
 
