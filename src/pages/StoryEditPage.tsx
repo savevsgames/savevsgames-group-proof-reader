@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useBeforeUnload } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { CustomStory } from "@/lib/storyUtils";
+import { CustomStory, storyNodeToPageMap, pageToStoryNodeMap } from "@/lib/storyUtils";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
