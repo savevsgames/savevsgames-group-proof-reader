@@ -14,7 +14,7 @@ interface CommentsViewProps {
   currentNode: string;
   onCommentsUpdate: (count: number) => void;
   currentPage: number;
-  // Add the missing prop - make it optional with ? so it doesn't break other uses of CommentsView
+  // Optional prop for LLM context integration
   onAddToLlmContext?: (text: string) => void;
 }
 
@@ -101,7 +101,7 @@ const CommentsView: React.FC<CommentsViewProps> = ({
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-medium">
-          Comments for Page {currentPage}
+          Comments
         </h3>
         <Button
           variant="outline"
@@ -129,7 +129,7 @@ const CommentsView: React.FC<CommentsViewProps> = ({
         </div>
       )}
 
-      <div className="border-t pt-4">
+      <div className="pt-4">
         <h4 className="font-medium mb-4 flex items-center">
           <MessageCircle className="h-4 w-4 mr-2" />
           {comments.length} {comments.length === 1 ? "Comment" : "Comments"}
