@@ -38,37 +38,39 @@ const CommentsView = ({
   } = useComments(storyId, currentPage, onCommentsUpdate);
 
   return (
-    <ScrollArea className="h-full">
-      <div className="flex flex-col pr-4">
-        <h2 className="text-2xl font-serif mb-4 text-[#3A2618]">Reader Comments</h2>
-        
-        {user ? (
-          <CommentForm
+    <div className="h-full flex flex-col overflow-hidden">
+      <h2 className="text-2xl font-serif mb-4 text-[#3A2618]">Reader Comments</h2>
+      
+      <ScrollArea className="flex-1 -mr-5 pr-5 overflow-y-auto">
+        <div className="flex flex-col">
+          {user ? (
+            <CommentForm
+              user={user}
+              storyId={storyId}
+              currentNode={currentNode}
+              currentPage={currentPage}
+              isEditing={isEditing}
+              editingCommentId={editingCommentId}
+              commentText={commentText}
+              commentType={commentType as CommentType}
+              onCommentTextChange={setCommentText}
+              onCommentTypeChange={setCommentType}
+              onCancelEdit={handleCancelEdit}
+              onCommentsUpdate={onCommentsUpdate}
+              comments={comments}
+            />
+          ) : null}
+          
+          <CommentSection
             user={user}
-            storyId={storyId}
-            currentNode={currentNode}
-            currentPage={currentPage}
-            isEditing={isEditing}
-            editingCommentId={editingCommentId}
-            commentText={commentText}
-            commentType={commentType as CommentType}
-            onCommentTextChange={setCommentText}
-            onCommentTypeChange={setCommentType}
-            onCancelEdit={handleCancelEdit}
-            onCommentsUpdate={onCommentsUpdate}
             comments={comments}
+            onEditComment={handleEditComment}
+            onDeleteComment={deleteComment}
+            onAddToLlmContext={onAddToLlmContext}
           />
-        ) : null}
-        
-        <CommentSection
-          user={user}
-          comments={comments}
-          onEditComment={handleEditComment}
-          onDeleteComment={deleteComment}
-          onAddToLlmContext={onAddToLlmContext}
-        />
-      </div>
-    </ScrollArea>
+        </div>
+      </ScrollArea>
+    </div>
   );
 };
 
