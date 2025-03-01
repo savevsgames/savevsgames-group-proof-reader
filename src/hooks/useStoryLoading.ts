@@ -10,7 +10,7 @@ import {
   extractAllNodesFromInkJSON, 
   extractCustomStoryFromInkJSON
 } from '@/lib/storyMapping';
-import { generateAndLogNodeMappings, NodeMappings } from '@/lib/storyEditorUtils';
+import { generateAndLogNodeMappings, type NodeMappings } from '@/lib/storyEditorUtils';
 
 interface UseStoryLoadingResult {
   story: Story | null;

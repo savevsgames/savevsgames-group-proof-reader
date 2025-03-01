@@ -4,7 +4,7 @@ import {
   analyzeStoryStructure, 
   validateNodeMappings, 
   extractAllNodesFromInkJSON,
-  NodeMappings 
+  type NodeMappings 
 } from "@/lib/storyMapping";
 
 // Generate node mappings and log information about the story structure
@@ -166,4 +166,4 @@ export const extractStoryContent = async (data: any): Promise<CustomStory | null
 import { extractCustomStoryFromInkJSON } from "@/lib/storyMapping";
 
 // Re-export the NodeMappings interface for use elsewhere
-export { NodeMappings };
+export type { NodeMappings };
