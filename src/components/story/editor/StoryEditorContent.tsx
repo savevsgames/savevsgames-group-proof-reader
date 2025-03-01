@@ -1,8 +1,9 @@
+
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Save } from "lucide-react";
 import StoryTabs from "@/components/story/StoryTabs";
-import { CustomStory, StoryEditorContentProps } from "@/types/story-types.definitions";
+import { CustomStory, StoryEditorContentProps } from "@/types";
 
 const StoryEditorContent: React.FC<StoryEditorContentProps> = ({
   storyId,

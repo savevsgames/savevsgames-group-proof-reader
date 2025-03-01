@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { StoryChoice } from '@/types/story-types.definitions';
+import { StoryChoice } from '@/types';
 
 interface StoryChoicesProps {
   choices: StoryChoice[];

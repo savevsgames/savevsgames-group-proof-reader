@@ -1,5 +1,5 @@
 import React from 'react';
-import { StoryChoice, StoryDisplayProps } from '@/types/story-types.definitions';
+import { StoryChoice, StoryDisplayProps } from '@/types';
 import { StoryText } from './StoryText';
 import { StoryContinueButton } from './StoryContinueButton';
 import { StoryChoices } from './StoryChoices';

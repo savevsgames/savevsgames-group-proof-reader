@@ -1,27 +1,9 @@
 
-// Import from supabase instead of AuthContext
-import { User } from '@supabase/supabase-js';
-import { CommentType } from '@/lib/commentTypes';
+// Import from our centralized types
+import { User, Comment, CommentType } from '@/types';
 
-// Defines the shape of a comment
-export interface Comment {
-  id: string;
-  user_id: string;
-  story_id: string;
-  story_position: number;
-  story_node?: string;
-  text: string;
-  created_at: string;
-  updated_at: string;
-  comment_type: CommentType;
-  profile?: {
-    username: string;
-    avatar_url?: string;
-  };
-  content?: string; // For backward compatibility
-  user_name?: string; // Added for display purposes
-  user_avatar?: string; // Added for display purposes
-}
+// Re-export the types for backward compatibility
+export type { Comment, CommentType };
 
 // Props for the CommentModal component
 export interface CommentModalProps {

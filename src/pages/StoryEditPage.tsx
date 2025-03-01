@@ -1,4 +1,3 @@
-
 import React, { useCallback, useEffect } from "react";
 import { useParams, useBeforeUnload } from "react-router-dom";
 import Header from "@/components/Header";
@@ -9,28 +8,29 @@ import ErrorState from "@/components/story/editor/ErrorState";
 import EmptyState from "@/components/story/editor/EmptyState";
 import UnsavedChangesDialog from "@/components/story/editor/UnsavedChangesDialog";
 import { useStoryStore } from "@/stores/storyState";
+import { StoryStore } from "@/types";
 
 const StoryEditPage = () => {
   const { id } = useParams();
   const storyId = id as string;
   
   // Select state from the store using individual selectors
-  const storyData = useStoryStore(state => state.storyData);
-  const title = useStoryStore(state => state.title);
-  const loading = useStoryStore(state => state.loading);
-  const error = useStoryStore(state => state.error);
-  const saving = useStoryStore(state => state.saving);
-  const hasUnsavedChanges = useStoryStore(state => state.hasUnsavedChanges);
-  const currentNode = useStoryStore(state => state.currentNode);
-  const currentPage = useStoryStore(state => state.currentPage);
-  const totalPages = useStoryStore(state => state.totalPages);
+  const storyData = useStoryStore((state: StoryStore) => state.storyData);
+  const title = useStoryStore((state: StoryStore) => state.title);
+  const loading = useStoryStore((state: StoryStore) => state.loading);
+  const error = useStoryStore((state: StoryStore) => state.error);
+  const saving = useStoryStore((state: StoryStore) => state.saving);
+  const hasUnsavedChanges = useStoryStore((state: StoryStore) => state.hasUnsavedChanges);
+  const currentNode = useStoryStore((state: StoryStore) => state.currentNode);
+  const currentPage = useStoryStore((state: StoryStore) => state.currentPage);
+  const totalPages = useStoryStore((state: StoryStore) => state.totalPages);
   
   // Get actions from the store
-  const initializeStory = useStoryStore(state => state.initializeStory);
-  const handlePageChange = useStoryStore(state => state.handlePageChange);
-  const handleNodeChange = useStoryStore(state => state.handleNodeChange);
-  const handleStoryDataChange = useStoryStore(state => state.handleStoryDataChange);
-  const handleSave = useStoryStore(state => state.handleSave);
+  const initializeStory = useStoryStore((state: StoryStore) => state.initializeStory);
+  const handlePageChange = useStoryStore((state: StoryStore) => state.handlePageChange);
+  const handleNodeChange = useStoryStore((state: StoryStore) => state.handleNodeChange);
+  const handleStoryDataChange = useStoryStore((state: StoryStore) => state.handleStoryDataChange);
+  const handleSave = useStoryStore((state: StoryStore) => state.handleSave);
   
   // State for leave dialog
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = React.useState(false);

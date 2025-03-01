@@ -1,23 +1,17 @@
 
 import { Story } from 'inkjs';
+import { 
+  StoryChoice,
+  StoryNode,
+  CustomStory
+} from '@/types';
 
-// Define interfaces for the custom story format
-export interface StoryChoice {
-  text: string;
-  nextNode: string;
-}
-
-export interface StoryNode {
-  text: string;
-  choices: StoryChoice[];
-  isEnding?: boolean;
-}
-
-export interface CustomStory {
-  [key: string]: StoryNode | any;
-  inkVersion?: number;
-  listDefs?: any;
-}
+// Re-export types from our centralized type system
+export type {
+  StoryChoice,
+  StoryNode,
+  CustomStory
+};
 
 // Interface for parsed Ink node content
 export interface InkNodeContent {

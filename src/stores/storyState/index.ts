@@ -1,7 +1,7 @@
 
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
-import { StoryStore } from '@/types/story-types.definitions';
+import { StoryStore } from '@/types';
 import { createStorySlice } from './storySlice';
 import { createNavigationSlice } from './navigationSlice';
 import { createEditorSlice } from './editorSlice';

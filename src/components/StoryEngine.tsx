@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { CommentModal } from "./CommentModal";
 import { BookLayout } from "./story/BookLayout";
@@ -10,8 +9,9 @@ import { shallow } from "zustand/shallow";
 import { 
   StoryEngineProps, 
   Comment,
-  StoryStore
-} from "@/types/story-types.definitions";
+  StoryStore,
+  EqualityFn
+} from "@/types";
 
 export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
   const { user } = useAuth();
@@ -32,7 +32,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
       loading: state.loading,
       error: state.error 
     }),
-    shallow
+    shallow as EqualityFn<any>
   );
   
   // Book metadata - separate selector
@@ -41,7 +41,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
       bookTitle: state.title,
       totalPages: state.totalPages
     }),
-    shallow
+    shallow as EqualityFn<any>
   );
   
   // Navigation and content state - separate selector 
@@ -57,7 +57,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
       nodeMappings: state.nodeMappings,
       storyData: state.storyData
     }),
-    shallow
+    shallow as EqualityFn<any>
   );
   
   // UI state that can change frequently
@@ -73,7 +73,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
       handlePageChange: state.handlePageChange,
       setCommentCount: state.setCommentCount
     }),
-    shallow
+    shallow as EqualityFn<any>
   );
   
   // Log component state - limit frequency to avoid console flooding

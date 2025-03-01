@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
@@ -10,9 +9,7 @@ import CommentsView from "./CommentsView";
 import ReaderView from "./ReaderView";
 import { useAuth } from "@/context/AuthContext";
 import { generateNodeMappings } from "@/lib/story/mappings";
-import { CustomStory } from "@/lib/storyUtils";
-import { NodeMappings } from "@/lib/storyNodeMapping";
-import { TabType } from "@/stores/storyState/types";
+import { CustomStory, NodeMappings, TabType } from "@/types";
 import { AlertCircle, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface StoryTabsProps {

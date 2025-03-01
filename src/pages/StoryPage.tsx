@@ -6,7 +6,7 @@ import Header from "@/components/Header";
 import { useToast } from "@/hooks/use-toast";
 import { useStoryStore } from "@/stores/storyState";
 import { shallow } from "zustand/shallow";
-import { StoryState } from "@/types/story-types.definitions";
+import { StoryStore, StorySelector, EqualityFn } from "@/types";
 
 const StoryPage = () => {
   const { id } = useParams();
@@ -20,16 +20,16 @@ const StoryPage = () => {
     error,
     title,
     totalPages
-  } = useStoryStore(state => ({
+  } = useStoryStore((state: StoryStore) => ({
     storyId: state.storyId,
     loading: state.loading,
     error: state.error,
     title: state.title,
     totalPages: state.totalPages
-  }), shallow);
+  }), shallow as EqualityFn<any>);
   
   // Actions selector - separate from state to avoid re-renders
-  const initializeStory = useStoryStore(state => state.initializeStory);
+  const initializeStory = useStoryStore((state: StoryStore) => state.initializeStory);
   
   // Memoize the initialization to prevent multiple calls
   // IMPORTANT: Remove dependencies that cause circular updates
