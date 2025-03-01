@@ -8,6 +8,7 @@ import {
   parseInkNode
 } from "@/lib/storyUtils";
 import { useToast } from "@/hooks/use-toast";
+import { StoryDisplay } from "./StoryDisplay";
 
 interface ReaderViewProps {
   storyId: string;
@@ -83,31 +84,44 @@ const ReaderView: React.FC<ReaderViewProps> = ({
     setHistory(prev => [...prev, currentNode]);
     
     if (onNodeChange) {
+      console.log(`ReaderView: Navigating to node "${nodeName}"`);
       onNodeChange(nodeName);
     }
   };
 
   const handleContinue = () => {
-    if (!canContinue || choices.length === 0) return;
+    if (!canContinue || choices.length === 0) {
+      console.log("ReaderView: Cannot continue - no valid choice available");
+      return;
+    }
     
     const nextNode = choices[0].nextNode;
+    console.log(`ReaderView: Continuing to node "${nextNode}"`);
     handleNavigateToNode(nextNode);
   };
 
   const handleChoice = (index: number) => {
-    if (index < 0 || index >= choices.length) return;
+    if (index < 0 || index >= choices.length) {
+      console.log(`ReaderView: Invalid choice index ${index}`);
+      return;
+    }
     
     const choice = choices[index];
+    console.log(`ReaderView: Selected choice ${index}: "${choice.text}" -> "${choice.nextNode}"`);
     handleNavigateToNode(choice.nextNode);
   };
 
   const handleBack = () => {
-    if (history.length === 0) return;
+    if (history.length === 0) {
+      console.log("ReaderView: Cannot go back - no history available");
+      return;
+    }
     
     const prevHistory = [...history];
     const prevNode = prevHistory.pop();
     
     if (prevNode) {
+      console.log(`ReaderView: Going back to node "${prevNode}"`);
       setHistory(prevHistory);
       if (onNodeChange) {
         onNodeChange(prevNode);
@@ -117,6 +131,7 @@ const ReaderView: React.FC<ReaderViewProps> = ({
 
   const handleRestart = () => {
     setHistory([]);
+    console.log("ReaderView: Restarting from root");
     
     if (onNodeChange) {
       onNodeChange("root");
@@ -196,8 +211,6 @@ const ReaderView: React.FC<ReaderViewProps> = ({
       .sort((a, b) => a - b);
   };
 
-  const validPages = getValidPageNumbers();
-
   const handleContinueToNextNode = () => {
     const currentPageNumber = nodeMappings.nodeToPage[currentNode] || 1;
     const nextPageNumber = currentPageNumber + 1;
@@ -221,6 +234,8 @@ const ReaderView: React.FC<ReaderViewProps> = ({
       });
     }
   };
+
+  const validPages = getValidPageNumbers();
 
   return (
     <div className="flex flex-col space-y-6">

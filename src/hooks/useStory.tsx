@@ -16,6 +16,8 @@ export const useStory = (storyId: string | undefined) => {
     nodeMappings
   } = useStoryLoading(storyId);
 
+  const { toast } = useToast();
+
   // Initialize navigation with loaded story data
   const [navigationState, navigationActions] = useStoryNavigation({
     storyData: customStory,
@@ -26,36 +28,12 @@ export const useStory = (storyId: string | undefined) => {
     totalPages
   });
 
-  // Initialize story content once loading is complete
-  useEffect(() => {
-    if (!isLoading && story && story.canContinue) {
-      const nextText = story.Continue();
-      navigationState.currentText = nextText;
-      navigationState.canContinue = story.canContinue;
-      
-      if (!story.canContinue) {
-        navigationState.currentChoices = story.currentChoices;
-      } else {
-        navigationState.currentChoices = [];
-      }
-    } else if (!isLoading && customStory) {
-      const startNode = customStory.start ? 'start' : 'root';
-      navigationState.currentNode = startNode;
-      
-      const startNodeData = customStory[startNode];
-      if (startNodeData && startNodeData.text) {
-        navigationState.currentText = startNodeData.text;
-        navigationState.currentChoices = startNodeData.choices || [];
-      }
-    }
-  }, [isLoading, story, customStory]);
-
   // Load comment count when navigation state changes
   useEffect(() => {
     if (!isLoading && storyId) {
       navigationActions.updateCommentCount();
     }
-  }, [isLoading, navigationState.currentStoryPosition, storyId]);
+  }, [isLoading, navigationState.currentStoryPosition, storyId, navigationActions]);
 
   // Destructure and return all the components of our hook
   return {

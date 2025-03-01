@@ -1,5 +1,4 @@
-
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { NodeMappings } from "@/lib/storyEditorUtils";
 import { CustomStory } from "@/lib/storyUtils";
@@ -64,10 +63,20 @@ export const useStoryNavigation = ({
       if (startNodeData && startNodeData.text) {
         setCurrentText(startNodeData.text);
         setCurrentChoices(startNodeData.choices || []);
+        
+        // If there's a single choice that looks like a "continue" option
+        const hasContinueChoice = startNodeData.choices && 
+          startNodeData.choices.length === 1 && 
+          startNodeData.choices[0].text.toLowerCase().includes('continue');
+        
+        setCanContinue(hasContinueChoice);
       } else {
         setCurrentText("Story begins...");
         setCurrentChoices([]);
+        setCanContinue(false);
       }
+      
+      console.log("Story initialized with node:", startNode);
     } else if (story) {
       if (story.canContinue) {
         const nextText = story.Continue();
@@ -80,8 +89,18 @@ export const useStoryNavigation = ({
       } else {
         setCurrentChoices([]);
       }
+      
+      console.log("Ink story initialized");
     }
   }, [usingCustomFormat, storyData, story]);
+
+  // CRITICAL FIX: Add effect to initialize story when data is ready
+  useEffect(() => {
+    if ((usingCustomFormat && storyData) || (!usingCustomFormat && story)) {
+      console.log("Story data or Ink story loaded, initializing...");
+      initializeStoryState();
+    }
+  }, [storyData, story, usingCustomFormat, initializeStoryState]);
 
   // Handle continue with node mapping
   const handleContinue = async () => {
@@ -112,9 +131,18 @@ export const useStoryNavigation = ({
       // Follow single choice in custom story
       const nextNode = currentChoices[0].nextNode;
       if (storyData[nextNode]) {
+        console.log(`Following continue choice to node: ${nextNode}`);
         setCurrentNode(nextNode);
         setCurrentText(storyData[nextNode].text);
-        setCurrentChoices(storyData[nextNode].choices || []);
+        
+        // Check if the next node choices include a single "continue" option
+        const nextChoices = storyData[nextNode].choices || [];
+        setCurrentChoices(nextChoices);
+        
+        const hasContinueChoice = nextChoices.length === 1 && 
+          nextChoices[0].text.toLowerCase().includes('continue');
+        
+        setCanContinue(hasContinueChoice);
       }
     }
     
@@ -137,6 +165,67 @@ export const useStoryNavigation = ({
       setCommentCount(count);
     } else {
       console.warn(`Navigation issue: No valid node found for page ${newPage}`);
+    }
+  };
+
+  // Handle choice with proper node mapping determination
+  const handleChoice = async (index: number) => {
+    if (usingCustomFormat) {
+      if (index < 0 || index >= currentChoices.length) {
+        console.warn(`Invalid choice index: ${index}`);
+        return;
+      }
+      
+      const choice = currentChoices[index];
+      if (choice && choice.nextNode) {
+        console.log(`Selected choice ${index}: "${choice.text}" -> "${choice.nextNode}"`);
+        await handleCustomChoice(choice.nextNode);
+      }
+    } else {
+      await handleInkChoice(index);
+    }
+  };
+
+  // Handle custom choice with node mapping
+  const handleCustomChoice = async (nextNode: string) => {
+    if (!storyData || !storyId) return;
+
+    setStoryHistory(prev => [...prev, currentNode]);
+    setCanGoBack(true);
+
+    const nextStoryNode = storyData[nextNode];
+    if (nextStoryNode) {
+      console.log(`Navigating to node: ${nextNode}`);
+      setCurrentNode(nextNode);
+      setCurrentText(nextStoryNode.text);
+      
+      const nextChoices = nextStoryNode.choices || [];
+      setCurrentChoices(nextChoices);
+      
+      // Check if there's a single "continue" choice
+      const hasContinueChoice = nextChoices.length === 1 && 
+        nextChoices[0].text.toLowerCase().includes('continue');
+      
+      setCanContinue(hasContinueChoice);
+      
+      // Update page using node mappings
+      const nextPage = nodeMappings.nodeToPage[nextNode];
+      
+      if (nextPage) {
+        console.log(`Choice navigation: node ${nextNode} maps to page ${nextPage}`);
+        setCurrentPage(nextPage);
+        setCurrentStoryPosition(nextPage);
+      } else {
+        console.warn(`No page mapping for node ${nextNode}, using incremental page`);
+        const newPage = Math.min(currentPage + 1, totalPages);
+        setCurrentPage(newPage);
+        setCurrentStoryPosition(newPage);
+      }
+      
+      const count = await fetchCommentCount(storyId, currentPage);
+      setCommentCount(count);
+    } else {
+      console.error(`Node "${nextNode}" not found in story`);
     }
   };
 
@@ -181,52 +270,6 @@ export const useStoryNavigation = ({
     
     const count = await fetchCommentCount(storyId, currentPage);
     setCommentCount(count);
-  };
-
-  // Handle custom choice with node mapping
-  const handleCustomChoice = async (nextNode: string) => {
-    if (!storyData || !storyId) return;
-
-    setStoryHistory(prev => [...prev, currentNode]);
-    setCanGoBack(true);
-
-    const nextStoryNode = storyData[nextNode];
-    if (nextStoryNode) {
-      setCurrentNode(nextNode);
-      setCurrentText(nextStoryNode.text);
-      setCurrentChoices(nextStoryNode.choices || []);
-      
-      // Update page using node mappings
-      const nextPage = nodeMappings.nodeToPage[nextNode];
-      
-      if (nextPage) {
-        console.log(`Choice navigation: node ${nextNode} maps to page ${nextPage}`);
-        setCurrentPage(nextPage);
-        setCurrentStoryPosition(nextPage);
-      } else {
-        console.warn(`No page mapping for node ${nextNode}, using incremental page`);
-        const newPage = Math.min(currentPage + 1, totalPages);
-        setCurrentPage(newPage);
-        setCurrentStoryPosition(newPage);
-      }
-      
-      const count = await fetchCommentCount(storyId, currentPage);
-      setCommentCount(count);
-    } else {
-      console.error(`Node "${nextNode}" not found in story`);
-    }
-  };
-
-  // Handle choice with proper node mapping determination
-  const handleChoice = async (index: number) => {
-    if (usingCustomFormat) {
-      const choice = currentChoices[index];
-      if (choice && choice.nextNode) {
-        await handleCustomChoice(choice.nextNode);
-      }
-    } else {
-      await handleInkChoice(index);
-    }
   };
 
   // Handle back navigation with node mappings
@@ -321,9 +364,17 @@ export const useStoryNavigation = ({
       if (startNodeData && startNodeData.text) {
         setCurrentText(startNodeData.text);
         setCurrentChoices(startNodeData.choices || []);
+        
+        // Check if there's a single "continue" choice
+        const hasContinueChoice = startNodeData.choices && 
+          startNodeData.choices.length === 1 && 
+          startNodeData.choices[0].text.toLowerCase().includes('continue');
+        
+        setCanContinue(hasContinueChoice);
       } else {
         setCurrentText("Story begins...");
         setCurrentChoices([]);
+        setCanContinue(false);
       }
     } else if (story) {
       story.ResetState();
@@ -379,7 +430,15 @@ export const useStoryNavigation = ({
         
         setCurrentNode(targetNode);
         setCurrentText(storyData[targetNode].text);
-        setCurrentChoices(storyData[targetNode].choices || []);
+        
+        const nodeChoices = storyData[targetNode].choices || [];
+        setCurrentChoices(nodeChoices);
+        
+        // Check if there's a single "continue" choice
+        const hasContinueChoice = nodeChoices.length === 1 && 
+          nodeChoices[0].text.toLowerCase().includes('continue');
+        
+        setCanContinue(hasContinueChoice);
         
         setCurrentPage(newPage);
         setCurrentStoryPosition(newPage);
