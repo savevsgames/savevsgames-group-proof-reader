@@ -36,6 +36,7 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
   const [systemPrompt, setSystemPrompt] = useState("");
   const [comments, setComments] = useState<any[]>([]);
   const [llmOutput, setLlmOutput] = useState<string>("");
+  const [llmError, setLlmError] = useState<string>("");
   const [llmType, setLlmType] = useState<"edit_json" | "story_suggestions">("edit_json");
   const [commentContext, setCommentContext] = useState<CommentContextItem[]>([]);
   const [modelSettings, setModelSettings] = useState({
@@ -88,6 +89,7 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
 
     setIsLoading(true);
     setLlmOutput("");
+    setLlmError("");
 
     try {
       // Prepare full prompt with context including story context
@@ -128,6 +130,7 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
       });
     } catch (err: any) {
       console.error("Error generating content:", err);
+      setLlmError(err.message || "Failed to generate content");
       toast({
         title: "Error generating content",
         description: err.message || "There was an error generating content.",
@@ -193,7 +196,7 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
         </Card>
         
         <Card className="p-4 h-full">
-          <LlmOutput output={llmOutput} />
+          <LlmOutput output={llmOutput} error={llmError} />
         </Card>
       </div>
       

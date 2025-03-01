@@ -1,12 +1,15 @@
 
 import React from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 interface LlmOutputProps {
   output: string;
+  error?: string;
 }
 
-const LlmOutput: React.FC<LlmOutputProps> = ({ output }) => {
+const LlmOutput: React.FC<LlmOutputProps> = ({ output, error }) => {
   // Check if output is JSON and format it if it is
   const formatOutput = (text: string) => {
     if (!text) return text;
@@ -26,6 +29,21 @@ const LlmOutput: React.FC<LlmOutputProps> = ({ output }) => {
     (output.trim().startsWith('{') && output.trim().endsWith('}')) ||
     (output.trim().startsWith('[') && output.trim().endsWith(']'))
   );
+
+  if (error) {
+    return (
+      <div className="h-full flex flex-col">
+        <h3 className="text-lg font-semibold mb-2">LLM Output</h3>
+        <Alert variant="destructive" className="mb-2">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>
+            {error}
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col">

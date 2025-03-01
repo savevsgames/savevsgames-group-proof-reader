@@ -11,26 +11,50 @@ export const generateContent = async (
   model: string = "gpt-4o-mini",
   temperature: number = 0.7
 ) => {
-  const response = await fetch("/api/generate-story-content", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      systemPrompt,
-      prompt: fullPrompt,
-      contentType: llmType,
-      model,
-      temperature
-    }),
-  });
+  try {
+    const response = await fetch("/api/generate-story-content", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        systemPrompt,
+        prompt: fullPrompt,
+        contentType: llmType,
+        model,
+        temperature
+      }),
+    });
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to generate content");
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("API error response:", errorText);
+      try {
+        // Try to parse as JSON in case it's a structured error
+        const errorData = JSON.parse(errorText);
+        throw new Error(errorData.error || "Failed to generate content");
+      } catch (jsonError) {
+        // If parsing fails, return the raw error text
+        throw new Error(`API error (${response.status}): ${errorText || "No response details"}`);
+      }
+    }
+
+    // Safely parse the JSON response
+    const responseText = await response.text();
+    if (!responseText) {
+      throw new Error("Empty response from API");
+    }
+    
+    try {
+      return JSON.parse(responseText);
+    } catch (e) {
+      console.error("Failed to parse JSON response:", e, "Response text:", responseText);
+      throw new Error("Invalid JSON response from API");
+    }
+  } catch (error) {
+    console.error("Error in generateContent:", error);
+    throw error;
   }
-
-  return await response.json();
 };
 
 // Prepare prompt data with improved comment formatting
