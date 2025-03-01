@@ -1,8 +1,9 @@
+
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Trash, Edit, Send } from 'lucide-react';
 import { Comment } from './types';
-import { commentTypeColors, commentTypeLabels } from '@/lib/commentTypes';
+import { CommentType, commentTypeColors, commentTypeLabels } from '@/lib/commentTypes';
 
 interface CommentItemProps {
   comment: Comment;
@@ -10,7 +11,7 @@ interface CommentItemProps {
   isModerator: boolean;
   onEdit: (comment: Comment) => void;
   onDelete?: (commentId: string) => void;
-  onAddToLlmContext?: (commentType: string, commentText: string, username: string) => void;
+  onAddToLlmContext?: (commentType: CommentType, commentText: string, username: string) => void;
 }
 
 const CommentItem: React.FC<CommentItemProps> = ({
@@ -29,7 +30,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
   const handleAddToContext = () => {
     if (onAddToLlmContext) {
       onAddToLlmContext(
-        commentTypeLabel, 
+        commentType as CommentType, 
         comment.text,
         comment.profile?.username || comment.user_name || 'Anonymous'
       );
@@ -43,7 +44,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
       <div className="flex justify-between items-start">
         <div>
           <div className="flex items-center gap-2">
-            <span className="font-medium">{comment.user_name}</span>
+            <span className="font-medium">{comment.profile?.username || comment.user_name || 'Anonymous'}</span>
             <span className="text-xs text-gray-500">{formattedDate}</span>
           </div>
           

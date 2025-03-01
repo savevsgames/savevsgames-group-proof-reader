@@ -4,7 +4,6 @@ import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { CustomStory } from "@/lib/storyUtils";
 import { useAuth } from "@/context/AuthContext";
-import CommentsView from "./CommentsView";
 import LlmSettings from "./llm/LlmSettings";
 import LlmOutput from "./llm/LlmOutput";
 import { 
@@ -14,6 +13,7 @@ import {
   preparePromptData,
   generateContent
 } from "@/lib/llmUtils";
+import { CommentType } from "@/lib/commentTypes";
 
 interface LlmIntegrationProps {
   storyId: string;
@@ -24,7 +24,7 @@ interface LlmIntegrationProps {
 }
 
 interface CommentContextItem {
-  type: string;
+  type: CommentType;
   text: string;
   username: string;
 }
@@ -169,8 +169,8 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
     }
   };
 
-  const handleAddToLlmContext = (commentType: string, commentText: string, username: string) => {
-    // Add to comment context in the format "comment_type": "comment_text"
+  const handleAddToLlmContext = (commentType: CommentType, commentText: string, username: string) => {
+    // Add to comment context with proper typing
     setCommentContext(prev => [
       ...prev,
       {
@@ -223,32 +223,15 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
           />
         </Card>
         
-        <div className="space-y-4">
-          <Card className="p-4 h-full flex flex-col">
-            <LlmOutput output={llmOutput} />
-          </Card>
-          
-          <Card className="p-4">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-lg font-semibold">Reader Comments</h3>
-            </div>
-            
-            <CommentsView 
-              storyId={storyId}
-              currentNode={currentNode}
-              currentPage={currentPage}
-              onCommentsUpdate={(count) => {
-                // This function can stay the same
-              }}
-              onAddToLlmContext={handleAddToLlmContext}
-            />
-          </Card>
-        </div>
+        <Card className="p-4 h-full">
+          <LlmOutput output={llmOutput} />
+        </Card>
       </div>
       
       <div className="text-sm text-gray-500 border-t pt-3">
         <p>Current Node: <span className="font-mono">{currentNode}</span></p>
         <p>Page: <span className="font-mono">{currentPage}</span></p>
+        <p>To add comments to LLM context, use the "Comments" tab and click the send icon on any comment.</p>
       </div>
     </div>
   );

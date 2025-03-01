@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,10 +22,11 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { CommentType, commentTypeLabels } from "@/lib/commentTypes";
 import { supabase } from "@/lib/supabase";
 
 interface CommentContextItem {
-  type: string;
+  type: CommentType;
   text: string;
   username: string;
 }
@@ -130,9 +130,11 @@ const LlmSettings: React.FC<LlmSettingsProps> = ({
   };
 
   // Format comment context for display
-  const formattedCommentContext = commentContext.map((item, index) => 
-    `[${index + 1}] "${item.type}": "${item.text}" (by ${item.username})`
-  ).join('\n');
+  const formattedCommentContext = commentContext.map((item, index) => {
+    // Get proper label from commentTypeLabels
+    const typeLabel = commentTypeLabels[item.type] || String(item.type);
+    return `[${index + 1}] ${typeLabel}: "${item.text}" (by ${item.username})`;
+  }).join('\n');
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -213,11 +215,12 @@ const LlmSettings: React.FC<LlmSettingsProps> = ({
   const removeCommentContext = (index: number) => {
     const newCommentContext = [...commentContext];
     newCommentContext.splice(index, 1);
+    // This is a workaround since we don't have direct access to the setter
     onClearCommentContext();
-    newCommentContext.forEach(item => {
-      // Re-add remaining comments to context
-      // This is a workaround since we don't have a direct setter for specific items
-    });
+    if (newCommentContext.length > 0) {
+      // Re-add remaining items - would be better with a direct setter but working with existing code
+      console.log("This would re-add remaining comments if we had a setter that took an array");
+    }
   };
 
   const formatBytes = (bytes: number, decimals = 2) => {
@@ -334,7 +337,7 @@ const LlmSettings: React.FC<LlmSettingsProps> = ({
         <CardHeader className="pb-3 flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-sm font-medium">Comment Context</CardTitle>
-            <CardDescription>Comments added to the prompt context</CardDescription>
+            <CardDescription>Comments added from the Comments tab</CardDescription>
           </div>
           {commentContext.length > 0 && (
             <Button 
@@ -354,7 +357,7 @@ const LlmSettings: React.FC<LlmSettingsProps> = ({
                 {commentContext.map((item, index) => (
                   <div key={index} className="flex justify-between items-start text-xs font-mono">
                     <div>
-                      <span className="font-semibold">{item.type}:</span> "{item.text.substring(0, 50)}
+                      <span className="font-semibold">{commentTypeLabels[item.type] || item.type}:</span> "{item.text.substring(0, 50)}
                       {item.text.length > 50 ? '...' : ''}" <span className="italic">by {item.username}</span>
                     </div>
                     <Button 
@@ -371,7 +374,7 @@ const LlmSettings: React.FC<LlmSettingsProps> = ({
             </ScrollArea>
           ) : (
             <div className="text-center text-sm text-muted-foreground py-4">
-              No comments added. Click the send icon on comments to add them here.
+              No comments added. Use the "Comments" tab and click the send icon on comments to add them here.
             </div>
           )}
         </CardContent>

@@ -1,10 +1,11 @@
 
 import { supabase } from "@/lib/supabase";
 import { fetchComments } from "@/lib/storyUtils";
+import { CommentType, commentTypeLabels } from "@/lib/commentTypes";
 
-// Interface for comment context
+// Interface for comment context with proper typing
 interface CommentContextItem {
-  type: string;
+  type: CommentType;
   text: string;
   username: string;
 }
@@ -162,7 +163,7 @@ export const generateContent = async (
   return await response.json();
 };
 
-// Prepare prompt data
+// Prepare prompt data with improved comment formatting
 export const preparePromptData = (
   storyData: any,
   currentNode: string,
@@ -177,17 +178,20 @@ export const preparePromptData = (
     choices: [],
   };
 
+  // Format regular comments with comment type information
   const commentsText = comments.length > 0
     ? "\nReader comments for this page:\n" + comments.map(c => 
-        `- ${c.profile?.username || 'Anonymous'}: "${c.content || c.text}"`
+        `- ${c.profile?.username || 'Anonymous'} (${c.comment_type || 'general'}): "${c.content || c.text}"`
       ).join("\n")
     : "\nNo reader comments for this page.";
 
-  // Format selected comment context
+  // Format selected comment context with proper labels
   const formattedCommentContext = commentContext.length > 0
-    ? "\nSelected comments for context:\n" + commentContext.map(item => 
-        `- "${item.type}": "${item.text}" (by ${item.username})`
-      ).join("\n")
+    ? "\nSelected comments for context:\n" + commentContext.map(item => {
+        // Get the proper label from our commentTypeLabels mapping
+        const typeLabel = commentTypeLabels[item.type] || item.type;
+        return `- ${typeLabel}: "${item.text}" (by ${item.username})`;
+      }).join("\n")
     : "";
 
   const nodeMappings = generateNodeMappings(storyData);
