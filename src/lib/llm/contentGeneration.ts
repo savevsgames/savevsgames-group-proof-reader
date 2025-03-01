@@ -1,7 +1,7 @@
-
 import { generateNodeMappings } from "@/lib/storyUtils";
 import { formatCommentContext, formatPageComments, CommentContextItem } from "./commentContext";
 import { CommentType } from "@/lib/commentTypes";
+import { supabase } from "@/lib/supabase";
 
 // Generate content using OpenAI API
 export const generateContent = async (
@@ -12,73 +12,30 @@ export const generateContent = async (
   temperature: number = 0.7
 ) => {
   try {
-    // Direct OpenAI API call instead of using a Next.js API route
-    const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
-    
-    if (!OPENAI_API_KEY) {
-      throw new Error("OpenAI API key is not configured. Please set the VITE_OPENAI_API_KEY environment variable.");
-    }
-
-    const finalSystemPrompt = systemPrompt + (
-      llmType === "edit_json" 
-        ? "\nYou are a JSON editor. Your task is to generate valid JSON for story nodes based on user instructions and context provided."
-        : "\nYou are a creative writing assistant providing suggestions and ideas to improve the story."
-    );
-
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENAI_API_KEY}`
-      },
+    // Call Supabase Edge Function to handle the API request securely
+    const { data, error } = await supabase.functions.invoke('generate-story-content', {
       body: JSON.stringify({
-        model: model,
-        messages: [
-          {
-            role: "system",
-            content: finalSystemPrompt
-          },
-          {
-            role: "user",
-            content: fullPrompt
-          }
-        ],
-        temperature: temperature,
-        max_tokens: 2000,
+        systemPrompt,
+        prompt: fullPrompt,
+        contentType: llmType,
+        model,
+        temperature
       })
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("OpenAI API error response:", errorText);
-      try {
-        // Try to parse as JSON in case it's a structured error
-        const errorData = JSON.parse(errorText);
-        throw new Error(errorData.error || "Failed to generate content");
-      } catch (jsonError) {
-        // If parsing fails, return the raw error text
-        throw new Error(`API error (${response.status}): ${errorText || "No response details"}`);
-      }
+    if (error) {
+      console.error("Supabase Function error:", error);
+      throw new Error(`Error calling Supabase Function: ${error.message}`);
     }
 
-    // Safely parse the JSON response
-    const responseText = await response.text();
-    if (!responseText) {
-      throw new Error("Empty response from API");
+    if (!data || !data.content) {
+      throw new Error("Invalid response from API");
     }
-    
-    try {
-      const data = JSON.parse(responseText);
-      const generatedContent = data.choices[0]?.message?.content || "";
-      
-      return { 
-        content: generatedContent, 
-        contentType: llmType 
-      };
-    } catch (e) {
-      console.error("Failed to parse JSON response:", e, "Response text:", responseText);
-      throw new Error("Invalid JSON response from API");
-    }
+
+    return {
+      content: data.content,
+      contentType: llmType
+    };
   } catch (error) {
     console.error("Error in generateContent:", error);
     throw error;

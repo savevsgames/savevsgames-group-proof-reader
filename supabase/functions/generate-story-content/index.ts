@@ -1,61 +1,50 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import "https://deno.land/x/xhr@0.3.0/mod.ts";
+import { serve } from "https://deno.land/std@0.131.0/http/server.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') || "";
+interface RequestBody {
+  systemPrompt: string;
+  prompt: string;
+  contentType: "edit_json" | "story_suggestions";
+  model: string;
+  temperature: number;
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const { systemPrompt, prompt, contentType, model, temperature } = await req.json();
-
-    if (!systemPrompt || !prompt) {
-      return new Response(
-        JSON.stringify({ error: "System prompt and prompt are required" }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
+    // Get the OPENAI_API_KEY from environment variables
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    
+    if (!OPENAI_API_KEY) {
+      throw new Error("OPENAI_API_KEY environment variable is not set");
     }
 
-    // Validate content type
-    if (!["edit_json", "story_suggestions"].includes(contentType)) {
-      return new Response(
-        JSON.stringify({ error: "Invalid content type. Must be 'edit_json' or 'story_suggestions'" }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
+    // Parse request body
+    const requestData: RequestBody = await req.json();
+    const { systemPrompt, prompt, contentType, model, temperature } = requestData;
 
-    // Set appropriate system prompt based on content type
-    let finalSystemPrompt = systemPrompt;
-    if (contentType === "edit_json") {
-      finalSystemPrompt += "\nYou are a JSON editor. Your task is to generate valid JSON for story nodes based on user instructions and context provided.";
-    } else {
-      finalSystemPrompt += "\nYou are a creative writing assistant providing suggestions and ideas to improve the story.";
-    }
+    // Prepare final system prompt based on content type
+    const finalSystemPrompt = systemPrompt + (
+      contentType === "edit_json" 
+        ? "\nYou are a JSON editor. Your task is to generate valid JSON for story nodes based on user instructions and context provided."
+        : "\nYou are a creative writing assistant providing suggestions and ideas to improve the story."
+    );
 
-    // Set up OpenAI API request
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    // Make OpenAI API request
+    const openAIResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENAI_API_KEY}`
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        ...corsHeaders
       },
       body: JSON.stringify({
-        model: model || "gpt-4o-mini",
+        model: model,
         messages: [
           {
             role: "system",
@@ -66,45 +55,56 @@ serve(async (req) => {
             content: prompt
           }
         ],
-        temperature: temperature || 0.7,
+        temperature: temperature,
         max_tokens: 2000,
       })
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      console.error("OpenAI API error:", error);
+    if (!openAIResponse.ok) {
+      const errorText = await openAIResponse.text();
+      console.error(`OpenAI API Error (${openAIResponse.status}):`, errorText);
+      
       return new Response(
-        JSON.stringify({ error: "Failed to generate content with OpenAI" }),
+        JSON.stringify({ 
+          error: `OpenAI API Error (${openAIResponse.status}): ${errorText}` 
+        }),
         { 
-          status: 500, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          status: openAIResponse.status, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          } 
         }
       );
     }
 
-    const data = await response.json();
+    // Parse and return the OpenAI response
+    const data = await openAIResponse.json();
     const generatedContent = data.choices[0]?.message?.content || "";
-
-    console.log(`Generated ${contentType} content successfully`);
 
     return new Response(
       JSON.stringify({ 
-        content: generatedContent, 
-        contentType 
+        content: generatedContent,
+        contentType: contentType
       }),
       { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        headers: { 
+          "Content-Type": "application/json",
+          ...corsHeaders
+        } 
       }
     );
   } catch (error) {
-    console.error("Error in generate-story-content function:", error);
+    console.error("Error processing request:", error.message);
     
     return new Response(
-      JSON.stringify({ error: error.message || "An unexpected error occurred" }),
+      JSON.stringify({ error: error.message || "An error occurred" }),
       { 
         status: 500, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        headers: { 
+          "Content-Type": "application/json",
+          ...corsHeaders
+        } 
       }
     );
   }
