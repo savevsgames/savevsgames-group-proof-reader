@@ -17,6 +17,9 @@ interface StoryEditorContentProps {
   onNodeChange: (nodeName: string) => void;
   onSave: () => Promise<void>;
   onNavigate: (path: string) => void;
+  llmContext?: string;
+  setLlmContext?: (context: string) => void;
+  onAddToLlmContext?: (text: string) => void;
 }
 
 const StoryEditorContent: React.FC<StoryEditorContentProps> = ({
@@ -29,7 +32,10 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = ({
   onUnsavedChanges,
   onNodeChange,
   onSave,
-  onNavigate
+  onNavigate,
+  llmContext,
+  setLlmContext,
+  onAddToLlmContext
 }) => {
   const navigate = useNavigate();
 
@@ -42,6 +48,9 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = ({
         onUnsavedChanges={onUnsavedChanges}
         currentNode={currentNode}
         onNodeChange={onNodeChange}
+        llmContext={llmContext}
+        setLlmContext={setLlmContext}
+        onAddToLlmContext={onAddToLlmContext}
       />
       
       <div className="mt-6 flex justify-between items-center">
