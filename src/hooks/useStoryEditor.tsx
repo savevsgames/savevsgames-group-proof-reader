@@ -4,6 +4,7 @@ import { useStoryStore } from "@/stores/storyState";
 import { shallow } from "zustand/shallow";
 import type { NodeMappings } from "@/lib/storyNodeMapping";
 import { CustomStory } from "@/lib/storyUtils";
+import { StoryStore } from "@/stores/storyState/types";
 
 export const useStoryEditor = (storyId: string) => {
   console.log("[StoryEditor] Initializing story editor for ID:", storyId);
@@ -29,7 +30,7 @@ export const useStoryEditor = (storyId: string) => {
     handleStoryDataChange,
     handleSave,
   } = useStoryStore(
-    state => ({
+    (state: StoryStore) => ({
       storyData: state.storyData,
       story: state.story,
       loading: state.loading,

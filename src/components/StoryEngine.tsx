@@ -8,6 +8,7 @@ import { Comment } from "./comments/types";
 import { User } from "@supabase/supabase-js";
 import { useStoryStore } from "@/stores/storyState";
 import { shallow } from "zustand/shallow";
+import { StoryStore } from "@/stores/storyState/types";
 
 interface StoryEngineProps {
   storyId: string;
@@ -37,7 +38,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
     handlePageChange,
     setCommentCount
   } = useStoryStore(
-    (state) => ({
+    (state: StoryStore) => ({
       loading: state.loading,
       error: state.error,
       title: state.title,

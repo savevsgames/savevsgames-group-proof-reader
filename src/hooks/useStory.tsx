@@ -2,15 +2,17 @@
 import { useEffect } from "react";
 import { useStoryStore } from "@/stores/storyState";
 import { shallow } from "zustand/shallow";
+import { StoryStore } from "@/stores/storyState/types";
 
 export const useStory = (storyId: string | undefined) => {
   const {
     initializeStory,
-    updateCommentCount,
     loading,
-    // ... extract all other state/actions we need
+    // ... extract other state/actions we need
+    setCommentCount,
+    commentCount
   } = useStoryStore(
-    state => ({
+    (state: StoryStore) => ({
       // Story state
       story: state.story,
       storyData: state.storyData,
@@ -32,11 +34,7 @@ export const useStory = (storyId: string | undefined) => {
       
       // Actions
       initializeStory: state.initializeStory,
-      updateCommentCount: () => {
-        if (storyId) {
-          state.setCommentCount(state.commentCount);
-        }
-      },
+      setCommentCount: state.setCommentCount,
       handleContinue: state.handleContinue,
       handleChoice: state.handleChoice,
       handleBack: state.goBack,
@@ -45,6 +43,13 @@ export const useStory = (storyId: string | undefined) => {
     }),
     shallow
   );
+  
+  // Create updateCommentCount function
+  const updateCommentCount = () => {
+    if (storyId) {
+      setCommentCount(commentCount);
+    }
+  };
   
   // Initialize story when the component mounts
   useEffect(() => {
@@ -62,7 +67,7 @@ export const useStory = (storyId: string | undefined) => {
   
   // Return all the state and actions from the store
   return useStoryStore(
-    state => ({
+    (state: StoryStore) => ({
       // Story state
       story: state.story,
       customStory: state.storyData,
@@ -88,6 +93,7 @@ export const useStory = (storyId: string | undefined) => {
       handleBack: state.goBack,
       handleRestart: state.handleRestart,
       handlePageChange: state.handlePageChange,
+      // Add updateCommentCount function
       updateCommentCount: () => {
         if (storyId) {
           state.setCommentCount(state.commentCount);
