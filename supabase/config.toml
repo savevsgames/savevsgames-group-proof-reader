@@ -1,5 +1,25 @@
 
 project_id = "pakmcaxaxyvhjdddfpdh"
 
-[functions.generate-story-content]
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+
+[db]
+port = 54322
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+
+[[functions]]
+name = "generate-story-content"
+verify_jwt = true
+
+[[functions]]
+name = "upload-context-file"
 verify_jwt = true

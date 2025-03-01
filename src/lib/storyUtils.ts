@@ -201,3 +201,72 @@ export const fetchBookDetails = async (storyId: string) => {
 
   return data;
 };
+
+// NEW: Convert JSON story format to Ink format
+export const convertJSONToInk = (storyData: any): string => {
+  try {
+    if (typeof storyData === 'string') {
+      try {
+        storyData = JSON.parse(storyData);
+      } catch (e) {
+        console.error('Failed to parse JSON string in convertJSONToInk:', e);
+        return '// Invalid JSON format. Please check your story structure.';
+      }
+    }
+    
+    let inkContent = '// Generated Ink script from JSON story format\n\n';
+    
+    // Process each story node
+    const processedNodes = new Set<string>();
+    const nodesToProcess: string[] = ['start'];  // Start with the root node
+    
+    // If there's no explicit 'start' node but has a 'root' node, use that
+    if (!storyData.start && storyData.root) {
+      storyData.start = storyData.root;
+    }
+    
+    while (nodesToProcess.length > 0) {
+      const currentNode = nodesToProcess.shift();
+      if (!currentNode || processedNodes.has(currentNode)) continue;
+      
+      const node = storyData[currentNode];
+      if (!node) {
+        console.warn(`Node "${currentNode}" not found in story data`);
+        continue;
+      }
+      
+      processedNodes.add(currentNode);
+      
+      // Add a section comment for the node
+      inkContent += `// === ${currentNode} ===\n`;
+      
+      // Add the node text
+      inkContent += `${node.text}\n\n`;
+      
+      // Add choices if any
+      if (node.choices && node.choices.length > 0) {
+        for (const choice of node.choices) {
+          inkContent += `* ${choice.text}\n`;
+          inkContent += `    -> ${choice.nextNode}\n`;
+          
+          // Add the next node to process if not already processed
+          if (!processedNodes.has(choice.nextNode)) {
+            nodesToProcess.push(choice.nextNode);
+          }
+        }
+        inkContent += '\n';
+      } else if (node.isEnding) {
+        // Handle ending node
+        inkContent += '-> END\n\n';
+      } else {
+        // No choices but not an ending - could be an error in the story structure
+        inkContent += '// WARNING: No choices defined for this node and not marked as an ending\n\n';
+      }
+    }
+    
+    return inkContent;
+  } catch (e) {
+    console.error('Error in convertJSONToInk:', e);
+    return '// Error converting JSON to Ink format. Please check your story structure.';
+  }
+};

@@ -8,7 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { convertJSONToInk } from "@/lib/storyUtils";
 
 interface StoryEditPageProps {}
 
@@ -21,9 +26,18 @@ const StoryEditPage: React.FC<StoryEditPageProps> = () => {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [storyContent, setStoryContent] = useState("");
+  const [inkContent, setInkContent] = useState("");
   const [bookTitle, setBookTitle] = useState("");
   const [generatingContent, setGeneratingContent] = useState(false);
   const [promptInput, setPromptInput] = useState("");
+  const [activeTab, setActiveTab] = useState("json");
+  
+  // LLM settings
+  const [modelVersion, setModelVersion] = useState("gpt-4o");
+  const [temperature, setTemperature] = useState(0.7);
+  const [permanentContext, setPermanentContext] = useState("");
+  const [contextFiles, setContextFiles] = useState<any[]>([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   useEffect(() => {
     const fetchBook = async () => {
@@ -66,15 +80,27 @@ const StoryEditPage: React.FC<StoryEditPageProps> = () => {
               const storyData = await response.json();
               // For simple editing, we'll just use a plain text representation
               // In a more advanced implementation, you would parse the story structure
-              setStoryContent(JSON.stringify(storyData, null, 2));
+              const jsonContent = JSON.stringify(storyData, null, 2);
+              setStoryContent(jsonContent);
+              
+              // Convert JSON to Ink format
+              const inkFormatted = convertJSONToInk(storyData);
+              setInkContent(inkFormatted);
             }
           } catch (contentError) {
             console.error("Error fetching story content:", contentError);
             setStoryContent("// Add your story content here");
+            setInkContent("// Add your story content here");
           }
         } else {
           setStoryContent("// Add your story content here");
+          setInkContent("// Add your story content here");
         }
+
+        // Fetch LLM settings for this book
+        fetchLLMSettings();
+        // Fetch context files for this book
+        fetchContextFiles();
       } catch (error: any) {
         console.error("Error fetching book:", error);
         setError(error.message || "Failed to fetch book details");
@@ -85,6 +111,52 @@ const StoryEditPage: React.FC<StoryEditPageProps> = () => {
 
     fetchBook();
   }, [id, user, navigate]);
+
+  const fetchLLMSettings = async () => {
+    if (!id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("book_llm_settings")
+        .select("*")
+        .eq("book_id", id)
+        .single();
+        
+      if (error && error.code !== "PGRST116") { // No rows returned is fine
+        console.error("Error fetching LLM settings:", error);
+        return;
+      }
+      
+      if (data) {
+        setModelVersion(data.model_version || "gpt-4o");
+        setTemperature(data.temperature || 0.7);
+        setPermanentContext(data.permanent_context || "");
+      }
+    } catch (error) {
+      console.error("Error in fetchLLMSettings:", error);
+    }
+  };
+  
+  const fetchContextFiles = async () => {
+    if (!id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("book_context_files")
+        .select("*")
+        .eq("book_id", id)
+        .order("created_at", { ascending: false });
+        
+      if (error) {
+        console.error("Error fetching context files:", error);
+        return;
+      }
+      
+      setContextFiles(data || []);
+    } catch (error) {
+      console.error("Error in fetchContextFiles:", error);
+    }
+  };
 
   const handleSaveChanges = async () => {
     if (!user || !book) return;
@@ -102,10 +174,20 @@ const StoryEditPage: React.FC<StoryEditPageProps> = () => {
         throw titleError;
       }
 
-      // In a real implementation, you would:
-      // 1. Parse and validate the story content
-      // 2. Upload it to storage or save it directly
-      // 3. Update the book record with new metadata
+      // Save/update LLM settings
+      const { error: llmSettingsError } = await supabase
+        .from("book_llm_settings")
+        .upsert({
+          book_id: id,
+          model_version: modelVersion,
+          temperature: temperature,
+          permanent_context: permanentContext,
+          updated_at: new Date().toISOString()
+        });
+        
+      if (llmSettingsError) {
+        console.error("Error saving LLM settings:", llmSettingsError);
+      }
 
       // For this demo, we'll just record the edit in the story_edits table
       const { error: editError } = await supabase
@@ -113,7 +195,7 @@ const StoryEditPage: React.FC<StoryEditPageProps> = () => {
         .insert({
           book_id: id,
           editor_id: user.id,
-          content: storyContent,
+          content: activeTab === "json" ? storyContent : inkContent,
           edit_type: "manual",
         });
 
@@ -159,6 +241,9 @@ const StoryEditPage: React.FC<StoryEditPageProps> = () => {
         body: JSON.stringify({
           prompt: promptInput,
           currentContent: storyContent,
+          modelVersion: modelVersion,
+          temperature: temperature,
+          context: permanentContext
         }),
       });
 
@@ -170,9 +255,16 @@ const StoryEditPage: React.FC<StoryEditPageProps> = () => {
       const data = await response.json();
       
       if (data.generatedContent) {
-        // In a more sophisticated implementation, you would merge this content
-        // into the appropriate part of the story structure
         setStoryContent(data.generatedContent);
+        
+        // Update Ink content based on new JSON
+        try {
+          const parsedJson = JSON.parse(data.generatedContent);
+          const newInkContent = convertJSONToInk(parsedJson);
+          setInkContent(newInkContent);
+        } catch (e) {
+          console.error("Error parsing generated content:", e);
+        }
         
         toast({
           title: "Content generated",
@@ -188,6 +280,100 @@ const StoryEditPage: React.FC<StoryEditPageProps> = () => {
       });
     } finally {
       setGeneratingContent(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !id || !user) return;
+    
+    const file = files[0];
+    setUploadingFile(true);
+    
+    try {
+      // Create form data for the upload
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('bookId', id);
+      
+      // Upload to the Edge Function
+      const response = await fetch(`${window.location.origin}/api/functions/v1/upload-context-file`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to upload file");
+      }
+      
+      // Refresh the file list
+      fetchContextFiles();
+      
+      toast({
+        title: "File uploaded",
+        description: "Your context file has been uploaded successfully.",
+      });
+    } catch (error: any) {
+      console.error("Error uploading file:", error);
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to upload file",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingFile(false);
+      // Reset the file input
+      e.target.value = '';
+    }
+  };
+  
+  const handleDeleteFile = async (fileId: string) => {
+    if (!id || !user) return;
+    
+    try {
+      const { error } = await supabase
+        .from("book_context_files")
+        .delete()
+        .eq("id", fileId);
+        
+      if (error) {
+        throw error;
+      }
+      
+      // Refresh the file list
+      fetchContextFiles();
+      
+      toast({
+        title: "File deleted",
+        description: "Your context file has been deleted successfully.",
+      });
+    } catch (error: any) {
+      console.error("Error deleting file:", error);
+      toast({
+        title: "Delete failed",
+        description: error.message || "Failed to delete file",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle tab changes and sync content if needed
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    
+    if (value === "ink" && storyContent) {
+      try {
+        // Update Ink content if JSON is valid
+        const parsedJson = JSON.parse(storyContent);
+        const newInkContent = convertJSONToInk(parsedJson);
+        setInkContent(newInkContent);
+      } catch (e) {
+        console.error("Error parsing JSON for Ink conversion:", e);
+      }
     }
   };
 
@@ -248,24 +434,181 @@ const StoryEditPage: React.FC<StoryEditPageProps> = () => {
             Edit Story Content
           </h2>
           
-          <div className="mb-6">
-            <div className="border rounded-md mb-4">
-              <div className="bg-gray-100 p-3 border-b">
-                <div className="flex justify-between items-center">
-                  <span className="font-medium text-sm text-[#3A2618]">Story Editor</span>
-                  <div className="text-xs text-gray-500">
-                    JSON format
+          <Tabs defaultValue="json" onValueChange={handleTabChange} className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-6">
+              <TabsTrigger value="json">JSON View</TabsTrigger>
+              <TabsTrigger value="ink">Ink View</TabsTrigger>
+              <TabsTrigger value="llm">LLM Integration</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="json" className="mt-0">
+              <div className="mb-6">
+                <div className="border rounded-md mb-4">
+                  <div className="bg-gray-100 p-3 border-b">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-sm text-[#3A2618]">Story Editor</span>
+                      <div className="text-xs text-gray-500">
+                        JSON format
+                      </div>
+                    </div>
+                  </div>
+                  <Textarea
+                    value={storyContent}
+                    onChange={(e) => setStoryContent(e.target.value)}
+                    className="font-mono text-sm p-4 min-h-[400px] w-full border-0 focus-visible:ring-0"
+                    placeholder="Your story content in JSON format"
+                  />
+                </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="ink" className="mt-0">
+              <div className="mb-6">
+                <div className="border rounded-md mb-4">
+                  <div className="bg-gray-100 p-3 border-b">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-sm text-[#3A2618]">Story Editor</span>
+                      <div className="text-xs text-gray-500">
+                        Ink format
+                      </div>
+                    </div>
+                  </div>
+                  <Textarea
+                    value={inkContent}
+                    onChange={(e) => setInkContent(e.target.value)}
+                    className="font-mono text-sm p-4 min-h-[400px] w-full border-0 focus-visible:ring-0"
+                    placeholder="Your story content in Ink format"
+                  />
+                </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="llm" className="mt-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-medium text-[#3A2618] mb-3">Model Settings</h3>
+                    <div className="space-y-4 p-4 border rounded-md">
+                      <div className="space-y-2">
+                        <Label htmlFor="model-select">Model Version</Label>
+                        <Select 
+                          value={modelVersion} 
+                          onValueChange={setModelVersion}
+                        >
+                          <SelectTrigger id="model-select">
+                            <SelectValue placeholder="Select model" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                            <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
+                            <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <Label htmlFor="temperature-slider">Temperature: {temperature.toFixed(1)}</Label>
+                        </div>
+                        <Slider
+                          id="temperature-slider"
+                          min={0}
+                          max={1}
+                          step={0.1}
+                          value={[temperature]}
+                          onValueChange={(values) => setTemperature(values[0])}
+                          className="w-full"
+                        />
+                        <p className="text-xs text-gray-500">Lower values produce more focused, deterministic outputs while higher values increase creativity and randomness.</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-medium text-[#3A2618] mb-3">Context Management</h3>
+                    <div className="space-y-4 p-4 border rounded-md">
+                      <div className="space-y-2">
+                        <Label htmlFor="permanent-context">Permanent Context</Label>
+                        <Textarea
+                          id="permanent-context"
+                          value={permanentContext}
+                          onChange={(e) => setPermanentContext(e.target.value)}
+                          placeholder="Enter any permanent context or instructions for the LLM..."
+                          className="min-h-[200px]"
+                        />
+                        <p className="text-xs text-gray-500">
+                          This context will be included with every generation request to the LLM.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-medium text-[#3A2618] mb-3">RAG Files Management</h3>
+                  <div className="space-y-4 p-4 border rounded-md min-h-[400px]">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="file-upload">Upload RAG Context Files</Label>
+                      <Input
+                        id="file-upload"
+                        type="file"
+                        className="hidden"
+                        onChange={handleFileUpload}
+                        accept=".txt,.pdf,.md,.doc,.docx"
+                      />
+                      <Button
+                        onClick={() => document.getElementById('file-upload')?.click()}
+                        variant="outline"
+                        size="sm"
+                        disabled={uploadingFile}
+                      >
+                        {uploadingFile ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="mr-2 h-4 w-4" />
+                            Upload File
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    
+                    <div className="text-sm text-gray-500 mb-2">
+                      Supported file types: TXT, PDF, MD, DOC, DOCX
+                    </div>
+                    
+                    {contextFiles.length === 0 ? (
+                      <div className="text-center py-8 text-gray-400">
+                        No context files uploaded yet
+                      </div>
+                    ) : (
+                      <div className="space-y-2 mt-4">
+                        <h4 className="font-medium">Uploaded Files:</h4>
+                        <ul className="space-y-2">
+                          {contextFiles.map((file) => (
+                            <li key={file.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                              <span className="truncate max-w-[70%]">{file.file_name}</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => handleDeleteFile(file.id)}
+                              >
+                                Delete
+                              </Button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
-              <Textarea
-                value={storyContent}
-                onChange={(e) => setStoryContent(e.target.value)}
-                className="font-mono text-sm p-4 min-h-[400px] w-full border-0 focus-visible:ring-0"
-                placeholder="Your story content in JSON format"
-              />
-            </div>
-          </div>
+            </TabsContent>
+          </Tabs>
           
           <div className="mb-6 p-4 bg-gray-50 rounded-md border">
             <h3 className="text-lg font-medium text-[#3A2618] mb-2">
