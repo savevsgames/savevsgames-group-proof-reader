@@ -1,5 +1,5 @@
 
-import { StoryState, StoryStore } from './types';
+import { StoryState, StoryStore } from '@/types/story-types.definitions';
 
 // Navigation selectors
 export const selectCurrentNode = (state: StoryStore) => state.currentNode;

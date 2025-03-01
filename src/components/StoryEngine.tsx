@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { CommentModal } from "./CommentModal";
 import { BookLayout } from "./story/BookLayout";
@@ -8,10 +7,7 @@ import { Comment } from "./comments/types";
 import { User } from "@supabase/supabase-js";
 import { useStoryStore } from "@/stores/storyState";
 import { shallow } from "zustand/shallow";
-
-interface StoryEngineProps {
-  storyId: string;
-}
+import { StoryEngineProps } from "@/types/story-types.definitions";
 
 export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
   const { user } = useAuth();

@@ -5,10 +5,10 @@ import { ChevronRight } from 'lucide-react';
 
 interface StoryContinueButtonProps {
   onClick?: () => void;
-  onContinue?: () => void;  // Add this prop to match what's being passed
-  canContinue?: boolean;    // Add this prop
-  isEnding?: boolean;       // Add this prop
-  onRestart?: () => void;   // Add this prop
+  onContinue?: () => void;
+  canContinue?: boolean;
+  isEnding?: boolean;
+  onRestart?: () => void;
   label?: string;
 }
 

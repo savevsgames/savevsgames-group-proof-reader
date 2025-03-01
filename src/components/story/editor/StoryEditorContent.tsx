@@ -1,22 +1,8 @@
-
-import React, { useState } from "react";
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { Save } from "lucide-react";
 import StoryTabs from "@/components/story/StoryTabs";
-import { CustomStory } from "@/lib/storyUtils";
-
-interface StoryEditorContentProps {
-  storyId: string;
-  storyData: CustomStory;
-  currentNode: string;
-  saving: boolean;
-  hasUnsavedChanges: boolean;
-  onStoryDataChange: (data: CustomStory) => void;
-  onUnsavedChanges: (hasChanges: boolean) => void;
-  onSave: () => void;
-  onNodeChange: (nodeName: string) => void;
-  onNavigate: (target: string) => void;
-}
+import { CustomStory, StoryEditorContentProps } from "@/types/story-types.definitions";
 
 const StoryEditorContent: React.FC<StoryEditorContentProps> = ({
   storyId,

@@ -1,23 +1,9 @@
-
 import React from 'react';
-import { StoryChoice } from '@/lib/storyUtils';
+import { StoryChoice, StoryDisplayProps } from '@/types/story-types.definitions';
 import { StoryText } from './StoryText';
 import { StoryContinueButton } from './StoryContinueButton';
 import { StoryChoices } from './StoryChoices';
 import { EmptyStoryContent } from './EmptyStoryContent';
-
-interface StoryDisplayProps {
-  text: string;
-  storyId?: string;
-  currentNode?: string;
-  currentPage?: number;
-  canContinue: boolean;
-  choices: StoryChoice[];
-  isEnding: boolean;
-  onContinue: () => void;
-  onChoice: (index: number) => void;
-  onRestart?: () => void;
-}
 
 export const StoryDisplay: React.FC<StoryDisplayProps> = ({ 
   text,
