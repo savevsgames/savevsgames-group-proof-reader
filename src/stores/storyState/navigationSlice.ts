@@ -1,6 +1,5 @@
-
 import { StateCreator } from 'zustand';
-import { StoryStore } from './types';
+import { StoryStore } from '@/types/story-types.definitions';
 
 // Slice for navigation-related state and actions
 export const createNavigationSlice: StateCreator<
@@ -32,12 +31,21 @@ export const createNavigationSlice: StateCreator<
   },
   
   // Setters
-  setCurrentPage: (page) => set({ currentPage: page }),
-  setCurrentNode: (node) => set({ currentNode: node }),
+  setCurrentPage: (page) => {
+    if (get().currentPage === page) return;
+    set({ currentPage: page });
+  },
+  setCurrentNode: (node) => {
+    if (get().currentNode === node) return;
+    set({ currentNode: node });
+  },
   setCurrentText: (text) => set({ currentText: text }),
   setCurrentChoices: (choices) => set({ currentChoices: choices }),
   setCanContinue: (canContinue) => set({ canContinue }),
-  setCurrentStoryPosition: (position) => set({ currentStoryPosition: position }),
+  setCurrentStoryPosition: (position) => {
+    if (get().currentStoryPosition === position) return;
+    set({ currentStoryPosition: position });
+  },
   
   // Node mapping actions
   updateNodeMappings: () => {
@@ -76,10 +84,16 @@ export const createNavigationSlice: StateCreator<
   },
   
   // History management
-  addToHistory: (node) => set((state) => ({ 
-    storyHistory: [...state.storyHistory, node],
-    canGoBack: true
-  })),
+  addToHistory: (node) => {
+    const { storyHistory } = get();
+    if (storyHistory.length > 0 && storyHistory[storyHistory.length - 1] === node) {
+      return;
+    }
+    set((state) => ({ 
+      storyHistory: [...state.storyHistory, node],
+      canGoBack: true
+    }));
+  },
   
   clearHistory: () => set({ 
     storyHistory: [], 
@@ -147,8 +161,10 @@ export const createNavigationSlice: StateCreator<
     // Add current node to history before changing
     get().addToHistory(get().currentNode);
     
-    // Set new node data in a single batch update
+    // Extract node data
     const nodeData = storyData[targetNode];
+    
+    // Important: Batch update to reduce re-renders
     set({
       currentNode: targetNode,
       currentText: nodeData.text,

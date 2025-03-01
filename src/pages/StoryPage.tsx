@@ -6,38 +6,39 @@ import Header from "@/components/Header";
 import { useToast } from "@/hooks/use-toast";
 import { useStoryStore } from "@/stores/storyState";
 import { shallow } from "zustand/shallow";
+import { StoryState } from "@/types/story-types.definitions";
 
 const StoryPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  // Use separate selectors to avoid unnecessary re-renders
+  // Group selectors to minimize re-renders
+  const {
+    storyId,
+    loading,
+    error,
+    title,
+    totalPages
+  } = useStoryStore(state => ({
+    storyId: state.storyId,
+    loading: state.loading,
+    error: state.error,
+    title: state.title,
+    totalPages: state.totalPages
+  }), shallow);
+  
+  // Actions selector - separate from state to avoid re-renders
   const initializeStory = useStoryStore(state => state.initializeStory);
-  const storyId = useStoryStore(state => state.storyId);
-  const title = useStoryStore(state => state.title);
-  const totalPages = useStoryStore(state => state.totalPages);
-  const nodeMappings = useStoryStore(state => state.nodeMappings);
-  const currentPage = useStoryStore(state => state.currentPage);
-  const currentNode = useStoryStore(state => state.currentNode);
   
   // Memoize the initialization to prevent multiple calls
+  // IMPORTANT: Remove dependencies that cause circular updates
   const handleInitialization = useCallback(async (storyId: string) => {
     console.log("[StoryPage] Initializing story with ID:", storyId);
     await initializeStory(storyId);
-    
-    // Log post-initialization state 
-    console.log("[StoryPage] Post-initialization state:", {
-      storyId,
-      title,
-      totalPages,
-      hasNodeMappings: nodeMappings && Object.keys(nodeMappings.nodeToPage || {}).length > 0,
-      currentPage,
-      currentNode
-    });
-  }, [initializeStory, title, totalPages, nodeMappings, currentPage, currentNode]);
+  }, [initializeStory]); // Only depend on the stable action
   
-  // Initialize story on mount
+  // Initialize story on mount or when ID changes
   useEffect(() => {
     console.log("[StoryPage] Component mounted with ID:", id);
     
@@ -57,13 +58,12 @@ const StoryPage = () => {
     } else {
       console.log("[StoryPage] Story already initialized:", {
         storyId,
-        totalPages,
-        currentNode
+        totalPages
       });
     }
-  }, [id, navigate, toast, handleInitialization, storyId, totalPages, currentNode]);
+  }, [id, navigate, toast, handleInitialization, storyId]);
 
-  // Monitor totalPages changes without creating infinite loops
+  // Monitor totalPages changes in a separate effect
   useEffect(() => {
     if (totalPages > 0) {
       console.log(`[StoryPage] totalPages detected: ${totalPages}`);

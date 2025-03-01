@@ -1,4 +1,3 @@
-
 /**
  * STORY APPLICATION TYPE DEFINITIONS
  * 
@@ -58,6 +57,30 @@ export interface NavigationState {
   canGoBack: boolean;
   storyHistory: string[];
   currentStoryPosition: number;
+}
+
+// ----- COMMENT STRUCTURES -----
+
+/**
+ * Represents a comment in the story.
+ */
+export interface Comment {
+  id: string;
+  user_id: string;
+  story_id: string;
+  story_position: number;
+  story_node?: string;
+  text: string;
+  content?: string; // For backward compatibility
+  created_at: string;
+  updated_at: string;
+  comment_type: string;
+  profile?: {
+    username: string;
+    avatar_url?: string;
+  };
+  user_name?: string; // Added for display purposes
+  user_avatar?: string; // Added for display purposes
 }
 
 // ----- STORE STATE & ACTIONS -----
@@ -245,6 +268,19 @@ export interface ContentSelector {
   currentChoices: StoryChoice[];
   canContinue: boolean;
 }
+
+/**
+ * Type for the metadata selector.
+ */
+export interface MetadataSelector {
+  bookTitle: string;
+  totalPages: number;
+}
+
+/**
+ * Type for story selector function.
+ */
+export type StorySelector<T> = (state: StoryStore) => T;
 
 /**
  * Define tab types for StoryTabs component
