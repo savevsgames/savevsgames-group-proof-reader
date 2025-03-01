@@ -101,34 +101,30 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
     <div className="flex justify-between items-center py-4 px-6 bg-[#3A2618] text-[#E8DCC4] rounded-t-lg md:rounded-t-none">
       {/* Left side - Book title and navigation controls */}
       <div className="flex items-center space-x-4">
-        <div className="flex items-center space-x-2">
-          <SkipBack className="h-4 w-4 text-[#E8DCC4]" />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onRestart}
-            className="text-[#E8DCC4] hover:text-white hover:bg-[#4A3628]"
-            title="Start Over"
-            type="button"
-          >
-            <span>Restart</span>
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onRestart}
+          className="text-[#E8DCC4] hover:text-white hover:bg-[#4A3628]"
+          title="Start Over"
+          type="button"
+        >
+          <SkipBack className="h-4 w-4 mr-1" />
+          <span className="hidden sm:inline">Restart</span>
+        </Button>
         
-        <div className="flex items-center space-x-2">
-          <ChevronLeft className="h-4 w-4 text-[#E8DCC4]" />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onBack}
-            disabled={!canGoBack}
-            className="text-[#E8DCC4] hover:text-white hover:bg-[#4A3628] disabled:opacity-50"
-            title="Go Back"
-            type="button"
-          >
-            <span>Back</span>
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onBack}
+          disabled={!canGoBack}
+          className="text-[#E8DCC4] hover:text-white hover:bg-[#4A3628] disabled:opacity-50"
+          title="Go Back"
+          type="button"
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" />
+          <span className="hidden sm:inline">Back</span>
+        </Button>
         
         <h1 className="font-serif text-lg md:text-xl font-medium">{bookTitle}</h1>
       </div>
@@ -138,19 +134,16 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
         {!hidePageSelector && (
           <Popover>
             <PopoverTrigger asChild>
-              <div className="flex items-center space-x-2 cursor-pointer group">
-                <BookOpen className="h-4 w-4 text-[#E8DCC4]" />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="hover:bg-[#4A3628] text-[#E8DCC4] hover:text-white"
-                  type="button"
-                >
-                  <span className="text-sm">
-                    Page <span className="font-bold">{currentPage}</span> of {totalPages}
-                  </span>
-                </Button>
-              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex items-center hover:bg-[#4A3628] text-[#E8DCC4] hover:text-white"
+              >
+                <BookOpen className="h-4 w-4 mr-2" />
+                <span className="text-sm">
+                  Page <span className="font-bold">{currentPage}</span> of {totalPages}
+                </span>
+              </Button>
             </PopoverTrigger>
             <PopoverContent className="w-80 bg-[#E8DCC4] text-[#3A2618] p-4">
               <div className="space-y-4">
@@ -192,38 +185,34 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
           </Popover>
         )}
         
-        <div className="flex items-center space-x-2">
-          <MessageSquare className="h-4 w-4 text-[#E8DCC4]" />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onOpenComments}
-            className="text-[#E8DCC4] hover:text-white hover:bg-[#4A3628] relative"
-            title="View Comments"
-            type="button"
-          >
-            <span>Comments</span>
-            {commentCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-[#F97316] text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                {commentCount > 9 ? '9+' : commentCount}
-              </span>
-            )}
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onOpenComments}
+          className="text-[#E8DCC4] hover:text-white hover:bg-[#4A3628] relative"
+          title="View Comments"
+          type="button"
+        >
+          <MessageSquare className="h-4 w-4 mr-1" />
+          <span className="hidden sm:inline">Comments</span>
+          {commentCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-[#F97316] text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+              {commentCount > 9 ? '9+' : commentCount}
+            </span>
+          )}
+        </Button>
         
-        <div className="flex items-center space-x-2">
-          <Home className="h-4 w-4 text-[#E8DCC4]" />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDashboardClick}
-            className="text-[#E8DCC4] hover:text-white hover:bg-[#4A3628]"
-            title="Back to Dashboard"
-            type="button"
-          >
-            <span>Dashboard</span>
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleDashboardClick}
+          className="text-[#E8DCC4] hover:text-white hover:bg-[#4A3628]"
+          title="Back to Dashboard"
+          type="button"
+        >
+          <Home className="h-4 w-4 mr-1" />
+          <span className="hidden sm:inline">Dashboard</span>
+        </Button>
       </div>
     </div>
   );
