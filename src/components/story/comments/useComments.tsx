@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Comment } from '@/components/comments/types';
-import { User } from '@/lib/supabase';
+import { User } from '@supabase/supabase-js'; // Import the correct User type
 
 export const useComments = (
   storyId: string,

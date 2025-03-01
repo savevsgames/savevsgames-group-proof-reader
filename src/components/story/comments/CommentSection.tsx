@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { User } from '@supabase/supabase-js';
+import { User } from '@supabase/supabase-js'; // Import the correct User type
 import CommentItem from './CommentItem';
 import { Comment } from '@/components/comments/types';
 

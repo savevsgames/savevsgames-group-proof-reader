@@ -6,6 +6,7 @@ import { CommentType } from '@/lib/commentTypes';
 import CommentForm from './comments/CommentForm';
 import CommentSection from './comments/CommentSection';
 import { useComments } from './comments/useComments';
+import { User } from '@supabase/supabase-js'; // Import the correct User type
 
 interface CommentsViewProps {
   storyId: string;

@@ -1,11 +1,13 @@
+
 import React, { useState } from 'react';
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Send } from 'lucide-react';
 import CommentTypeSelector from "@/components/comments/CommentTypeSelector";
 import { CommentType } from '@/lib/commentTypes';
-import { User } from '@/lib/supabase';
+import { User } from '@supabase/supabase-js'; // Import the correct User type
 import { supabase } from '@/lib/supabase';
+import { Comment } from '@/components/comments/types';
 
 interface CommentFormProps {
   user: User | null;
@@ -20,7 +22,7 @@ interface CommentFormProps {
   onCommentTypeChange: (type: CommentType) => void;
   onCancelEdit: () => void;
   onCommentsUpdate: (count: number) => void;
-  comments: any[];
+  comments: Comment[];
 }
 
 const CommentForm = ({

@@ -1,6 +1,6 @@
 
 // Import from supabase instead of AuthContext
-import { User } from '@/lib/supabase';
+import { User } from '@supabase/supabase-js';
 import { CommentType } from '@/lib/commentTypes';
 
 // Defines the shape of a comment
@@ -39,6 +39,7 @@ export interface CommentItemProps {
   onEdit: (comment: Comment) => void;
   onDelete?: (commentId: string) => void;
   isModerator: boolean;
+  onAddToLlmContext?: (commentType: string, commentText: string, username: string) => void;
 }
 
 // Props for CommentsList component
@@ -49,6 +50,7 @@ export interface CommentsListProps {
   isModerator: boolean;
   onEditComment: (comment: Comment) => void;
   onDeleteComment?: (commentId: string) => void;
+  onAddToLlmContext?: (commentType: string, commentText: string, username: string) => void;
 }
 
 // Props for CommentForm component

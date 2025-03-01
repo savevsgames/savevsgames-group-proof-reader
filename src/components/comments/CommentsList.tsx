@@ -1,63 +1,64 @@
 
 import React from 'react';
+import { MessageCircle } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import CommentItem from "./CommentItem";
 import { Comment } from './types';
-import CommentItem from './CommentItem';
+import { User } from '@supabase/supabase-js';
 
 interface CommentsListProps {
   comments: Comment[];
-  isLoading: boolean;
-  currentUser: any;
-  isModerator: boolean;
-  onEditComment: (comment: Comment) => void;
-  onDeleteComment?: (commentId: string) => void;
-  onAddToLlmContext?: (text: string) => void;
+  loading: boolean;
+  currentUser?: User | null;
+  onDeleteComment: (commentId: string) => void;
+  onEditComment?: (comment: Comment) => void;
+  onAddToLlmContext?: (commentType: string, commentText: string, username: string) => void;
+  isModerator?: boolean;
 }
 
 const CommentsList: React.FC<CommentsListProps> = ({
   comments,
-  isLoading,
+  loading,
   currentUser,
-  isModerator,
-  onEditComment,
   onDeleteComment,
+  onEditComment,
   onAddToLlmContext,
+  isModerator = false,
 }) => {
-  // Check if a comment is owned by current user
-  const isOwnComment = (comment: Comment) => {
-    return currentUser && comment.user_id === currentUser.id;
-  };
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="text-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3A2618] mx-auto"></div>
-        <p className="mt-2 text-[#3A2618]/70">Loading comments...</p>
+      <div className="py-12 text-center">
+        <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-current border-r-transparent"></div>
+        <p className="mt-2 text-sm text-gray-500">Loading comments...</p>
       </div>
     );
   }
 
   if (comments.length === 0) {
     return (
-      <div className="text-center py-8 text-[#3A2618]/60 italic">
-        No comments yet. Be the first to leave feedback!
+      <div className="py-12 text-center border rounded-md">
+        <MessageCircle className="h-12 w-12 mx-auto text-gray-300" />
+        <p className="mt-2 text-gray-500">No comments yet</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {comments.map((comment) => (
-        <CommentItem 
-          key={comment.id}
-          comment={comment}
-          isOwnComment={isOwnComment(comment)}
-          onEdit={onEditComment}
-          onDelete={onDeleteComment}
-          isModerator={isModerator}
-          onAddToLlmContext={onAddToLlmContext}
-        />
-      ))}
-    </div>
+    <ScrollArea className="h-[400px] pr-4">
+      <div className="space-y-4">
+        {comments.map((comment) => (
+          <CommentItem
+            key={comment.id}
+            comment={comment}
+            isOwnComment={currentUser?.id === comment.user_id}
+            onEdit={onEditComment ? () => onEditComment(comment) : undefined}
+            onDelete={onDeleteComment ? () => onDeleteComment(comment.id) : undefined}
+            isModerator={isModerator}
+            onAddToLlmContext={onAddToLlmContext}
+          />
+        ))}
+      </div>
+    </ScrollArea>
   );
 };
 
