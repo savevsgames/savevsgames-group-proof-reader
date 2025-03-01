@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import JsonEditor from "./JsonEditor";
 import InkView from "./InkView";
 import LlmIntegration from "./LlmIntegration";
@@ -14,7 +15,7 @@ import {
   storyNodeToPageMap,
   pageToStoryNodeMap
 } from "@/lib/storyUtils";
-import { AlertCircle, BookOpen } from "lucide-react";
+import { AlertCircle, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface StoryTabsProps {
   storyId: string;
@@ -84,6 +85,29 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
 
   // Calculate current page number from node name
   const currentPage = currentNode ? (mappings.nodeToPage[currentNode] || 1) : 1;
+  
+  // Calculate total pages
+  const totalPages = Object.keys(mappings.pageToNode).length;
+
+  // Navigate to previous page
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      const prevNodeName = mappings.pageToNode[currentPage - 1];
+      if (prevNodeName && onNodeChange) {
+        onNodeChange(prevNodeName);
+      }
+    }
+  };
+
+  // Navigate to next page
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      const nextNodeName = mappings.pageToNode[currentPage + 1];
+      if (nextNodeName && onNodeChange) {
+        onNodeChange(nextNodeName);
+      }
+    }
+  };
 
   return (
     <Tabs
@@ -106,10 +130,36 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
         </TabsTrigger>
         <TabsTrigger value="llm">LLM Integration</TabsTrigger>
         
-        {/* Page indicator in the tab menu */}
-        <div className="ml-auto flex items-center text-sm text-gray-500">
-          <BookOpen className="h-4 w-4 mr-1 text-gray-400" />
-          <span>Page {currentPage} • Node: {currentNode}</span>
+        {/* Page navigation with chevron buttons */}
+        <div className="ml-auto flex items-center space-x-2">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={handlePreviousPage}
+            disabled={currentPage <= 1}
+            type="button"
+            className="p-1 h-8 w-8"
+            aria-label="Previous page"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
+          <div className="flex items-center text-sm text-gray-500">
+            <BookOpen className="h-4 w-4 mr-1 text-gray-400" />
+            <span>Page {currentPage}/{totalPages}</span>
+          </div>
+          
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={handleNextPage}
+            disabled={currentPage >= totalPages}
+            type="button"
+            className="p-1 h-8 w-8"
+            aria-label="Next page"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
       </TabsList>
 
