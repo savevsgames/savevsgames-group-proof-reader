@@ -7,15 +7,19 @@ import { User } from '@/lib/supabase';
 interface CommentsListProps {
   comments: Comment[];
   currentUser: User | null;
-  onEdit: (comment: Comment) => void;
+  isLoading: boolean;
+  onUpdate: (commentId: string, text: string, commentType: string) => void;
   onDelete: (commentId: string) => void;
+  onAddToContext?: (commentType: string, commentText: string, username: string) => void;
 }
 
 export const CommentsList: React.FC<CommentsListProps> = ({
   comments,
   currentUser,
-  onEdit,
+  isLoading,
+  onUpdate,
   onDelete,
+  onAddToContext
 }) => {
   // Check if a comment is owned by current user
   const isOwnComment = (comment: Comment) => {
@@ -37,9 +41,10 @@ export const CommentsList: React.FC<CommentsListProps> = ({
           key={comment.id}
           comment={comment}
           isOwnComment={isOwnComment(comment)}
-          onEdit={() => onEdit(comment)}
+          onEdit={() => onUpdate(comment.id, comment.text, comment.comment_type)}
           onDelete={() => onDelete(comment.id)}
           isModerator={false}
+          onAddToLlmContext={onAddToContext}
         />
       ))}
     </div>

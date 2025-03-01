@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { CommentsList } from "./CommentsList";
-import { CommentForm } from "./comments/CommentForm";
+import CommentForm from "./comments/CommentForm";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { User } from "@supabase/supabase-js";
@@ -133,13 +133,13 @@ const CommentsView: React.FC<CommentsViewProps> = ({
         <CommentForm
           onSubmit={handleAddComment}
           onCancel={() => setShowAddComment(false)}
-          user={user as User}
+          user={user}
         />
       )}
       
       <CommentsList
         comments={comments}
-        currentUserId={user?.id}
+        currentUser={user}
         isLoading={isLoading}
         onUpdate={handleUpdateComment}
         onDelete={handleDeleteComment}

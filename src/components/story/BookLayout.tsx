@@ -97,7 +97,7 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
               storyId={storyId}
               currentNode={currentNode}
               currentPage={currentPage}
-              onCommentsUpdate={(count) => {/* This is a no-op to prevent unnecessary re-renders */}}
+              onAddToLlmContext={(commentType, commentText, username) => {/* Implementation can be added later */}}
             />
           </div>
         </div>
