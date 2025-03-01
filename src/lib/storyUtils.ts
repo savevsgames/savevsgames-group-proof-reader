@@ -620,3 +620,7 @@ export const parseInkContent = (inkContent: string): { story: Story | null; erro
     };
   }
 };
+
+// Add default mappings for backward compatibility
+export const storyNodeToPageMap: Record<string, number> = {};
+export const pageToStoryNodeMap: Record<number, string> = {};

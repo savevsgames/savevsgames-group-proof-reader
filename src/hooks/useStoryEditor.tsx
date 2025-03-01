@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { CustomStory, storyNodeToPageMap, pageToStoryNodeMap } from "@/lib/storyUtils";
 import { generateAndLogNodeMappings, extractStoryContent, NodeMappings } from "@/lib/storyEditorUtils";
-import { useStoryNavigation } from "@/hooks/useStoryNavigation";
+import { useStoryNavigation, NavigationState, NavigationActions } from "@/hooks/useStoryNavigation";
 import { useStorySaving } from "@/hooks/useStorySaving";
 
 export const useStoryEditor = (storyId: string) => {
@@ -26,21 +26,41 @@ export const useStoryEditor = (storyId: string) => {
     handleSave: saveStoryData,
   } = useStorySaving({ storyId });
 
-  const {
-    currentNode,
-    currentPage,
-    isLeaveDialogOpen,
-    setIsLeaveDialogOpen,
-    handlePageChange,
-    handleNodeChange,
-    handleNavigation,
-    confirmNavigation,
-  } = useStoryNavigation({
+  // Use the navigation state and actions
+  const [navigationState, navigationActions] = useStoryNavigation({
     storyData,
-    hasUnsavedChanges,
+    story: null,
+    usingCustomFormat: true,
+    storyId,
     nodeMappings,
     totalPages
   });
+
+  // Extract values from navigation state and actions
+  const currentNode = navigationState.currentNode;
+  const currentPage = navigationState.currentPage;
+  const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
+  const handlePageChange = navigationActions.handlePageChange;
+  
+  // Add custom handlers for editor-specific navigation
+  const handleNodeChange = (nodeName: string) => {
+    const pageNumber = nodeMappings.nodeToPage[nodeName] || 1;
+    handlePageChange(pageNumber);
+  };
+  
+  const handleNavigation = (target: string) => {
+    // Navigate to a specific target
+    if (target === 'back' && navigationState.canGoBack) {
+      navigationActions.handleBack();
+    } else if (target === 'restart') {
+      navigationActions.handleRestart();
+    }
+  };
+  
+  const confirmNavigation = () => {
+    // Confirm navigation action
+    setIsLeaveDialogOpen(false);
+  };
 
   // Generate node mappings when storyData changes
   useEffect(() => {

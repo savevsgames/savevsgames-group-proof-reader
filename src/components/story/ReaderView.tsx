@@ -2,11 +2,10 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, SkipBack, BookOpen, AlertCircle } from "lucide-react";
 import { 
-  CustomStory, 
-  storyNodeToPageMap, 
-  pageToStoryNodeMap, 
-  parseInkNode, 
-  InkNodeContent
+  CustomStory,
+  storyNodeToPageMap,
+  pageToStoryNodeMap,
+  parseInkNode
 } from "@/lib/storyUtils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -183,14 +182,15 @@ const ReaderView: React.FC<ReaderViewProps> = ({
   };
 
   const getValidPageNumbers = () => {
-    if (!nodeMappings.pageToNode) return [1];
+    if (!nodeMappings?.pageToNode) return [1];
     
     return Object.entries(nodeMappings.pageToNode)
       .filter(([_, node]) => {
-        return node !== "inkVersion" && 
-               node !== "listDefs" && 
-               node !== "#f" && 
-               storyData[node];
+        const nodeName = node as string;
+        return nodeName !== "inkVersion" && 
+               nodeName !== "listDefs" && 
+               nodeName !== "#f" && 
+               storyData[nodeName];
       })
       .map(([page]) => parseInt(page))
       .sort((a, b) => a - b);

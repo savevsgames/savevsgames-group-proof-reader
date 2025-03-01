@@ -6,7 +6,7 @@ import { CustomStory } from "@/lib/storyUtils";
 import { Story } from "inkjs";
 import { fetchCommentCount } from "@/lib/storyUtils";
 
-interface UseStoryNavigationProps {
+export interface UseStoryNavigationProps {
   storyData: CustomStory | null;
   story: Story | null;
   usingCustomFormat: boolean;
