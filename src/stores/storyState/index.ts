@@ -24,7 +24,8 @@ export const useStoryStore = create<StoryStore>()(
         console.log('[StoryStore] Store initialized with:', {
           storyId: store.storyId,
           hasTitle: !!store.title,
-          totalPages: store.totalPages || 0
+          totalPages: store.totalPages || 0,
+          nodeMappingsSize: store.nodeMappings ? Object.keys(store.nodeMappings.nodeToPage || {}).length : 0
         });
         
         return store;
@@ -36,7 +37,8 @@ export const useStoryStore = create<StoryStore>()(
           console.log('[StoryStore] Persisting state with:', {
             storyId: state.storyId,
             title: state.title,
-            totalPageCount: state.totalPages || 0
+            totalPageCount: state.totalPages || 0,
+            nodeMappingsSize: state.nodeMappings ? Object.keys(state.nodeMappings.nodeToPage || {}).length : 0
           });
           return { 
             storyId: state.storyId,

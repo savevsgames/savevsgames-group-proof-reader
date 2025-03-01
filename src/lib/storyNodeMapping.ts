@@ -1,4 +1,3 @@
-
 /**
  * Unified interface for node mappings used throughout the application
  */
@@ -32,6 +31,33 @@ export const generateComprehensiveNodeMapping = (storyJson: any): {
   console.log("[Node Mapping] Story data keys:", Object.keys(storyJson));
   console.log("[Node Mapping] Has 'root' node:", !!storyJson.root);
   console.log("[Node Mapping] Has 'start' node:", !!storyJson.start);
+  
+  // Detailed analysis of story structure
+  const storyKeys = Object.keys(storyJson);
+  const contentKeyCount = storyKeys.filter(key => !['inkVersion', 'listDefs', '#f'].includes(key)).length;
+  
+  console.log(`[Node Mapping] Story has ${storyKeys.length} total keys, ${contentKeyCount} content keys`);
+  
+  // Analyze a few sample nodes in detail to understand their structure
+  const sampleSize = Math.min(3, storyKeys.length);
+  for (let i = 0; i < sampleSize; i++) {
+    const key = storyKeys[i];
+    const node = storyJson[key];
+    
+    if (node) {
+      console.log(`[Node Mapping] Sample node "${key}":`, {
+        type: typeof node,
+        isObject: typeof node === 'object' && !Array.isArray(node),
+        isArray: Array.isArray(node),
+        hasText: typeof node === 'object' && 'text' in node,
+        textType: node.text ? typeof node.text : 'N/A',
+        textLength: node.text ? node.text.length : 0,
+        hasChoices: typeof node === 'object' && 'choices' in node,
+        choicesType: node.choices ? (Array.isArray(node.choices) ? 'array' : typeof node.choices) : 'N/A',
+        choicesCount: Array.isArray(node.choices) ? node.choices.length : 0
+      });
+    }
+  }
   
   if (storyJson.start) {
     console.log("[Node Mapping] Start node structure:", {
@@ -143,6 +169,44 @@ export const generateComprehensiveNodeMapping = (storyJson: any): {
   console.log(`[Node Mapping] Found ${contentNodes.length} nodes with actual content`);
   console.log("[Node Mapping] Content nodes:", contentNodes);
   
+  // Early exit check with fallback
+  if (contentNodes.length === 0) {
+    console.warn("[Node Mapping] No content nodes found, using all non-metadata keys as fallback");
+    
+    // Use all non-metadata keys as a fallback
+    const fallbackNodes = Object.keys(storyJson).filter(key => !skipKeys.includes(key));
+    
+    // If we still have no valid nodes, return empty mappings with page count 0
+    if (fallbackNodes.length === 0) {
+      console.error("[Node Mapping] No valid nodes found even with fallback");
+      return {
+        nodeToPage: {},
+        pageToNode: {},
+        totalPages: 0
+      };
+    }
+    
+    console.log(`[Node Mapping] Using ${fallbackNodes.length} fallback nodes`);
+    
+    // Generate fallback mappings
+    const nodeToPage: Record<string, number> = {};
+    const pageToNode: Record<number, string> = {};
+    
+    fallbackNodes.forEach((nodeName, index) => {
+      const pageNumber = index + 1;
+      nodeToPage[nodeName] = pageNumber;
+      pageToNode[pageNumber] = nodeName;
+    });
+    
+    console.log(`[Node Mapping] Created fallback mapping with ${fallbackNodes.length} pages`);
+    
+    return {
+      nodeToPage,
+      pageToNode,
+      totalPages: fallbackNodes.length
+    };
+  }
+  
   // Sort nodes by type and depth for a more logical reading order
   console.log("[Node Mapping] Sorting nodes");
   const sortedNodes = [
@@ -180,6 +244,24 @@ export const generateComprehensiveNodeMapping = (storyJson: any): {
   });
   
   console.log(`[Node Mapping] Created mapping with ${Object.keys(nodeToPage).length} nodes and ${sortedNodes.length} pages`);
+  
+  // Double check that we have at least one page if we found nodes
+  if (sortedNodes.length > 0 && Object.keys(nodeToPage).length === 0) {
+    console.warn("[Node Mapping] No pages mapped despite having nodes - using fallback");
+    
+    // Create at least one mapping for the first node
+    const firstNode = sortedNodes[0];
+    nodeToPage[firstNode] = 1;
+    pageToNode[1] = firstNode;
+    
+    console.log(`[Node Mapping] Created fallback mapping for node "${firstNode}" to page 1`);
+    
+    return {
+      nodeToPage,
+      pageToNode,
+      totalPages: 1
+    };
+  }
   
   // Log a preview of the mapping
   const previewCount = Math.min(5, sortedNodes.length);

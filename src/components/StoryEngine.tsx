@@ -38,6 +38,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
   const currentStoryPosition = useStoryStore(state => state.currentStoryPosition);
   const currentNode = useStoryStore(state => state.currentNode);
   const nodeMappings = useStoryStore(state => state.nodeMappings);
+  const storyData = useStoryStore(state => state.storyData);
 
   // Actions as a separate selector to avoid re-renders on state changes
   const handleContinue = useStoryStore(state => state.handleContinue);
@@ -64,13 +65,59 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
       storeId: storeState.storyId,
       storeTitle: storeState.title,
       storeTotalPages: storeState.totalPages,
-      storeNodeMappings: storeState.nodeMappings && Object.keys(storeState.nodeMappings.nodeToPage || {}).length
+      storeNodeMappings: storeState.nodeMappings && Object.keys(storeState.nodeMappings.nodeToPage || {}).length,
+      storyDataKeysCount: storeState.storyData ? Object.keys(storeState.storyData).length : 0,
+      storyDataFirstNodes: storeState.storyData ? Object.keys(storeState.storyData).slice(0, 5) : []
     });
+
+    // Add detailed logging of story data structure
+    if (storeState.storyData) {
+      const storyKeys = Object.keys(storeState.storyData);
+      console.log(`[StoryEngine] Story data contains ${storyKeys.length} nodes`);
+      
+      // Log first few nodes for debugging
+      const sampleSize = Math.min(5, storyKeys.length);
+      storyKeys.slice(0, sampleSize).forEach(key => {
+        const node = storeState.storyData?.[key];
+        console.log(`[StoryEngine] Node "${key}":`, {
+          hasText: !!node?.text,
+          textLength: node?.text?.length || 0,
+          choicesCount: node?.choices?.length || 0,
+          isEnding: !!node?.isEnding
+        });
+      });
+    }
     
     return () => {
       console.log("[StoryEngine] Component unmounting");
     };
-  }, [storyId, currentPage, totalPages, currentNode, nodeMappings, currentStoryPosition]);
+  }, [storyId, currentPage, totalPages, currentNode, nodeMappings, currentStoryPosition, storyData]);
+
+  // Monitor changes to totalPages
+  useEffect(() => {
+    console.log(`[StoryEngine] totalPages changed to: ${totalPages}`);
+    
+    if (totalPages === 0 && storyData) {
+      console.warn("[StoryEngine] totalPages is 0 but storyData exists with node count:", 
+        Object.keys(storyData).length);
+      
+      // Analyze story data structure to diagnose mapping issues
+      const contentNodes = Object.keys(storyData).filter(key => 
+        key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
+      );
+      
+      console.log(`[StoryEngine] Content nodes available: ${contentNodes.length}`);
+      console.log("[StoryEngine] First few content nodes:", contentNodes.slice(0, 5));
+      
+      // Check if nodes have proper structure
+      const nodesWithText = contentNodes.filter(key => storyData[key]?.text);
+      console.log(`[StoryEngine] Nodes with text: ${nodesWithText.length}/${contentNodes.length}`);
+      
+      const nodesWithChoices = contentNodes.filter(key => 
+        storyData[key]?.choices && storyData[key]?.choices.length > 0);
+      console.log(`[StoryEngine] Nodes with choices: ${nodesWithChoices.length}/${contentNodes.length}`);
+    }
+  }, [totalPages, storyData]);
 
   // Capture the latest store values for use in callbacks
   useEffect(() => {

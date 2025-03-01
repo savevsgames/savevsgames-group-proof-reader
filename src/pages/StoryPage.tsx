@@ -53,6 +53,28 @@ const StoryPage = () => {
     }
   }, [id, navigate, toast, initializeStory]);
 
+  useEffect(() => {
+    // Additional tracking of total pages changes
+    const unsubscribe = useStoryStore.subscribe(
+      (state) => state.totalPages,
+      (totalPages, previousTotalPages) => {
+        console.log(`[StoryPage] totalPages changed from ${previousTotalPages} to ${totalPages}`);
+        
+        // Log detailed state when totalPages changes
+        const currentState = useStoryStore.getState();
+        console.log('[StoryPage] Store state when totalPages changed:', {
+          storyId: currentState.storyId,
+          nodeMappingsSize: currentState.nodeMappings ? Object.keys(currentState.nodeMappings.nodeToPage || {}).length : 0,
+          storyDataNodesCount: currentState.storyData ? Object.keys(currentState.storyData).length : 0
+        });
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#3A2618] w-full overflow-x-hidden">
       <Header />

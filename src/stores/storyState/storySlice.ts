@@ -59,7 +59,8 @@ export const createStorySlice: StateCreator<
           title: data.title,
           hasStoryUrl: !!data.story_url,
           hasStoryContent: !!data.story_content,
-          dbTotalPages: data.total_pages
+          dbTotalPages: data.total_pages,
+          rawData: JSON.stringify(data).substring(0, 200) + '...' // Log a preview of the data
         });
         
         set({ title: data.title || 'Untitled Story' });
@@ -75,11 +76,22 @@ export const createStorySlice: StateCreator<
         if (storyContent) {
           console.log(`[StoryStore] Valid story content extracted with ${Object.keys(storyContent).length} nodes`);
           console.log("[StoryStore] First 3 nodes:", Object.keys(storyContent).slice(0, 3));
-          console.log("[StoryStore] Sample node content:", storyContent[Object.keys(storyContent)[0]]);
+          
+          // Log detailed structure of first node to help diagnose issues
+          const firstNodeKey = Object.keys(storyContent)[0];
+          const firstNode = storyContent[firstNodeKey];
+          console.log(`[StoryStore] First node "${firstNodeKey}" details:`, {
+            hasText: !!firstNode.text,
+            textLength: firstNode.text?.length || 0,
+            hasChoices: Array.isArray(firstNode.choices),
+            choicesCount: firstNode.choices?.length || 0,
+            firstChoiceText: firstNode.choices?.[0]?.text || 'none',
+            isEnding: !!firstNode.isEnding
+          });
           
           set({ storyData: storyContent, hasUnsavedChanges: false });
           
-          // Update node mappings
+          // Update node mappings with enhanced debugging
           console.log("[StoryStore] Generating node mappings");
           const { nodeMappings, totalPages } = generateAndLogNodeMappings(storyContent);
           
@@ -90,7 +102,36 @@ export const createStorySlice: StateCreator<
             firstNodePage: nodeMappings.nodeToPage[Object.keys(nodeMappings.nodeToPage)[0]]
           });
           
-          set({ nodeMappings, totalPages });
+          // Check for valid mappings before setting state
+          if (totalPages === 0 && Object.keys(storyContent).length > 0) {
+            console.warn("[StoryStore] Warning: totalPages is 0 despite having story content!");
+            
+            // Count content nodes manually as a fallback
+            const contentNodeCount = Object.keys(storyContent).filter(key => 
+              key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
+            ).length;
+            
+            console.log(`[StoryStore] Manual content node count: ${contentNodeCount}`);
+            
+            // Use manual count if mapping failed
+            if (contentNodeCount > 0) {
+              console.log(`[StoryStore] Using manual count (${contentNodeCount}) as fallback for totalPages`);
+              set({ 
+                nodeMappings, 
+                totalPages: contentNodeCount 
+              });
+            } else {
+              // Set at least 1 page as absolute fallback
+              console.log("[StoryStore] Using absolute fallback of 1 for totalPages");
+              set({ 
+                nodeMappings, 
+                totalPages: 1 
+              });
+            }
+          } else {
+            set({ nodeMappings, totalPages });
+          }
+          
           console.log("[StoryStore] State updated with mappings and total pages:", totalPages);
           
           // Initialize story content
@@ -147,7 +188,12 @@ export const createStorySlice: StateCreator<
             pageCount: totalPages
           });
           
-          set({ nodeMappings, totalPages });
+          // Always ensure at least 1 page for default story
+          set({ 
+            nodeMappings, 
+            totalPages: Math.max(totalPages, 1)  // Ensure at least 1 page
+          });
+          
           console.log("[StoryStore] Default state updated with mappings and total pages:", totalPages);
         }
       } else {
@@ -186,7 +232,29 @@ export const createStorySlice: StateCreator<
       pageCount: totalPages
     });
     
-    set({ nodeMappings, totalPages });
+    // Ensure we have at least 1 page if we have data
+    if (totalPages === 0 && Object.keys(data).length > 0) {
+      console.warn("[StoryStore] totalPages is 0 despite having story data");
+      
+      // Count content nodes manually
+      const contentNodeCount = Object.keys(data).filter(key => 
+        key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
+      ).length;
+      
+      console.log(`[StoryStore] Manual content node count: ${contentNodeCount}`);
+      
+      // Use manual count or minimum of 1
+      const finalPageCount = Math.max(contentNodeCount, 1);
+      console.log(`[StoryStore] Using finalPageCount: ${finalPageCount}`);
+      
+      set({ 
+        nodeMappings, 
+        totalPages: finalPageCount 
+      });
+    } else {
+      set({ nodeMappings, totalPages });
+    }
+    
     console.log("[StoryStore] State updated after data change:", {
       totalPages: get().totalPages,
       hasNodeMappings: !!get().nodeMappings && Object.keys(get().nodeMappings.nodeToPage || {}).length > 0
