@@ -1,11 +1,11 @@
 
 import { CustomStory } from "@/lib/storyUtils";
-import { analyzeStoryStructure, validateNodeMappings, extractAllNodesFromInkJSON } from "@/lib/storyNodeMapping";
-
-export interface NodeMappings {
-  nodeToPage: Record<string, number>;
-  pageToNode: Record<number, string>;
-}
+import { 
+  analyzeStoryStructure, 
+  validateNodeMappings, 
+  extractAllNodesFromInkJSON,
+  NodeMappings 
+} from "@/lib/storyMapping";
 
 // Generate node mappings and log information about the story structure
 export const generateAndLogNodeMappings = (storyData: CustomStory): {
@@ -163,4 +163,7 @@ export const extractStoryContent = async (data: any): Promise<CustomStory | null
 };
 
 // These functions are imported from external files
-import { extractCustomStoryFromInkJSON } from "@/lib/storyNodeMapping";
+import { extractCustomStoryFromInkJSON } from "@/lib/storyMapping";
+
+// Re-export the NodeMappings interface for use elsewhere
+export { NodeMappings };

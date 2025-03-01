@@ -15,6 +15,7 @@ import {
   storyNodeToPageMap,
   pageToStoryNodeMap
 } from "@/lib/storyUtils";
+import { NodeMappings } from "@/lib/storyMapping";
 import { AlertCircle, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface StoryTabsProps {

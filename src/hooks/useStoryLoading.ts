@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Story } from 'inkjs';
 import { useToast } from '@/hooks/use-toast';
@@ -10,9 +9,8 @@ import {
 import { 
   extractAllNodesFromInkJSON, 
   extractCustomStoryFromInkJSON
-} from '@/lib/storyNodeMapping';
-import { generateAndLogNodeMappings } from '@/lib/storyEditorUtils';
-import { NodeMappings } from '@/lib/storyEditorUtils';
+} from '@/lib/storyMapping';
+import { generateAndLogNodeMappings, NodeMappings } from '@/lib/storyEditorUtils';
 
 interface UseStoryLoadingResult {
   story: Story | null;
@@ -89,7 +87,6 @@ export const useStoryLoading = (storyId: string | undefined): UseStoryLoadingRes
           setStory(newStory);
           setUsingCustomFormat(false);
           
-          // Enhanced conversion with better node extraction
           console.log("Beginning conversion to custom format for analysis...");
           const customStoryData = extractCustomStoryFromInkJSON(storyData);
           console.log("Converted Ink story to custom format with", 
@@ -103,7 +100,6 @@ export const useStoryLoading = (storyId: string | undefined): UseStoryLoadingRes
             console.log("Story structure analysis successful:", 
               { totalPages: calculatedPages, mappingCount: Object.keys(mappings.nodeToPage).length });
             
-            // Validate that mapping has enough nodes
             const nodeCount = Object.keys(customStoryData).filter(key => 
               key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
             ).length;
@@ -121,7 +117,6 @@ export const useStoryLoading = (storyId: string | undefined): UseStoryLoadingRes
           } catch (analysisErr) {
             console.error("Error in story structure analysis:", analysisErr);
             
-            // More robust fallback for node extraction
             const allNodes = extractAllNodesFromInkJSON(storyData);
             console.log("Extracted", allNodes.length, "nodes from story");
             
@@ -132,7 +127,6 @@ export const useStoryLoading = (storyId: string | undefined): UseStoryLoadingRes
             setTotalPages(Math.max(contentNodes.length, 1));
             console.warn("Using fallback page count:", contentNodes.length);
             
-            // Create a simple sequential mapping for the fallback
             const nodeToPage: Record<string, number> = {};
             const pageToNode: Record<number, string> = {};
             
