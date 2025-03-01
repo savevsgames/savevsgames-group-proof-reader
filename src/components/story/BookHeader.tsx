@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
 import { Button } from '../ui/button';
-import { BookOpen, ChevronLeft, MessageSquare, SkipBack } from 'lucide-react';
+import { BookOpen, ChevronLeft, MessageSquare, SkipBack, Home } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useNavigate } from 'react-router-dom';
 
 interface BookHeaderProps {
   bookTitle: string;
@@ -30,6 +31,7 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
   hidePageSelector = false
 }) => {
   const [pageInputValue, setPageInputValue] = useState<string>(currentPage.toString());
+  const navigate = useNavigate();
   
   // Update the page input value when currentPage changes
   React.useEffect(() => {
@@ -52,6 +54,11 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
       // Reset to current page if invalid
       setPageInputValue(currentPage.toString());
     }
+  };
+
+  // Navigate to dashboard
+  const handleDashboardClick = () => {
+    navigate('/');
   };
 
   // Calculate visible page range for pagination
@@ -120,7 +127,7 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
         <h1 className="font-serif text-lg md:text-xl font-medium">{bookTitle}</h1>
       </div>
       
-      {/* Right side - Comment button only (Page selector removed) */}
+      {/* Right side - Comment button, Dashboard button and page selector */}
       <div className="flex items-center space-x-4">
         {!hidePageSelector && (
           <Popover>
@@ -186,6 +193,17 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
               {commentCount > 9 ? '9+' : commentCount}
             </span>
           )}
+        </Button>
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-[#E8DCC4] hover:text-white hover:bg-[#4A3628]"
+          onClick={handleDashboardClick}
+          title="Back to Dashboard"
+        >
+          <Home className="h-4 w-4 mr-1" />
+          <span className="hidden sm:inline">Dashboard</span>
         </Button>
       </div>
     </div>
