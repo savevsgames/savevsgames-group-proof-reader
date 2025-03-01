@@ -47,15 +47,7 @@ const StoryEditPage = () => {
     handleSave,
     goBack,
     handleRestart
-  } = useStoryStore(state => ({
-    initializeStory: state.initializeStory,
-    handlePageChange: state.handlePageChange,
-    handleNodeChange: state.handleNodeChange,
-    handleStoryDataChange: state.handleStoryDataChange,
-    handleSave: state.handleSave,
-    goBack: state.goBack,
-    handleRestart: state.handleRestart
-  }));
+  } = useStoryStore();
   
   // State for leave dialog (local UI state)
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = React.useState(false);

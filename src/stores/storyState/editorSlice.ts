@@ -8,18 +8,11 @@ export const createEditorSlice: StateCreator<
   StoryStore,
   [["zustand/devtools", never], ["zustand/persist", unknown]],
   [],
-  Pick<StoryStore, 'hasUnsavedChanges' | 'saving' | 'setHasUnsavedChanges' | 'setSaving' | 'handleSave'>
+  Pick<StoryStore, 'handleSave'>
 > = (set, get) => ({
-  hasUnsavedChanges: false,
-  saving: false,
-  
-  // Setters
-  setHasUnsavedChanges: (hasChanges) => set({ hasUnsavedChanges: hasChanges }),
-  setSaving: (saving) => set({ saving }),
-  
   // Editor actions
   handleSave: async () => {
-    const { storyId, storyData, hasUnsavedChanges } = get();
+    const { storyId, storyData, hasUnsavedChanges, setSaving, setHasUnsavedChanges, setError } = get();
     
     if (!storyId || !storyData || !hasUnsavedChanges) {
       console.log("[StoryStore] No story to save or no changes");
@@ -27,7 +20,7 @@ export const createEditorSlice: StateCreator<
     }
     
     console.log("[StoryStore] Saving story");
-    set({ saving: true });
+    setSaving(true);
     
     try {
       const storyContent = JSON.stringify(storyData);
@@ -39,17 +32,17 @@ export const createEditorSlice: StateCreator<
         
       if (error) {
         console.error("[StoryStore] Error saving story:", error);
-        set({ error: `Failed to save: ${error.message}` });
+        setError(`Failed to save: ${error.message}`);
         return;
       }
       
       console.log("[StoryStore] Story saved successfully");
-      set({ hasUnsavedChanges: false });
+      setHasUnsavedChanges(false);
     } catch (error: any) {
       console.error("[StoryStore] Error in save operation:", error);
-      set({ error: `Save error: ${error.message}` });
+      setError(`Save error: ${error.message}`);
     } finally {
-      set({ saving: false });
+      setSaving(false);
     }
   }
 });

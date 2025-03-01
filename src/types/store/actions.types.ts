@@ -40,6 +40,7 @@ export interface StoryActions {
   setHasUnsavedChanges: (hasChanges: boolean) => void;
   setCommentCount: (count: number) => void;
   setCurrentStoryPosition: (position: number) => void;
+  setUsingCustomFormat: (usingCustomFormat: boolean) => void;
   
   // Node mapping actions
   updateNodeMappings: () => void;

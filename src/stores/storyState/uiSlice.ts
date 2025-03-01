@@ -7,7 +7,7 @@ export const createUiSlice: StateCreator<
   StoryStore,
   [["zustand/devtools", never], ["zustand/persist", unknown]],
   [],
-  Pick<StoryStore, 'loading' | 'error' | 'commentCount' | 'usingCustomFormat' | 'saving' | 'hasUnsavedChanges' | 'setLoading' | 'setError' | 'setCommentCount' | 'setSaving' | 'setHasUnsavedChanges'>
+  Pick<StoryStore, 'loading' | 'error' | 'commentCount' | 'usingCustomFormat' | 'saving' | 'hasUnsavedChanges' | 'setLoading' | 'setError' | 'setCommentCount' | 'setSaving' | 'setHasUnsavedChanges' | 'setUsingCustomFormat'>
 > = (set) => ({
   // UI state
   loading: false,
@@ -22,6 +22,7 @@ export const createUiSlice: StateCreator<
   setError: (error) => set({ error }),
   setSaving: (saving) => set({ saving }),
   setHasUnsavedChanges: (hasChanges) => set({ hasUnsavedChanges: hasChanges }),
+  setUsingCustomFormat: (usingCustomFormat) => set({ usingCustomFormat }),
   
   // Set comment count with debounce to prevent excessive updates
   setCommentCount: (count) => {

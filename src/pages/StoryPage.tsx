@@ -51,7 +51,7 @@ const StoryPage = () => {
     }
     
     // Only initialize if needed (storyId doesn't match or not initialized yet)
-    if (id !== storyId) {
+    if (id !== storyId || loading || error) {
       handleInitialization(id);
     } else {
       console.log("[StoryPage] Story already initialized:", {
@@ -59,7 +59,7 @@ const StoryPage = () => {
         totalPages
       });
     }
-  }, [id, navigate, toast, handleInitialization, storyId, totalPages]);
+  }, [id, navigate, toast, handleInitialization, storyId, loading, error, totalPages]);
 
   return (
     <div className="min-h-screen bg-[#3A2618] w-full overflow-x-hidden">

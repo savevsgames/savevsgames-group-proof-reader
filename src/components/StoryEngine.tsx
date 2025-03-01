@@ -8,40 +8,54 @@ import { useStoryStore } from "@/stores/storyState";
 import { shallow } from "zustand/shallow";
 import { 
   StoryEngineProps,
-  StorySelector
 } from "@/types";
 
 export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
   const { user } = useAuth();
   
   // Use specific selectors with proper typing to minimize re-renders
-  const uiState = useStoryStore((state) => ({
-    loading: state.loading,
-    error: state.error
-  }), shallow);
+  const uiState = useStoryStore(
+    (state) => ({
+      loading: state.loading,
+      error: state.error
+    }),
+    shallow
+  );
   
-  const metadataState = useStoryStore((state) => ({
-    bookTitle: state.title,
-    totalPages: state.totalPages
-  }), shallow);
+  const metadataState = useStoryStore(
+    (state) => ({
+      bookTitle: state.title,
+      totalPages: state.totalPages
+    }),
+    shallow
+  );
   
-  const navigationState = useStoryStore((state) => ({
-    currentPage: state.currentPage,
-    canGoBack: state.canGoBack,
-    currentNode: state.currentNode
-  }), shallow);
+  const navigationState = useStoryStore(
+    (state) => ({
+      currentPage: state.currentPage,
+      canGoBack: state.canGoBack,
+      currentNode: state.currentNode
+    }),
+    shallow
+  );
   
-  const contentState = useStoryStore((state) => ({
-    currentText: state.currentText,
-    currentChoices: state.currentChoices,
-    canContinue: state.canContinue,
-    currentStoryPosition: state.currentStoryPosition
-  }), shallow);
+  const contentState = useStoryStore(
+    (state) => ({
+      currentText: state.currentText,
+      currentChoices: state.currentChoices,
+      canContinue: state.canContinue,
+      currentStoryPosition: state.currentStoryPosition
+    }),
+    shallow
+  );
   
-  const commentsState = useStoryStore((state) => ({
-    comments: state.comments,
-    commentCount: state.commentCount
-  }), shallow);
+  const commentsState = useStoryStore(
+    (state) => ({
+      comments: state.comments,
+      commentCount: state.commentCount
+    }),
+    shallow
+  );
   
   // Actions don't need shallow comparison as they don't change
   const actions = useStoryStore((state) => ({
@@ -60,7 +74,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
   const handleCommentModalOpenChange = useCallback((open: boolean) => {
     setIsCommentModalOpen(open);
     
-    if (open) {
+    if (open && storyId) {
       // Fetch latest comments when modal opens
       actions.fetchComments(storyId, contentState.currentStoryPosition);
     }

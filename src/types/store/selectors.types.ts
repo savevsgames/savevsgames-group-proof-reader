@@ -14,14 +14,12 @@ export type EqualityFn<T> = (previous: T, next: T) => boolean;
 
 /**
  * Type for a selector function that extracts data from the store.
- * This includes proper typing for the equality function used with shallow comparison.
+ * This allows for proper typing with shallow equality function.
  */
-export type StorySelector<T> = (state: StoryStore, equalityFn?: EqualityFn<T>) => T;
-
-/**
- * Helper type for creating type-safe store selectors.
- */
-export type TypedSelector<T> = <U>(selector: (state: T) => U, equalityFn?: EqualityFn<U>) => U;
+export type StorySelector<U> = {
+  (state: StoryStore): U;
+  (state: StoryStore, equalityFn: EqualityFn<U>): U;
+};
 
 /**
  * UI state selector interface.
@@ -29,6 +27,7 @@ export type TypedSelector<T> = <U>(selector: (state: T) => U, equalityFn?: Equal
 export interface UISelector {
   loading: boolean;
   error: string | null;
+  commentCount: number;
 }
 
 /**
@@ -48,6 +47,7 @@ export interface ContentSelector {
   currentText: string;
   currentChoices: import('../core/story.types').StoryChoice[];
   canContinue: boolean;
+  currentStoryPosition: number;
 }
 
 /**
@@ -66,15 +66,4 @@ export interface CommentsSelector {
   commentCount: number;
   isLoading: boolean;
   error: string | null;
-}
-
-/**
- * Store selector utility types for Zustand usage.
- */
-export interface StoreSelectors {
-  useUIState: () => UISelector;
-  useNavigationState: () => NavigationSelector;
-  useContentState: () => ContentSelector;
-  useMetadataState: () => MetadataSelector;
-  useCommentsState: () => CommentsSelector;
 }
