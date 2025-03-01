@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ReaderView from "@/components/story/ReaderView";
@@ -48,6 +49,7 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
       
       <TabsContent value="reader" className="mt-4">
         <ReaderView
+          storyId={storyId}
           storyData={storyData}
           currentNode={currentNode}
           onNodeChange={onNodeChange}
@@ -57,8 +59,9 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
       <TabsContent value="json" className="mt-4">
         <JsonEditor
           storyData={storyData}
-          onStoryDataChange={handleStoryUpdate}
-          onUnsavedChanges={onUnsavedChanges}
+          onChange={handleStoryUpdate}
+          currentNode={currentNode}
+          onNodeSelect={onNodeChange}
         />
       </TabsContent>
       
