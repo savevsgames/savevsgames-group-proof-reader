@@ -31,13 +31,13 @@ export const StoryText: React.FC<StoryTextProps> = ({ text }) => {
   const formattedText = text
     .split('\n')
     .map((paragraph, index) => (
-      <p key={`p-${index}-${paragraph.substring(0, 10)}`} className="mb-4">{paragraph}</p>
+      <p key={`p-${index}-${paragraph.substring(0, 10)}`} className="mb-4 break-words">{paragraph}</p>
     ));
 
   return (
     <div 
       ref={contentRef}
-      className="story-text mb-8 md:mb-16 text-[#3A2618] font-serif leading-relaxed text-base md:text-lg"
+      className="story-text mb-8 md:mb-16 text-[#3A2618] font-serif leading-relaxed text-base md:text-lg max-w-full overflow-hidden"
       key={`story-content-${text.substring(0, 20)}`} // Key helps React identify when content changes
     >
       {formattedText}

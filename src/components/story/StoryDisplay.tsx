@@ -26,7 +26,7 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({
   onRestart
 }) => {
   return (
-    <div className="prose prose-lg max-w-none prose-headings:font-serif prose-p:font-serif">
+    <div className="prose prose-lg max-w-none overflow-hidden prose-headings:font-serif prose-p:font-serif">
       {text ? (
         <>
           <StoryText text={text} />

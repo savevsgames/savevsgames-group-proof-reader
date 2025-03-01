@@ -68,10 +68,10 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
       <div className="absolute inset-0 shadow-2xl rounded-lg"></div>
       
       {/* Book pages - consistent side-by-side layout with parent controlling height */}
-      <div className="flex flex-col md:flex-row rounded-lg overflow-hidden min-h-[600px] h-[80vh]">
+      <div className="flex flex-col md:flex-row rounded-lg overflow-hidden min-h-[600px] h-[80vh] max-w-full">
         {/* Story page */}
-        <div className="w-full md:w-2/5 lg:w-[45%] h-full relative">
-          <div className="absolute inset-0 bg-[#E8DCC4] p-4 md:p-6 lg:p-10 book-page rounded-lg md:rounded-l-lg md:rounded-r-none overflow-y-auto">
+        <div className="w-full md:w-2/5 lg:w-[45%] h-full relative overflow-hidden">
+          <div className="absolute inset-0 bg-[#E8DCC4] p-4 md:p-6 lg:p-10 book-page rounded-lg md:rounded-l-lg md:rounded-r-none overflow-y-auto overflow-x-hidden">
             <StoryDisplay 
               text={currentText} 
               canContinue={canContinue}
@@ -85,8 +85,8 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
         </div>
         
         {/* Comments page */}
-        <div className="w-full md:w-3/5 lg:w-[55%] h-full relative">
-          <div className="absolute inset-0 bg-[#E8DCC4] p-4 md:p-6 lg:p-10 book-page rounded-lg md:rounded-l-none md:rounded-r-lg overflow-y-auto">
+        <div className="w-full md:w-3/5 lg:w-[55%] h-full relative overflow-hidden">
+          <div className="absolute inset-0 bg-[#E8DCC4] p-4 md:p-6 lg:p-10 book-page rounded-lg md:rounded-l-none md:rounded-r-lg overflow-y-auto overflow-x-hidden">
             <CommentsView 
               storyId={storyId}
               currentNode={currentNode}
