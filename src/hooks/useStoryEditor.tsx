@@ -6,7 +6,9 @@ import {
   CustomStory, 
   generateNodeMappings,
   storyNodeToPageMap,
-  pageToStoryNodeMap
+  pageToStoryNodeMap,
+  extractAllNodesFromInkJSON,
+  extractCustomStoryFromInkJSON
 } from "@/lib/storyUtils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -129,6 +131,7 @@ export const useStoryEditor = (storyId: string) => {
           
           // Try to get story content from various possible sources
           let storyContent = null;
+          let rawStoryJSON = null;
           
           // First, check if story_content exists (it might have been added in previous edits)
           if (data.story_content) {
@@ -146,18 +149,19 @@ export const useStoryEditor = (storyId: string) => {
               console.log("Attempting to fetch story from URL:", data.story_url);
               const response = await fetch(data.story_url);
               if (response.ok) {
-                storyContent = await response.json();
+                rawStoryJSON = await response.json();
                 console.log("Successfully loaded story from URL");
                 
                 // Log the complete structure of the fetched story
-                console.log("Story structure:", storyContent);
+                console.log("Story structure:", rawStoryJSON);
                 
-                // Count and log all nodes in the story
-                const allNodes = Object.keys(storyContent).filter(key => 
-                  key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
-                );
+                // Use our new function to extract all nodes, including nested ones
+                const allNodes = extractAllNodesFromInkJSON(rawStoryJSON);
                 console.log("All story nodes:", allNodes);
                 console.log("Total nodes found:", allNodes.length);
+                
+                // Convert to our custom story format
+                storyContent = extractCustomStoryFromInkJSON(rawStoryJSON);
               } else {
                 console.error("Failed to fetch story from URL:", response.statusText);
               }
