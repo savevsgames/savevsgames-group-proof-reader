@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -5,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { X, Upload, Trash } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { saveSystemPrompt, saveModelSettings } from "@/lib/llmUtils";
+import { saveSystemPrompt, saveModelSettings } from "@/lib/llm";
 import { 
   Select,
   SelectContent,
@@ -49,8 +50,8 @@ interface LlmSettingsProps {
   storyId: string;
   systemPrompt: string;
   setSystemPrompt: (prompt: string) => void;
-  llmType: "node" | "choices";
-  setLlmType: (type: "node" | "choices") => void;
+  llmType: "edit_json" | "story_suggestions";
+  setLlmType: (type: "edit_json" | "story_suggestions") => void;
   prompt: string;
   setPrompt: (prompt: string) => void;
   onGenerateContent: () => void;
@@ -447,14 +448,14 @@ const LlmSettings: React.FC<LlmSettingsProps> = ({
           <div className="space-y-2">
             <Label className="text-sm font-medium">Generation Type</Label>
             <Tabs
-              defaultValue="node"
+              defaultValue="edit_json"
               value={llmType}
-              onValueChange={(value) => setLlmType(value as "node" | "choices")}
+              onValueChange={(value) => setLlmType(value as "edit_json" | "story_suggestions")}
               className="w-full"
             >
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="node">Node Text</TabsTrigger>
-                <TabsTrigger value="choices">Choices</TabsTrigger>
+                <TabsTrigger value="edit_json">Edit JSON</TabsTrigger>
+                <TabsTrigger value="story_suggestions">Story Suggestions</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -465,9 +466,9 @@ const LlmSettings: React.FC<LlmSettingsProps> = ({
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder={
-                llmType === "node"
-                  ? "e.g., Generate a paragraph describing the dark forest..."
-                  : "e.g., Create 3 choices for the character to proceed..."
+                llmType === "edit_json"
+                  ? "Enter your request for JSON structure changes..."
+                  : "Ask for writing suggestions, creative prompts, or ideas..."
               }
               className="min-h-[100px]"
             />
@@ -488,7 +489,7 @@ const LlmSettings: React.FC<LlmSettingsProps> = ({
         ) : (
           <>
             <span className="mr-2 h-4 w-4">📤</span>
-            Generate {llmType === "node" ? "Text" : "Choices"}
+            Generate {llmType === "edit_json" ? "JSON Edits" : "Story Suggestions"}
           </>
         )}
       </Button>

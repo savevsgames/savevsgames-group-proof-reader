@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -35,7 +36,7 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
   const [systemPrompt, setSystemPrompt] = useState("");
   const [comments, setComments] = useState<any[]>([]);
   const [llmOutput, setLlmOutput] = useState<string>("");
-  const [llmType, setLlmType] = useState<"node" | "choices">("node");
+  const [llmType, setLlmType] = useState<"edit_json" | "story_suggestions">("edit_json");
   const [commentContext, setCommentContext] = useState<CommentContextItem[]>([]);
   const [modelSettings, setModelSettings] = useState({
     model: "gpt-4o-mini",
@@ -63,9 +64,11 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
       // Set default prompt based on LLM type
       if (!prompt || prompt === "") {
         setPrompt(
-          `Integrate all reader comments with the current page context to offer suggestions that can be integrated into the JSON file. Focus on improving ${
-            llmType === "node" ? "the story text" : "the choices"
-          } while maintaining the story's style.`
+          `${
+            llmType === "edit_json" 
+              ? "Please analyze the current JSON structure and suggest specific edits to improve the story node. Provide the exact JSON changes needed."
+              : "Based on the story context and reader comments, provide creative writing suggestions and alternative plot directions that could enhance the narrative."
+          }`
         );
       }
     };
@@ -116,41 +119,13 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({
       
       setLlmOutput(data.content);
       
-      if (data.content && data.contentType === "node") {
-        const updatedStory = { ...storyData };
-        updatedStory[currentNode] = {
-          ...updatedStory[currentNode],
-          text: data.content,
-        };
-        onStoryUpdate(updatedStory);
-        
-        toast({
-          title: "Content generated",
-          description: "The node text has been updated with the generated content.",
-        });
-      } else if (data.content && data.contentType === "choices") {
-        try {
-          const parsedChoices = JSON.parse(data.content);
-          const updatedStory = { ...storyData };
-          updatedStory[currentNode] = {
-            ...updatedStory[currentNode],
-            choices: parsedChoices,
-          };
-          onStoryUpdate(updatedStory);
-          
-          toast({
-            title: "Choices generated",
-            description: "The node choices have been updated with the generated content.",
-          });
-        } catch (parseError) {
-          console.error("Error parsing choices:", parseError);
-          toast({
-            title: "Error parsing choices",
-            description: "The generated choices couldn't be parsed as valid JSON.",
-            variant: "destructive",
-          });
-        }
-      }
+      // In the future, we'll implement direct JSON editing based on the response
+      // For now, we'll just show the suggested JSON or writing suggestions
+      
+      toast({
+        title: `${llmType === "edit_json" ? "JSON edits" : "Story suggestions"} generated`,
+        description: `The ${llmType === "edit_json" ? "JSON edits" : "story suggestions"} have been generated successfully.`,
+      });
     } catch (err: any) {
       console.error("Error generating content:", err);
       toast({
