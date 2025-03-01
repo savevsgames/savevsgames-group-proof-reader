@@ -1,5 +1,5 @@
 
-import React, { Suspense, ErrorBoundary } from "react";
+import React, { Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
@@ -12,17 +12,23 @@ import { AuthProvider } from "./context/AuthContext";
 import { Toaster } from "./components/ui/toaster";
 import "./App.css";
 
-class ErrorBoundaryComponent extends React.Component {
-  constructor(props) {
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+  errorInfo: React.ErrorInfo | null;
+}
+
+class ErrorBoundaryComponent extends React.Component<{children: React.ReactNode}, ErrorBoundaryState> {
+  constructor(props: {children: React.ReactNode}) {
     super(props);
     this.state = { hasError: false, error: null, errorInfo: null };
   }
 
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error, errorInfo: null };
   }
 
-  componentDidCatch(error, errorInfo) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     console.error("React ErrorBoundary caught an error:", error, errorInfo);
     this.setState({ errorInfo });
   }
