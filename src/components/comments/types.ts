@@ -1,4 +1,3 @@
-
 // Import from supabase instead of AuthContext
 import { User } from '@/lib/supabase';
 
@@ -17,6 +16,7 @@ export interface Comment {
     username: string;
   };
   content?: string; // For backward compatibility
+  user_name?: string; // Added this property to match usage in CommentItem.tsx
 }
 
 // Props for the CommentModal component

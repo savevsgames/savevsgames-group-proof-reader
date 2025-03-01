@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
@@ -9,9 +8,7 @@ import { User } from '@/lib/supabase';
 import { Comment } from '../comments/types';
 import CommentsList from '../comments/CommentsList';
 import CommentTypeSelector from "../comments/CommentTypeSelector";
-import { commentTypeLabels } from '@/lib/commentTypes';
-
-type CommentType = 'edit' | 'suggestion' | 'praise' | 'question' | 'issue' | 'spelling' | 'general';
+import { CommentType, commentTypeLabels } from '@/lib/commentTypes';
 
 interface CommentsViewProps {
   storyId: string;
@@ -197,7 +194,7 @@ const CommentsView = ({ storyId, currentNode, currentPage, onCommentsUpdate, onA
                   setIsEditing(false);
                   setEditingCommentId(null);
                   setCommentText("");
-                  setCommentType("edit");
+                  setCommentType("general");
                 }}
                 variant="outline"
                 className="bg-[#FDF8EC] text-[#3A2618] border-[#3A2618]/30"

@@ -1,5 +1,5 @@
 
-export type CommentType = 'edit' | 'suggestion' | 'praise' | 'question' | 'issue' | 'spelling';
+export type CommentType = 'edit' | 'suggestion' | 'praise' | 'question' | 'issue' | 'spelling' | 'general';
 
 export const commentTypeColors: Record<CommentType, string> = {
   'edit': '#8B5CF6', // Vivid Purple
@@ -8,6 +8,7 @@ export const commentTypeColors: Record<CommentType, string> = {
   'question': '#BBD1FF', // Soft Blue
   'issue': '#ea384c', // Red
   'spelling': '#FEC6A1', // Soft Orange
+  'general': '#888888', // Gray for general comments
 };
 
 export const commentTypeLabels: Record<CommentType, string> = {
@@ -17,4 +18,5 @@ export const commentTypeLabels: Record<CommentType, string> = {
   'question': 'Question',
   'issue': 'Issue',
   'spelling': 'Spelling',
+  'general': 'Comment',
 };
