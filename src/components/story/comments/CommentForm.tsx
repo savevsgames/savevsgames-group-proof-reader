@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ const CommentForm = ({
         .insert([{
           story_id: storyId,
           story_position: currentPage,
+          story_position_old: String(currentPage), // Add the required field
           story_node: currentNode,
           text: text,
           comment_type: type,

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -155,6 +154,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
             user_id: currentUser.id,
             story_id: storyId,
             story_position: storyPosition,
+            story_position_old: String(storyPosition), // Add the required field
             story_node: 'modal-comment', // Default node for modal comments
             text: commentText,
             comment_type: selectedCommentType,
@@ -254,6 +254,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
             currentUser={currentUser}
             isModerator={isModerator}
             onEditComment={handleCommentEdit}
+            onDeleteComment={() => {}}
           />
         </div>
       </DialogContent>
