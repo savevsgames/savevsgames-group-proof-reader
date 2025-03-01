@@ -1,85 +1,96 @@
 
 import React from 'react';
+import { formatDistanceToNow } from 'date-fns';
+import { Button } from "@/components/ui/button";
+import { Trash, Edit, Plus } from 'lucide-react';
 import { Comment } from './types';
 import { commentTypeColors, commentTypeLabels } from '@/lib/commentTypes';
-import { Button } from '@/components/ui/button';
-import { Edit, Trash } from 'lucide-react';
 
 interface CommentItemProps {
   comment: Comment;
   isOwnComment: boolean;
+  isModerator: boolean;
   onEdit: (comment: Comment) => void;
   onDelete?: (commentId: string) => void;
-  isModerator: boolean;
+  onAddToLlmContext?: (text: string) => void;
 }
 
 const CommentItem: React.FC<CommentItemProps> = ({
   comment,
   isOwnComment,
+  isModerator,
   onEdit,
   onDelete,
-  isModerator,
+  onAddToLlmContext,
 }) => {
-  const commentType = comment.comment_type || 'edit';
-  const typeColor = commentTypeColors[commentType];
-  const isDarkBackground = !['suggestion', 'spelling'].includes(commentType);
+  const formattedDate = new Date(comment.created_at).toLocaleString();
+  const commentType = comment.comment_type || 'general';
+  const commentTypeColor = commentTypeColors[commentType as keyof typeof commentTypeColors] || '#888888';
+  const commentTypeLabel = commentTypeLabels[commentType as keyof typeof commentTypeLabels] || 'Comment';
   
-  const handleEditClick = () => {
-    onEdit(comment);
-  };
-  
-  const handleDeleteClick = () => {
-    if (onDelete) {
-      onDelete(comment.id);
+  const handleAddToContext = () => {
+    if (onAddToLlmContext) {
+      const contextText = `${commentTypeLabel} from ${comment.user_name}: ${comment.text}`;
+      onAddToLlmContext(contextText);
     }
   };
-  
+
+  const canModify = isOwnComment || isModerator;
+
   return (
     <div className="border rounded-md p-4 bg-white">
       <div className="flex justify-between items-start">
         <div>
           <div className="flex items-center gap-2">
-            <span className="font-medium">{comment.profile?.username || 'Anonymous'}</span>
-            <span className="text-xs text-gray-500">
-              {new Date(comment.created_at).toLocaleString()}
-            </span>
+            <span className="font-medium">{comment.user_name}</span>
+            <span className="text-xs text-gray-500">{formattedDate}</span>
           </div>
           
-          <div 
-            className="inline-block px-2 py-0.5 rounded text-xs font-medium my-1"
-            style={{ 
-              backgroundColor: typeColor,
-              color: isDarkBackground ? 'white' : '#3A2618'
-            }}
-          >
-            {commentTypeLabels[commentType] || 'Comment'}
-          </div>
+          {commentType && (
+            <div 
+              className="inline-block px-2 py-0.5 rounded text-xs font-medium my-1"
+              style={{ 
+                backgroundColor: commentTypeColor,
+                color: ['suggestion', 'spelling'].includes(commentType) ? '#3A2618' : 'white'
+              }}
+            >
+              {commentTypeLabel}
+            </div>
+          )}
         </div>
         
-        {(isOwnComment || isModerator) && (
-          <div className="flex gap-2">
-            {isOwnComment && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleEditClick}
-                className="h-8 w-8 p-0"
-              >
-                <Edit className="h-4 w-4 text-[#3A2618]" />
-              </Button>
-            )}
-            {(isOwnComment || isModerator) && onDelete && (
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={handleDeleteClick}
-                className="h-8 w-8 p-0 text-red-500"
-              >
-                <Trash className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-        )}
+        <div className="flex gap-2">
+          {canModify && onEdit && (
+            <Button
+              onClick={() => onEdit(comment)}
+              variant="ghost"
+              className="h-8 w-8 p-0"
+            >
+              <Edit className="h-4 w-4 text-[#3A2618]" />
+            </Button>
+          )}
+          
+          {canModify && onDelete && (
+            <Button
+              onClick={() => onDelete(comment.id)}
+              variant="ghost"
+              className="h-8 w-8 p-0 text-red-500"
+            >
+              <Trash className="h-4 w-4" />
+            </Button>
+          )}
+          
+          {onAddToLlmContext && (
+            <Button
+              onClick={handleAddToContext}
+              variant="ghost"
+              className="h-8 w-8 p-0 text-blue-500"
+              title="Add to AI Context"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
       
       <div className="mt-2 text-[#3A2618] whitespace-pre-wrap">

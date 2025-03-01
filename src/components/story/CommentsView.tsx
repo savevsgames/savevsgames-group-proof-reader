@@ -8,7 +8,7 @@ import { Send } from 'lucide-react';
 import { User } from '@/lib/supabase';
 import { Comment } from '../comments/types';
 import CommentsList from '../comments/CommentsList';
-import { CommentTypeSelector } from "../comments/CommentTypeSelector";
+import CommentTypeSelector from "../comments/CommentTypeSelector";
 import { commentTypeLabels } from '@/lib/commentTypes';
 
 type CommentType = 'edit' | 'suggestion' | 'praise' | 'question' | 'issue' | 'spelling' | 'general';
@@ -18,9 +18,10 @@ interface CommentsViewProps {
   currentNode: string;
   currentPage: number;
   onCommentsUpdate: (count: number) => void;
+  onAddToLlmContext?: (text: string) => void;
 }
 
-const CommentsView = ({ storyId, currentNode, currentPage, onCommentsUpdate }: CommentsViewProps) => {
+const CommentsView = ({ storyId, currentNode, currentPage, onCommentsUpdate, onAddToLlmContext }: CommentsViewProps) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState('');
   const [commentType, setCommentType] = useState<CommentType>('general');
@@ -162,6 +163,12 @@ const CommentsView = ({ storyId, currentNode, currentPage, onCommentsUpdate }: C
     await deleteComment(commentId);
   };
 
+  const handleAddToLlmContext = (text: string) => {
+    if (onAddToLlmContext) {
+      onAddToLlmContext(text);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <h2 className="text-2xl font-serif mb-6 text-[#3A2618]">Reader Comments</h2>
@@ -177,8 +184,8 @@ const CommentsView = ({ storyId, currentNode, currentPage, onCommentsUpdate }: C
             />
             <div className="mt-4">
               <CommentTypeSelector
-                selectedType={commentType}
-                onSelect={(type) => setCommentType(type as CommentType)}
+                selectedCommentType={commentType}
+                setSelectedCommentType={(type) => setCommentType(type as CommentType)}
               />
             </div>
           </div>
@@ -230,6 +237,7 @@ const CommentsView = ({ storyId, currentNode, currentPage, onCommentsUpdate }: C
           isModerator={false}
           onEditComment={handleEditComment}
           onDeleteComment={handleDeleteComment}
+          onAddToLlmContext={onAddToLlmContext}
         />
       </div>
     </div>

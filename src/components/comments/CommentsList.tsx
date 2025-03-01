@@ -10,6 +10,7 @@ interface CommentsListProps {
   isModerator: boolean;
   onEditComment: (comment: Comment) => void;
   onDeleteComment?: (commentId: string) => void;
+  onAddToLlmContext?: (text: string) => void;
 }
 
 const CommentsList: React.FC<CommentsListProps> = ({
@@ -19,6 +20,7 @@ const CommentsList: React.FC<CommentsListProps> = ({
   isModerator,
   onEditComment,
   onDeleteComment,
+  onAddToLlmContext,
 }) => {
   // Check if a comment is owned by current user
   const isOwnComment = (comment: Comment) => {
@@ -52,6 +54,7 @@ const CommentsList: React.FC<CommentsListProps> = ({
           onEdit={onEditComment}
           onDelete={onDeleteComment}
           isModerator={isModerator}
+          onAddToLlmContext={onAddToLlmContext}
         />
       ))}
     </div>
