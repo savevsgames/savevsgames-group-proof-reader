@@ -64,27 +64,29 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
         onPageChange={onPageChange}
       />
       
-      {/* Book shadow - enhanced */}
+      {/* Enhanced book shadow */}
       <div className="absolute inset-0 shadow-2xl rounded-lg"></div>
       
-      {/* Book pages - side-by-side layout */}
-      <div className="flex flex-col md:flex-row rounded-lg overflow-hidden">
-        {/* Story page - story content and controls */}
-        <div className="w-full md:w-2/5 lg:w-[45%] min-h-[600px] max-h-[80vh] overflow-y-auto">
-          <StoryDisplay 
-            text={currentText} 
-            canContinue={canContinue}
-            choices={choices}
-            isEnding={isEnding}
-            onContinue={onContinue}
-            onChoice={onChoice}
-            onRestart={onRestart}
-          />
+      {/* Book pages - consistent side-by-side layout */}
+      <div className="flex flex-col md:flex-row rounded-lg overflow-hidden h-full">
+        {/* Story page */}
+        <div className="w-full md:w-2/5 lg:w-[45%] min-h-[600px] h-[80vh] relative">
+          <div className="absolute inset-0 bg-[#E8DCC4] p-4 md:p-6 lg:p-10 book-page rounded-lg md:rounded-l-lg md:rounded-r-none overflow-y-auto">
+            <StoryDisplay 
+              text={currentText} 
+              canContinue={canContinue}
+              choices={choices}
+              isEnding={isEnding}
+              onContinue={onContinue}
+              onChoice={onChoice}
+              onRestart={onRestart}
+            />
+          </div>
         </div>
         
-        {/* Comments page - only shows comments */}
-        <div className="w-full md:w-3/5 lg:w-[55%] mb-4 md:mb-0 min-h-[600px] max-h-[80vh]">
-          <div className="w-full bg-[#E8DCC4] h-full p-4 md:p-6 lg:p-8 rounded-lg md:rounded-none book-page">
+        {/* Comments page */}
+        <div className="w-full md:w-3/5 lg:w-[55%] min-h-[600px] h-[80vh] relative">
+          <div className="absolute inset-0 bg-[#E8DCC4] p-4 md:p-6 lg:p-10 book-page rounded-lg md:rounded-l-none md:rounded-r-lg overflow-y-auto">
             <CommentsView 
               storyId={storyId}
               currentNode={currentNode}
