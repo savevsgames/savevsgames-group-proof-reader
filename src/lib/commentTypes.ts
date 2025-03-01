@@ -1,4 +1,5 @@
 
+// We need to ensure this matches the enum in the database
 export type CommentType = 'edit' | 'suggestion' | 'praise' | 'question' | 'issue' | 'spelling' | 'general';
 
 export const commentTypeColors: Record<CommentType, string> = {

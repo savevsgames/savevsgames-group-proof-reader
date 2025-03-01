@@ -29,7 +29,6 @@ export const CommentModal: React.FC<CommentModalProps> = ({
     if (isOpen && storyId && storyPosition !== undefined) {
       fetchComments();
     }
-    // Reset form when modal opens/closes
     if (!isOpen) {
       setCommentText('');
       setEditingComment(null);
@@ -38,7 +37,6 @@ export const CommentModal: React.FC<CommentModalProps> = ({
   }, [isOpen, storyId, storyPosition]);
 
   useEffect(() => {
-    // Check if current user is a moderator
     const checkModerator = async () => {
       if (!currentUser) {
         setIsModerator(false);
@@ -65,7 +63,6 @@ export const CommentModal: React.FC<CommentModalProps> = ({
   }, [currentUser]);
 
   useEffect(() => {
-    // If editing a comment, populate the form with its values
     if (editingComment) {
       setCommentText(editingComment.text);
       setSelectedCommentType(editingComment.comment_type);
@@ -126,17 +123,18 @@ export const CommentModal: React.FC<CommentModalProps> = ({
     setIsSubmitting(true);
 
     try {
+      const safeCommentType = selectedCommentType === 'question' ? 'edit' : selectedCommentType;
+      
       if (editingComment) {
-        // Update existing comment
         const { error } = await supabase
           .from('comments')
           .update({
             text: commentText,
-            comment_type: selectedCommentType,
+            comment_type: safeCommentType,
             updated_at: new Date().toISOString(),
           })
           .eq('id', editingComment.id)
-          .eq('user_id', currentUser.id); // Ensure user can only edit their own comments
+          .eq('user_id', currentUser.id);
 
         if (error) {
           throw error;
@@ -147,17 +145,16 @@ export const CommentModal: React.FC<CommentModalProps> = ({
           description: 'Your comment has been updated successfully.',
         });
       } else {
-        // Create new comment
         const { error } = await supabase
           .from('comments')
           .insert({
             user_id: currentUser.id,
             story_id: storyId,
             story_position: storyPosition,
-            story_position_old: String(storyPosition), // Add the required field
-            story_node: 'modal-comment', // Default node for modal comments
+            story_position_old: String(storyPosition),
+            story_node: 'modal-comment',
             text: commentText,
-            comment_type: selectedCommentType,
+            comment_type: safeCommentType,
           });
 
         if (error) {
@@ -170,7 +167,6 @@ export const CommentModal: React.FC<CommentModalProps> = ({
         });
       }
 
-      // Reset form and refresh comments
       setCommentText('');
       setEditingComment(null);
       setSelectedCommentType('edit');

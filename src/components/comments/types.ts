@@ -1,5 +1,7 @@
+
 // Import from supabase instead of AuthContext
 import { User } from '@/lib/supabase';
+import { CommentType } from '@/lib/commentTypes';
 
 // Defines the shape of a comment
 export interface Comment {
@@ -11,7 +13,7 @@ export interface Comment {
   text: string;
   created_at: string;
   updated_at: string;
-  comment_type: 'edit' | 'suggestion' | 'praise' | 'question' | 'issue' | 'spelling';
+  comment_type: CommentType;
   profile?: {
     username: string;
     avatar_url?: string;

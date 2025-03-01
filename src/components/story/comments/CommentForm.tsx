@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -47,6 +46,8 @@ const CommentForm = ({
     }
 
     try {
+      const safeCommentType = type === 'question' ? 'edit' : type;
+      
       const { data, error } = await supabase
         .from('comments')
         .insert([{
@@ -55,7 +56,7 @@ const CommentForm = ({
           story_position_old: String(currentPage), // Add the required field
           story_node: currentNode,
           text: text,
-          comment_type: type,
+          comment_type: safeCommentType,
           user_id: user.id
         }])
         .select('*')
@@ -74,11 +75,13 @@ const CommentForm = ({
 
   const updateComment = async (commentId: string, text: string, type: CommentType) => {
     try {
+      const safeCommentType = type === 'question' ? 'edit' : type;
+      
       const { data, error } = await supabase
         .from('comments')
         .update({ 
           text: text, 
-          comment_type: type,
+          comment_type: safeCommentType,
           // Don't update story_node or story_position when editing
         })
         .eq('id', commentId)
