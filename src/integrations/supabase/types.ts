@@ -145,6 +145,7 @@ export type Database = {
           created_at: string | null
           id: string
           story_id: string
+          story_node: string | null
           story_position: number
           story_position_old: string
           text: string
@@ -156,6 +157,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           story_id: string
+          story_node?: string | null
           story_position?: number
           story_position_old: string
           text: string
@@ -167,6 +169,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           story_id?: string
+          story_node?: string | null
           story_position?: number
           story_position_old?: string
           text?: string
