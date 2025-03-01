@@ -1,17 +1,18 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState } from 'react';
 import { useStory } from '@/hooks/useStory';
 import { CommentModal } from './CommentModal';
 import { BookLayout } from './story/BookLayout';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { fetchComments } from '@/lib/storyUtils';
 import { Comment } from './comments/types';
 import { User } from '@supabase/supabase-js';
 
-export const StoryEngine: React.FC = () => {
-  const { id: storyId } = useParams<{ id: string }>();
+interface StoryEngineProps {
+  storyId: string;
+}
+
+export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
   const { user } = useAuth();
   
   const {
@@ -33,52 +34,23 @@ export const StoryEngine: React.FC = () => {
     handleRestart,
     handlePageChange,
     updateCommentCount,
-  } = useStory(storyId || '');
+  } = useStory(storyId);
 
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
 
-  // Memoize the onCommentsUpdate callback to avoid recreation on each render
-  const handleCommentsUpdate = useCallback((count: number) => {
-    if (updateCommentCount) {
-      updateCommentCount();
-    }
-  }, [updateCommentCount]);
-
-  // Fetch comments for current story position
-  useEffect(() => {
-    const getComments = async () => {
-      if (storyId && currentStoryPosition !== undefined) {
-        try {
-          const commentsData = await fetchComments(storyId, currentStoryPosition);
-          setComments(commentsData);
-          // Only update comment count if needed, not on every fetch
-          if (commentsData.length !== commentCount && updateCommentCount) {
-            updateCommentCount();
-          }
-        } catch (error) {
-          console.error('Error fetching comments:', error);
-        }
-      }
-    };
-    
-    getComments();
-  }, [storyId, currentStoryPosition, updateCommentCount, commentCount]);
-
-  // Refresh comments when modal closes
+  // Load comments when modal opens
   const handleCommentModalOpenChange = (open: boolean) => {
     setIsCommentModalOpen(open);
-    if (!open) {
-      // Slightly delayed refresh to allow for any new comments to be saved
+    if (open) {
+      // Fetch comments when modal opens
+      fetchComments(storyId, currentStoryPosition).then(commentsData => {
+        setComments(commentsData);
+      });
+    } else {
+      // Refresh comment count when modal closes
       setTimeout(() => {
-        if (storyId && currentStoryPosition !== undefined) {
-          fetchComments(storyId, currentStoryPosition).then(commentsData => {
-            setComments(commentsData);
-            if (updateCommentCount) {
-              updateCommentCount();
-            }
-          });
-        }
+        updateCommentCount();
       }, 300);
     }
   };
@@ -116,7 +88,7 @@ export const StoryEngine: React.FC = () => {
         commentCount={commentCount}
         comments={comments}
         currentUser={user as User}
-        storyId={storyId || ''}
+        storyId={storyId}
         onContinue={handleContinue}
         onChoice={handleChoice}
         onBack={handleBack}
@@ -128,7 +100,7 @@ export const StoryEngine: React.FC = () => {
       <CommentModal
         isOpen={isCommentModalOpen}
         onOpenChange={handleCommentModalOpenChange}
-        storyId={storyId || ''}
+        storyId={storyId}
         storyPosition={currentStoryPosition}
         currentUser={user as User}
       />

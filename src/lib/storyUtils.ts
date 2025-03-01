@@ -58,42 +58,6 @@ interface ParsingContext {
   choiceStack: any[];
 }
 
-// Map to track story node sequence for page counting - fixed order
-// This is our source of truth for page ordering
-export const storyNodeSequence: string[] = [
-  'root',
-  'vault_description',
-  'dark_eye_introduction',
-  'mages_attempt',
-  'kavan_arrival',
-  'kavan_determination',
-  'dark_eye_awakens',
-  'dark_eye_speaks',
-  'kavan_response',
-  'battle_begins',
-  'kavan_struggle',
-  'kavan_love',
-  'kavan_fight',
-  'dark_eye_reaction',
-  'dark_eye_withdraws',
-  'final_blast',
-  'story_ending'
-];
-
-// Generate node-to-page and page-to-node mappings based on the sequence
-export const storyNodeToPageMap: Record<string, number> = 
-  storyNodeSequence.reduce((acc, node, index) => {
-    acc[node] = index + 1; // Page numbers start from 1
-    return acc;
-  }, {} as Record<string, number>);
-
-// Reverse map to look up node names from page numbers
-export const pageToStoryNodeMap: Record<number, string> = 
-  storyNodeSequence.reduce((acc, node, index) => {
-    acc[index + 1] = node; // Page numbers start from 1
-    return acc;
-  }, {} as Record<number, string>);
-
 // Collection of token parsers for different Ink syntax elements
 const tokenParsers: TokenParser[] = [
   // Text parser - handles basic story text prefixed with ^
@@ -267,14 +231,13 @@ const processArrayElements = (elements: any[], context: ParsingContext) => {
   }
 };
 
-// Function to generate mappings based on story data
+// Function to generate mappings based on story data - simplified version
 export const generateNodeMappings = (storyData: any) => {
   if (!storyData) {
-    // Return default mappings if no data
     return { 
-      storyNodeToPageMap, 
-      pageToStoryNodeMap,
-      totalPages: storyNodeSequence.length 
+      storyNodeToPageMap: {}, 
+      pageToStoryNodeMap: {},
+      totalPages: 0
     };
   }
   
@@ -282,35 +245,20 @@ export const generateNodeMappings = (storyData: any) => {
   const nodeToPage: Record<string, number> = {};
   const pageToNode: Record<number, string> = {};
   
-  // First, try to find all the nodes in our sequence
-  let totalPages = 0;
-  let pageNumber = 1;
-  
-  // Process nodes in our defined sequence first
-  for (const nodeName of storyNodeSequence) {
-    if (storyData[nodeName]) {
-      nodeToPage[nodeName] = pageNumber;
-      pageToNode[pageNumber] = nodeName;
-      pageNumber++;
-      totalPages++;
-    }
-  }
-  
-  // Now add any additional nodes that might not be in our sequence
+  // Process all nodes from story data
   const allNodes = Object.keys(storyData).filter(key => 
     key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
   );
   
+  // Assign sequential page numbers
+  let pageNumber = 1;
   for (const nodeName of allNodes) {
-    if (!nodeToPage[nodeName]) {
-      nodeToPage[nodeName] = pageNumber;
-      pageToNode[pageNumber] = nodeName;
-      pageNumber++;
-      totalPages++;
-    }
+    nodeToPage[nodeName] = pageNumber;
+    pageToNode[pageNumber] = nodeName;
+    pageNumber++;
   }
   
-  console.log("Generated mappings:", { nodeToPage, pageToNode, totalPages });
+  const totalPages = allNodes.length;
   
   return {
     storyNodeToPageMap: nodeToPage,

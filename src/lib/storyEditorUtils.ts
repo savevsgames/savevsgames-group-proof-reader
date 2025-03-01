@@ -1,5 +1,5 @@
 
-import { CustomStory, generateNodeMappings } from "@/lib/storyUtils";
+import { CustomStory } from "@/lib/storyUtils";
 import { analyzeStoryStructure, validateNodeMappings, extractAllNodesFromInkJSON } from "@/lib/storyNodeMapping";
 
 export interface NodeMappings {
@@ -12,7 +12,17 @@ export const generateAndLogNodeMappings = (storyData: CustomStory): {
   nodeMappings: NodeMappings;
   totalPages: number;
 } => {
-  // Try the new dynamic mapping system first
+  if (!storyData) {
+    console.warn("No story data provided for node mapping");
+    return {
+      nodeMappings: {
+        nodeToPage: {},
+        pageToNode: {}
+      },
+      totalPages: 0
+    };
+  }
+  
   try {
     console.log("Using dynamic node mapping system...");
     const { nodeToPage, pageToNode, totalPages } = analyzeStoryStructure(storyData);
@@ -34,41 +44,57 @@ export const generateAndLogNodeMappings = (storyData: CustomStory): {
         totalPages
       };
     } else {
-      console.warn("Dynamic node mapping produced invalid results, falling back to legacy mapping");
+      console.warn("Dynamic node mapping produced invalid results, using fallback");
+      
+      // Fallback to simple sequential mapping
+      const allNodes = Object.keys(storyData).filter(key => 
+        key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
+      );
+      
+      const nodeToPage: Record<string, number> = {};
+      const pageToNode: Record<number, string> = {};
+      
+      // Create sequential mapping
+      allNodes.forEach((nodeName, index) => {
+        const pageNumber = index + 1;
+        nodeToPage[nodeName] = pageNumber;
+        pageToNode[pageNumber] = nodeName;
+      });
+      
+      return {
+        nodeMappings: {
+          nodeToPage,
+          pageToNode
+        },
+        totalPages: allNodes.length
+      };
     }
   } catch (error) {
-    console.error("Error in dynamic node mapping:", error);
-    console.warn("Falling back to legacy node mapping system");
+    console.error("Error in node mapping:", error);
+    
+    // Fallback for error cases
+    const allNodes = Object.keys(storyData).filter(key => 
+      key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
+    );
+    
+    // Create simple sequential mapping
+    const nodeToPage: Record<string, number> = {};
+    const pageToNode: Record<number, string> = {};
+    
+    allNodes.forEach((nodeName, index) => {
+      const pageNumber = index + 1;
+      nodeToPage[nodeName] = pageNumber;
+      pageToNode[pageNumber] = nodeName;
+    });
+    
+    return {
+      nodeMappings: {
+        nodeToPage, 
+        pageToNode
+      },
+      totalPages: allNodes.length
+    };
   }
-  
-  // Fallback to the original mapping system
-  const { 
-    storyNodeToPageMap: updatedNodeToPage, 
-    pageToStoryNodeMap: updatedPageToNode, 
-    totalPages: calculatedPages 
-  } = generateNodeMappings(storyData);
-  
-  const nodeMappings = {
-    nodeToPage: updatedNodeToPage,
-    pageToNode: updatedPageToNode
-  };
-  
-  // Log all nodes found in the story data
-  const allNodes = Object.keys(storyData).filter(key => 
-    key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
-  );
-  
-  console.log("Using legacy node mapping system");
-  console.log("Story nodes found:", allNodes);
-  console.log("Total story nodes:", allNodes.length);
-  console.log("Node to page mapping:", updatedNodeToPage);
-  console.log("Page to node mapping:", updatedPageToNode);
-  console.log(`Total story pages: ${calculatedPages}`);
-  
-  return {
-    nodeMappings,
-    totalPages: calculatedPages
-  };
 };
 
 // Extract story content from various possible sources
@@ -105,7 +131,9 @@ export const extractStoryContent = async (data: any): Promise<CustomStory | null
         console.log("Total nodes found:", allNodes.length);
         
         // Convert to our custom story format
-        return extractCustomStoryFromInkJSON(rawStoryJSON);
+        const customStory = extractCustomStoryFromInkJSON(rawStoryJSON);
+        console.log("Converted story to custom format:", customStory);
+        return customStory;
       } else {
         console.error("Failed to fetch story from URL:", response.statusText);
       }
@@ -117,7 +145,5 @@ export const extractStoryContent = async (data: any): Promise<CustomStory | null
   return null;
 };
 
-// These functions are imported from storyUtils but included here for completion
-// In a real implementation, you would import these from storyUtils
+// These functions are imported from external files
 import { extractCustomStoryFromInkJSON } from "@/lib/storyUtils";
-

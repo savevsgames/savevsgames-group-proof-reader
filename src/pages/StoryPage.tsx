@@ -6,7 +6,6 @@ import Header from '@/components/Header';
 import { useToast } from '@/hooks/use-toast';
 
 const StoryPage = () => {
-  // Changed from storyId to id to match route parameter
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -27,7 +26,7 @@ const StoryPage = () => {
       <Header />
       
       <div className="mx-auto px-4 w-full">
-        <StoryEngine />
+        {id && <StoryEngine storyId={id} />}
       </div>
     </div>
   );
