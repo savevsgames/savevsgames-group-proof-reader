@@ -141,6 +141,12 @@
   background: linear-gradient(to right, rgba(0,0,0,0.1), transparent);
 }
 
+.book-page-texture {
+  background-color: #FDF8EC;
+  border: 1px solid rgba(58, 38, 24, 0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
 .choice-text {
   position: relative;
   cursor: pointer;
@@ -149,4 +155,12 @@
 
 .choice-text:hover {
   text-decoration: none;
+}
+
+.comment-item {
+  transition: transform 0.2s ease;
+}
+
+.comment-item:hover {
+  transform: translateY(-2px);
 }

@@ -1,5 +1,6 @@
 
-import { User } from '@/context/AuthContext';
+// Import from supabase instead of AuthContext
+import { User } from '@/lib/supabase';
 
 // Defines the shape of a comment
 export interface Comment {

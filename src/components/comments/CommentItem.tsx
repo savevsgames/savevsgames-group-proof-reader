@@ -9,6 +9,7 @@ interface CommentItemProps {
   comment: Comment;
   isOwnComment: boolean;
   onEdit: (comment: Comment) => void;
+  onDelete?: (commentId: string) => void;
   isModerator: boolean;
 }
 
@@ -16,6 +17,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
   comment,
   isOwnComment,
   onEdit,
+  onDelete,
   isModerator,
 }) => {
   const commentType = comment.comment_type || 'edit';
@@ -24,6 +26,12 @@ const CommentItem: React.FC<CommentItemProps> = ({
   
   const handleEditClick = () => {
     onEdit(comment);
+  };
+  
+  const handleDeleteClick = () => {
+    if (onDelete) {
+      onDelete(comment.id);
+    }
   };
   
   return (
@@ -60,10 +68,11 @@ const CommentItem: React.FC<CommentItemProps> = ({
                 <Edit className="h-4 w-4 text-[#3A2618]" />
               </Button>
             )}
-            {(isOwnComment || isModerator) && (
+            {(isOwnComment || isModerator) && onDelete && (
               <Button 
                 variant="ghost" 
                 size="sm"
+                onClick={handleDeleteClick}
                 className="h-8 w-8 p-0 text-red-500"
               >
                 <Trash className="h-4 w-4" />
