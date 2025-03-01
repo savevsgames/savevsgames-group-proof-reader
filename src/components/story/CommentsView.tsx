@@ -176,72 +176,76 @@ const CommentsView = ({ storyId, currentNode, currentPage, onCommentsUpdate, onA
     <div className="flex flex-col h-full">
       <h2 className="text-2xl font-serif mb-6 text-[#3A2618]">Reader Comments</h2>
       
-      {user ? (
-        <form onSubmit={handleSubmit} className="space-y-4 mb-8">
-          <div className="book-page-texture rounded-md p-4">
-            <Textarea
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              placeholder="Share your thoughts, feedback, or questions about this page..."
-              className="min-h-[100px] bg-[#FDF8EC] border-[#3A2618]/30 text-[#3A2618] font-serif"
-            />
-            <div className="mt-4">
-              <CommentTypeSelector
-                selectedCommentType={commentType}
-                setSelectedCommentType={(type) => setCommentType(type as CommentType)}
-              />
-            </div>
-          </div>
-          
-          <div className="flex justify-end mt-4 gap-2">
-            {isEditing && (
-              <Button
-                onClick={() => {
-                  setIsEditing(false);
-                  setEditingCommentId(null);
-                  setCommentText("");
-                  setCommentType("general");
-                }}
+      <ScrollArea className="flex-1 overflow-hidden">
+        <div className="space-y-6 pr-4">
+          {user ? (
+            <form onSubmit={handleSubmit} className="space-y-4 mb-8">
+              <div className="book-page-texture rounded-md p-4">
+                <Textarea
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Share your thoughts, feedback, or questions about this page..."
+                  className="min-h-[100px] bg-[#FDF8EC] border-[#3A2618]/30 text-[#3A2618] font-serif"
+                />
+                <div className="mt-4">
+                  <CommentTypeSelector
+                    selectedCommentType={commentType}
+                    setSelectedCommentType={(type) => setCommentType(type as CommentType)}
+                  />
+                </div>
+              </div>
+              
+              <div className="flex justify-end mt-4 gap-2">
+                {isEditing && (
+                  <Button
+                    onClick={() => {
+                      setIsEditing(false);
+                      setEditingCommentId(null);
+                      setCommentText("");
+                      setCommentType("general");
+                    }}
+                    variant="outline"
+                    className="bg-[#FDF8EC] text-[#3A2618] border-[#3A2618]/30"
+                  >
+                    Cancel
+                  </Button>
+                )}
+                
+                <Button 
+                  type="submit" 
+                  className="bg-[#3A2618] text-[#E8DCC4] hover:bg-[#3A2618]/80"
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  {isEditing ? "Update Comment" : "Post Comment"}
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <div className="bg-[#FDF8EC] border border-[#3A2618]/20 p-4 rounded-md mb-6">
+              <p className="text-[#3A2618] font-serif mb-2">Sign in to leave comments.</p>
+              <Button 
+                onClick={() => navigate("/auth")} 
                 variant="outline"
-                className="bg-[#FDF8EC] text-[#3A2618] border-[#3A2618]/30"
+                className="bg-[#3A2618] text-[#E8DCC4] hover:bg-[#3A2618]/80"
               >
-                Cancel
+                Sign in
               </Button>
-            )}
-            
-            <Button 
-              type="submit" 
-              className="bg-[#3A2618] text-[#E8DCC4] hover:bg-[#3A2618]/80"
-            >
-              <Send className="mr-2 h-4 w-4" />
-              {isEditing ? "Update Comment" : "Post Comment"}
-            </Button>
+            </div>
+          )}
+          
+          <div className="book-page-texture rounded-md p-4">
+            <h3 className="font-medium text-[#3A2618] mb-4 font-serif">{comments.length} Comments</h3>
+            <CommentsList 
+              comments={comments}
+              isLoading={false}
+              currentUser={user}
+              isModerator={false}
+              onEditComment={handleEditComment}
+              onDeleteComment={handleDeleteComment}
+              onAddToLlmContext={onAddToLlmContext}
+            />
           </div>
-        </form>
-      ) : (
-        <div className="bg-[#FDF8EC] border border-[#3A2618]/20 p-4 rounded-md mb-6">
-          <p className="text-[#3A2618] font-serif mb-2">Sign in to leave comments.</p>
-          <Button 
-            onClick={() => navigate("/auth")} 
-            variant="outline"
-            className="bg-[#3A2618] text-[#E8DCC4] hover:bg-[#3A2618]/80"
-          >
-            Sign in
-          </Button>
         </div>
-      )}
-      
-      <ScrollArea className="flex-1 book-page-texture rounded-md p-4">
-        <h3 className="font-medium text-[#3A2618] mb-4 font-serif">{comments.length} Comments</h3>
-        <CommentsList 
-          comments={comments}
-          isLoading={false}
-          currentUser={user}
-          isModerator={false}
-          onEditComment={handleEditComment}
-          onDeleteComment={handleDeleteComment}
-          onAddToLlmContext={onAddToLlmContext}
-        />
       </ScrollArea>
     </div>
   );
