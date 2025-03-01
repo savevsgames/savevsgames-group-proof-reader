@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { User, Book, BookOpen, Home, LogIn, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
@@ -15,9 +15,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export const MainHeader: React.FC = () => {
-  const { user, signOut } = useAuth();
+  const { user, isGuest, signOut } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const isActive = (path: string) => location.pathname === path;
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   return (
     <header className="bg-[#3A2618] text-white py-4 px-6 shadow-md">
@@ -82,7 +87,6 @@ export const MainHeader: React.FC = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link to="/profile" className="flex cursor-pointer items-center">
                     <User className="mr-2 h-4 w-4" />
@@ -97,10 +101,38 @@ export const MainHeader: React.FC = () => {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
-                  onClick={() => signOut()} 
+                  onClick={handleSignOut} 
                   className="text-red-600 cursor-pointer"
                 >
                   Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : isGuest ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="rounded-full h-9 w-9 p-0 text-white">
+                  <Avatar className="h-9 w-9 border border-white/30">
+                    <AvatarFallback className="bg-gray-500 text-white">
+                      G
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Guest Account</DropdownMenuLabel>
+                <DropdownMenuItem asChild>
+                  <Link to="/dashboard" className="flex cursor-pointer items-center">
+                    <Book className="mr-2 h-4 w-4" />
+                    <span>Library</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/auth" className="flex cursor-pointer items-center text-[#F97316]">
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Create Account</span>
+                  </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -13,9 +14,16 @@ const Auth = () => {
   const [username, setUsername] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, signUp, continueAsGuest } = useAuth();
+  const { user, isLoading: authLoading, signIn, signUp, continueAsGuest } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (user && !authLoading) {
+      navigate('/dashboard');
+    }
+  }, [user, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,11 +53,17 @@ const Auth = () => {
           description: result.error.message || "An error occurred during authentication.",
           variant: "destructive",
         });
-      } else {
-        // Redirect on successful sign-in/sign-up is handled by the AuthContext listener
-        // which listens for auth state changes and redirects to /dashboard
-        // No need to navigate here
+      } else if (!isSignUp) {
+        // Only redirect on successful sign-in, signup will show verification message
+        navigate('/dashboard');
       }
+    } catch (error) {
+      console.error('Authentication error:', error);
+      toast({
+        title: "Authentication error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }

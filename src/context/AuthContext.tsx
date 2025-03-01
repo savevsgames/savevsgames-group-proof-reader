@@ -3,13 +3,14 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isGuest: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, username: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: any } | undefined>;
+  signUp: (email: string, password: string, username: string) => Promise<{ error: any } | undefined>;
   signOut: () => Promise<void>;
   continueAsGuest: () => void;
 }
@@ -21,13 +22,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Helper function to get user profile data
   const getUserProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('username, avatar_url')
+        .select('username, avatar_url, created_at')
         .eq('id', userId)
         .single();
         
@@ -46,6 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const getInitialSession = async () => {
       try {
+        setIsLoading(true);
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user) {
@@ -58,9 +61,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             avatar_url: profileData?.avatar_url
           });
           setIsGuest(false);
+          
+          console.log('User authenticated:', session.user.email);
+        } else {
+          console.log('No active session found');
+          setUser(null);
         }
       } catch (error) {
         console.error('Error checking initial auth session:', error);
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
@@ -71,6 +80,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        console.log('Auth state changed:', _event, session?.user?.email);
+        
         if (session?.user) {
           // Get additional user profile data
           const profileData = await getUserProfile(session.user.id);
@@ -96,12 +107,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
       if (error) {
+        console.error('Sign in error:', error.message);
         return { error };
       }
       
@@ -117,19 +130,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsGuest(false);
         toast({
           title: "Signed in successfully",
-          description: `Welcome back${data.user.email ? ', ' + data.user.email : ''}!`,
+          description: `Welcome back${profileData?.username ? ', ' + profileData.username : ''}!`,
         });
+        
+        console.log('User signed in successfully:', data.user.email);
       }
       
       return { error: null };
     } catch (error) {
-      console.error('Error during sign in:', error);
+      console.error('Exception during sign in:', error);
       return { error };
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const signUp = async (email: string, password: string, username: string) => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -137,11 +155,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           data: {
             username,
           },
-          emailRedirectTo: `${window.location.origin}/verify`,
+          emailRedirectTo: `${window.location.origin}/auth`,
         },
       });
       
       if (error) {
+        console.error('Sign up error:', error.message);
         return { error };
       }
       
@@ -150,24 +169,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           title: "Account created",
           description: "Please check your email to verify your account.",
         });
+        console.log('User signed up:', data.user.email);
       }
       
       return { error: null };
     } catch (error) {
-      console.error('Error during sign up:', error);
+      console.error('Exception during sign up:', error);
       return { error };
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const signOut = async () => {
     try {
+      setIsLoading(true);
       await supabase.auth.signOut();
       setUser(null);
-      setIsGuest(false); // Reset guest status on sign out
+      setIsGuest(false);
       toast({
         title: "Signed out",
         description: "You have been signed out successfully.",
       });
+      navigate('/auth');
+      console.log('User signed out');
     } catch (error) {
       console.error('Error during sign out:', error);
       toast({
@@ -175,16 +200,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: "There was an error signing out. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const continueAsGuest = () => {
     setUser(null);
-    setIsGuest(true); // Set guest mode to true
+    setIsGuest(true);
     toast({
       title: "Guest mode",
       description: "You're browsing as a guest. Some features may be limited.",
     });
+    console.log('Continuing as guest');
   };
 
   return (
