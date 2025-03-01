@@ -1,4 +1,5 @@
-import React, { useCallback } from "react";
+
+import React, { useCallback, useState } from "react";
 import { useParams, useBeforeUnload } from "react-router-dom";
 import Header from "@/components/Header";
 import StoryEditorHeader from "@/components/story/editor/StoryEditorHeader";
@@ -8,10 +9,13 @@ import ErrorState from "@/components/story/editor/ErrorState";
 import EmptyState from "@/components/story/editor/EmptyState";
 import UnsavedChangesDialog from "@/components/story/editor/UnsavedChangesDialog";
 import { useStoryEditor } from "@/hooks/useStoryEditor";
+import { useToast } from "@/hooks/use-toast";
 
 const StoryEditPage = () => {
   const { id } = useParams();
   const storyId = id as string;
+  const { toast } = useToast();
+  const [llmContext, setLlmContext] = useState<string>("");
   
   const {
     story,
@@ -32,6 +36,18 @@ const StoryEditPage = () => {
     handleStoryDataChange,
     handleSave,
   } = useStoryEditor(storyId);
+
+  // Handle adding text to LLM context
+  const handleAddToLlmContext = (text: string) => {
+    setLlmContext(prev => {
+      const newContext = prev ? `${prev}\n\n${text}` : text;
+      toast({
+        title: "Added to LLM Context",
+        description: "Comment added to LLM context area",
+      });
+      return newContext;
+    });
+  };
 
   // Warn the user if they try to close the tab with unsaved changes
   useBeforeUnload(
@@ -80,6 +96,9 @@ const StoryEditPage = () => {
                 onNodeChange={handleNodeChange}
                 onSave={handleSave}
                 onNavigate={handleNavigation}
+                llmContext={llmContext}
+                setLlmContext={setLlmContext}
+                onAddToLlmContext={handleAddToLlmContext}
               />
             ) : (
               <EmptyState />

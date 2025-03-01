@@ -16,6 +16,8 @@ interface LlmSettingsProps {
   setPrompt: (prompt: string) => void;
   onGenerateContent: () => void;
   isLoading: boolean;
+  llmContext?: string;
+  setLlmContext?: (context: string) => void;
 }
 
 const LlmSettings: React.FC<LlmSettingsProps> = ({
@@ -28,6 +30,8 @@ const LlmSettings: React.FC<LlmSettingsProps> = ({
   setPrompt,
   onGenerateContent,
   isLoading,
+  llmContext,
+  setLlmContext,
 }) => {
   const { toast } = useToast();
 
@@ -53,6 +57,16 @@ const LlmSettings: React.FC<LlmSettingsProps> = ({
     }
   };
 
+  const handleClearContext = () => {
+    if (setLlmContext) {
+      setLlmContext("");
+      toast({
+        title: "Context cleared",
+        description: "LLM context has been cleared",
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold mb-2">LLM Settings</h3>
@@ -74,6 +88,30 @@ const LlmSettings: React.FC<LlmSettingsProps> = ({
           Save System Prompt
         </Button>
       </div>
+      
+      {llmContext !== undefined && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium">Context (from comments)</label>
+            {llmContext && setLlmContext && (
+              <Button
+                onClick={handleClearContext}
+                size="sm"
+                variant="outline"
+                className="text-red-500"
+              >
+                Clear Context
+              </Button>
+            )}
+          </div>
+          <Textarea
+            value={llmContext || ""}
+            onChange={(e) => setLlmContext && setLlmContext(e.target.value)}
+            placeholder="Context from comments will appear here..."
+            className="min-h-[100px]"
+          />
+        </div>
+      )}
       
       <div className="space-y-2">
         <label className="text-sm font-medium">Generation Type</label>
