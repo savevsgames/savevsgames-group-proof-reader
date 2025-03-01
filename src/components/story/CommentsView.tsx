@@ -10,6 +10,7 @@ import { Comment } from '../comments/types';
 import CommentsList from '../comments/CommentsList';
 import CommentTypeSelector from "../comments/CommentTypeSelector";
 import { CommentType, commentTypeLabels } from '@/lib/commentTypes';
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface CommentsViewProps {
   storyId: string;
@@ -230,7 +231,7 @@ const CommentsView = ({ storyId, currentNode, currentPage, onCommentsUpdate, onA
         </div>
       )}
       
-      <div className="flex-1 overflow-y-auto book-page-texture rounded-md p-4">
+      <ScrollArea className="flex-1 book-page-texture rounded-md p-4">
         <h3 className="font-medium text-[#3A2618] mb-4 font-serif">{comments.length} Comments</h3>
         <CommentsList 
           comments={comments}
@@ -241,7 +242,7 @@ const CommentsView = ({ storyId, currentNode, currentPage, onCommentsUpdate, onA
           onDeleteComment={handleDeleteComment}
           onAddToLlmContext={onAddToLlmContext}
         />
-      </div>
+      </ScrollArea>
     </div>
   );
 };
