@@ -7,11 +7,8 @@ import {
 import { extractAllNodesFromInkJSON } from "@/lib/story/nodeExtraction";
 import { extractCustomStoryFromInkJSON } from "@/lib/story/conversion";
 
-// Interface for node mappings
-export interface NodeMappings {
-  nodeToPage: Record<string, number>;
-  pageToNode: Record<number, string>;
-}
+// Import the NodeMappings interface instead of redefining it
+import { NodeMappings } from "@/lib/storyNodeMapping";
 
 // Generate node mappings and log information about the story structure - improved version
 export const generateAndLogNodeMappings = (storyData: CustomStory): {
@@ -182,5 +179,4 @@ export const extractStoryContent = async (data: any): Promise<CustomStory | null
   return null;
 };
 
-// Re-export the NodeMappings interface for use elsewhere
-export type { NodeMappings };
+// We're removing the re-export of NodeMappings to fix the conflict
