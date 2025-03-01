@@ -1,3 +1,4 @@
+
 import React, { useCallback, useEffect } from "react";
 import { useParams, useBeforeUnload } from "react-router-dom";
 import Header from "@/components/Header";
@@ -8,7 +9,7 @@ import ErrorState from "@/components/story/editor/ErrorState";
 import EmptyState from "@/components/story/editor/EmptyState";
 import UnsavedChangesDialog from "@/components/story/editor/UnsavedChangesDialog";
 import { useStoryStore } from "@/stores/storyState";
-import { StoryStore } from "@/types";
+import { StoryStore, StorySelector, EqualityFn } from "@/types";
 
 const StoryEditPage = () => {
   const { id } = useParams();

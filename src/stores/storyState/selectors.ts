@@ -1,46 +1,55 @@
 
-import { StoryState, StoryStore } from '@/types/story-types.definitions';
+import { StorySelector, StoryStore } from '@/types';
 
 // Navigation selectors
-export const selectCurrentNode = (state: StoryStore) => state.currentNode;
-export const selectCurrentPage = (state: StoryStore) => state.currentPage;
-export const selectTotalPages = (state: StoryStore) => state.totalPages;
-export const selectNodeMappings = (state: StoryStore) => state.nodeMappings;
+export const selectCurrentNode: StorySelector<string> = (state: StoryStore) => state.currentNode;
+export const selectCurrentPage: StorySelector<number> = (state: StoryStore) => state.currentPage;
+export const selectTotalPages: StorySelector<number> = (state: StoryStore) => state.totalPages;
+export const selectNodeMappings: StorySelector<any> = (state: StoryStore) => state.nodeMappings;
 
 // Content selectors
-export const selectCurrentText = (state: StoryStore) => state.currentText;
-export const selectCurrentChoices = (state: StoryStore) => state.currentChoices;
-export const selectCanContinue = (state: StoryStore) => state.canContinue;
+export const selectCurrentText: StorySelector<string> = (state: StoryStore) => state.currentText;
+export const selectCurrentChoices: StorySelector<any[]> = (state: StoryStore) => state.currentChoices;
+export const selectCanContinue: StorySelector<boolean> = (state: StoryStore) => state.canContinue;
 
 // Status selectors
-export const selectLoading = (state: StoryStore) => state.loading;
-export const selectSaving = (state: StoryStore) => state.saving;
-export const selectError = (state: StoryStore) => state.error;
-export const selectHasUnsavedChanges = (state: StoryStore) => state.hasUnsavedChanges;
-export const selectCommentCount = (state: StoryStore) => state.commentCount;
+export const selectLoading: StorySelector<boolean> = (state: StoryStore) => state.loading;
+export const selectSaving: StorySelector<boolean> = (state: StoryStore) => state.saving;
+export const selectError: StorySelector<string | null> = (state: StoryStore) => state.error;
+export const selectHasUnsavedChanges: StorySelector<boolean> = (state: StoryStore) => state.hasUnsavedChanges;
+export const selectCommentCount: StorySelector<number> = (state: StoryStore) => state.commentCount;
 
 // History selectors
-export const selectCanGoBack = (state: StoryStore) => state.canGoBack;
-export const selectStoryHistory = (state: StoryStore) => state.storyHistory;
+export const selectCanGoBack: StorySelector<boolean> = (state: StoryStore) => state.canGoBack;
+export const selectStoryHistory: StorySelector<string[]> = (state: StoryStore) => state.storyHistory;
 
 // Data selectors
-export const selectStoryData = (state: StoryStore) => state.storyData;
-export const selectStoryId = (state: StoryStore) => state.storyId;
-export const selectTitle = (state: StoryStore) => state.title;
+export const selectStoryData: StorySelector<any> = (state: StoryStore) => state.storyData;
+export const selectStoryId: StorySelector<string | null> = (state: StoryStore) => state.storyId;
+export const selectTitle: StorySelector<string> = (state: StoryStore) => state.title;
 
 // Compound selectors
-export const selectStoryIsReady = (state: StoryStore) => 
+export const selectStoryIsReady: StorySelector<boolean> = (state: StoryStore) => 
   !state.loading && state.storyData !== null && !state.error;
 
 // Selector for all story navigation state
-export const selectStoryNavigation = (state: StoryStore) => ({
+export const selectStoryNavigation: StorySelector<{
+  currentPage: number;
+  totalPages: number;
+  currentNode: string;
+}> = (state: StoryStore) => ({
   currentPage: state.currentPage,
   totalPages: state.totalPages,
   currentNode: state.currentNode
 });
 
 // Selector for core content
-export const selectStoryContent = (state: StoryStore) => ({
+export const selectStoryContent: StorySelector<{
+  currentText: string;
+  currentChoices: any[];
+  canContinue: boolean;
+  canGoBack: boolean;
+}> = (state: StoryStore) => ({
   currentText: state.currentText,
   currentChoices: state.currentChoices,
   canContinue: state.canContinue,
@@ -48,7 +57,11 @@ export const selectStoryContent = (state: StoryStore) => ({
 });
 
 // Selector for UI state
-export const selectUiState = (state: StoryStore) => ({
+export const selectUiState: StorySelector<{
+  loading: boolean;
+  error: string | null;
+  commentCount: number;
+}> = (state: StoryStore) => ({
   loading: state.loading,
   error: state.error,
   commentCount: state.commentCount

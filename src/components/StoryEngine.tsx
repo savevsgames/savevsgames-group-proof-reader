@@ -10,6 +10,7 @@ import {
   StoryEngineProps, 
   Comment,
   StoryStore,
+  StorySelector,
   EqualityFn
 } from "@/types";
 
@@ -32,7 +33,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
       loading: state.loading,
       error: state.error 
     }),
-    shallow as EqualityFn<any>
+    shallow as unknown as EqualityFn<{ loading: boolean; error: string | null }>
   );
   
   // Book metadata - separate selector
@@ -41,7 +42,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
       bookTitle: state.title,
       totalPages: state.totalPages
     }),
-    shallow as EqualityFn<any>
+    shallow as unknown as EqualityFn<{ bookTitle: string; totalPages: number }>
   );
   
   // Navigation and content state - separate selector 
@@ -57,7 +58,17 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
       nodeMappings: state.nodeMappings,
       storyData: state.storyData
     }),
-    shallow as EqualityFn<any>
+    shallow as unknown as EqualityFn<{
+      currentPage: number;
+      currentText: string;
+      currentChoices: any[];
+      canContinue: boolean;
+      canGoBack: boolean;
+      currentStoryPosition: number;
+      currentNode: string;
+      nodeMappings: any;
+      storyData: any;
+    }>
   );
   
   // UI state that can change frequently
@@ -73,7 +84,14 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
       handlePageChange: state.handlePageChange,
       setCommentCount: state.setCommentCount
     }),
-    shallow as EqualityFn<any>
+    shallow as unknown as EqualityFn<{
+      handleContinue: () => Promise<void>;
+      handleChoice: (index: number) => Promise<void>;
+      goBack: () => void;
+      handleRestart: () => Promise<void>;
+      handlePageChange: (pageNumber: number) => Promise<void>;
+      setCommentCount: (count: number) => void;
+    }>
   );
   
   // Log component state - limit frequency to avoid console flooding

@@ -8,14 +8,17 @@
 import { StoryStore } from './store.types';
 
 /**
- * Type for story selector function.
- */
-export type StorySelector<T> = (state: StoryStore) => T;
-
-/**
  * Equality function for comparing previous and next state values.
  */
 export type EqualityFn<T> = (previous: T, next: T) => boolean;
+
+/**
+ * Type for story selector function that supports the optional equality function argument.
+ */
+export interface StorySelector<T> {
+  (state: StoryStore): T;
+  (state: StoryStore, equalityFn: EqualityFn<T>): T;
+}
 
 /**
  * Store selector utility types for Zustand usage.

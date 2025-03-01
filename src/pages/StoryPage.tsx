@@ -20,13 +20,22 @@ const StoryPage = () => {
     error,
     title,
     totalPages
-  } = useStoryStore((state: StoryStore) => ({
-    storyId: state.storyId,
-    loading: state.loading,
-    error: state.error,
-    title: state.title,
-    totalPages: state.totalPages
-  }), shallow as EqualityFn<any>);
+  } = useStoryStore(
+    (state: StoryStore) => ({
+      storyId: state.storyId,
+      loading: state.loading,
+      error: state.error,
+      title: state.title,
+      totalPages: state.totalPages
+    }), 
+    shallow as unknown as EqualityFn<{
+      storyId: string | null;
+      loading: boolean;
+      error: string | null;
+      title: string;
+      totalPages: number;
+    }>
+  );
   
   // Actions selector - separate from state to avoid re-renders
   const initializeStory = useStoryStore((state: StoryStore) => state.initializeStory);

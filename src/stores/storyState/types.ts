@@ -5,7 +5,9 @@ import {
   StoryState,
   StoryActions,
   StoryStore,
-  TabType
+  TabType,
+  EqualityFn,
+  StorySelector
 } from '@/types';
 
 // Re-export all the types for backward compatibility
@@ -14,5 +16,7 @@ export type {
   StoryState,
   StoryActions,
   StoryStore,
-  TabType
+  TabType,
+  EqualityFn,
+  StorySelector
 };
