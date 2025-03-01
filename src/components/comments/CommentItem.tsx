@@ -2,7 +2,7 @@
 import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from "@/components/ui/button";
-import { Trash, Edit, Plus } from 'lucide-react';
+import { Trash, Edit, Plus, Send } from 'lucide-react';
 import { Comment } from './types';
 import { commentTypeColors, commentTypeLabels } from '@/lib/commentTypes';
 
@@ -88,6 +88,17 @@ const CommentItem: React.FC<CommentItemProps> = ({
               title="Add to AI Context"
             >
               <Plus className="h-4 w-4" />
+            </Button>
+          )}
+          
+          {onAddToLlmContext && (
+            <Button
+              onClick={handleAddToContext}
+              variant="ghost"
+              className="h-8 w-8 p-0 text-green-600"
+              title="Send comment to LLM"
+            >
+              <Send className="h-4 w-4" />
             </Button>
           )}
         </div>
