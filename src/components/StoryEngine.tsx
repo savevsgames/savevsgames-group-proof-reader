@@ -37,6 +37,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
   // Current node and position state
   const currentStoryPosition = useStoryStore(state => state.currentStoryPosition);
   const currentNode = useStoryStore(state => state.currentNode);
+  const nodeMappings = useStoryStore(state => state.nodeMappings);
 
   // Actions as a separate selector to avoid re-renders on state changes
   const handleContinue = useStoryStore(state => state.handleContinue);
@@ -46,12 +47,41 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
   const handlePageChange = useStoryStore(state => state.handlePageChange);
   const setCommentCount = useStoryStore(state => state.setCommentCount);
 
+  // Logging for debugging totalPages issue
+  useEffect(() => {
+    console.log("[StoryEngine] Component mounted with:", {
+      storyId,
+      currentPage,
+      totalPages,
+      currentNode,
+      mappedNodes: nodeMappings?.nodeToPage ? Object.keys(nodeMappings.nodeToPage).length : 0,
+      currentStoryPosition
+    });
+    
+    // Check store state directly
+    const storeState = useStoryStore.getState();
+    console.log("[StoryEngine] Direct store state check:", {
+      storeId: storeState.storyId,
+      storeTitle: storeState.title,
+      storeTotalPages: storeState.totalPages,
+      storeNodeMappings: storeState.nodeMappings && Object.keys(storeState.nodeMappings.nodeToPage || {}).length
+    });
+    
+    return () => {
+      console.log("[StoryEngine] Component unmounting");
+    };
+  }, [storyId, currentPage, totalPages, currentNode, nodeMappings, currentStoryPosition]);
+
   // Capture the latest store values for use in callbacks
   useEffect(() => {
     storeRef.current = {
       currentStoryPosition,
       setCommentCount
     };
+    
+    console.log("[StoryEngine] Updated ref with new values:", {
+      currentStoryPosition
+    });
   }, [currentStoryPosition, setCommentCount]);
 
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
@@ -64,11 +94,14 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
       setFetchingComments(true);
       const { currentStoryPosition, setCommentCount } = storeRef.current;
       
+      console.log("[StoryEngine] Fetching comments for position:", currentStoryPosition);
+      
       fetchComments(storyId, currentStoryPosition)
         .then(commentsData => {
           setComments(commentsData);
           // Use the stable reference to avoid closure issues
           setCommentCount(commentsData.length);
+          console.log("[StoryEngine] Updated comment count:", commentsData.length);
         })
         .finally(() => {
           setFetchingComments(false);
@@ -78,6 +111,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
 
   // Only update comments when currentStoryPosition changes
   useEffect(() => {
+    console.log("[StoryEngine] Story position changed:", currentStoryPosition);
     updateCommentCount();
   }, [currentStoryPosition, updateCommentCount]);
 
@@ -89,6 +123,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
       // Fetch comments when modal opens
       fetchComments(storyId, currentStoryPosition).then(commentsData => {
         setComments(commentsData);
+        console.log("[StoryEngine] Loaded comments for modal:", commentsData.length);
       });
     } else {
       // Use setTimeout to avoid state update loops
@@ -99,6 +134,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
   }, [storyId, currentStoryPosition, updateCommentCount]);
 
   if (loading) {
+    console.log("[StoryEngine] Rendering loading state");
     return (
       <div className="flex justify-center items-center h-[60vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8DCC4]"></div>
@@ -108,6 +144,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
   }
 
   if (error) {
+    console.log("[StoryEngine] Rendering error state:", error);
     return (
       <div className="text-center p-8 text-[#E8DCC4]">
         <h2 className="text-2xl font-bold mb-4">Error Loading Story</h2>
@@ -115,6 +152,15 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
       </div>
     );
   }
+
+  console.log("[StoryEngine] Rendering BookLayout with:", {
+    bookTitle,
+    currentPage,
+    totalPages,
+    currentNode,
+    hasChoices: currentChoices.length > 0,
+    commentCount
+  });
 
   return (
     <div className="flex justify-center items-center w-full">

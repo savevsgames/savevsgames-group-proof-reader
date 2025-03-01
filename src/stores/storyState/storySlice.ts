@@ -29,7 +29,11 @@ export const createStorySlice: StateCreator<
     
     // Prevent duplicate initializations
     if (store.storyId === storyId && !store.loading && store.storyData) {
-      console.log("[StoryStore] Story already initialized, skipping");
+      console.log("[StoryStore] Story already initialized, skipping", {
+        storyId,
+        currentNodeMappings: Object.keys(store.nodeMappings.nodeToPage || {}).length,
+        totalPages: store.totalPages
+      });
       return;
     }
     
@@ -37,6 +41,8 @@ export const createStorySlice: StateCreator<
     set({ loading: true, storyId, error: null });
     
     try {
+      // Fetch story data from Supabase
+      console.log("[StoryStore] Fetching story data from Supabase for ID:", storyId);
       const { data, error } = await supabase
         .from("books")
         .select("*")
@@ -52,34 +58,54 @@ export const createStorySlice: StateCreator<
         console.log("[StoryStore] Story data fetched:", {
           title: data.title,
           hasStoryUrl: !!data.story_url,
-          hasStoryContent: !!data.story_content
+          hasStoryContent: !!data.story_content,
+          dbTotalPages: data.total_pages
         });
         
         set({ title: data.title || 'Untitled Story' });
         
         // Extract story content
-        console.log("[StoryStore] Extracting story content");
+        console.log("[StoryStore] Extracting story content from:", {
+          storyUrl: data.story_url,
+          storyFile: data.story_file
+        });
+        
         const storyContent = await extractStoryContent(data);
         
         if (storyContent) {
           console.log(`[StoryStore] Valid story content extracted with ${Object.keys(storyContent).length} nodes`);
+          console.log("[StoryStore] First 3 nodes:", Object.keys(storyContent).slice(0, 3));
+          console.log("[StoryStore] Sample node content:", storyContent[Object.keys(storyContent)[0]]);
+          
           set({ storyData: storyContent, hasUnsavedChanges: false });
           
           // Update node mappings
+          console.log("[StoryStore] Generating node mappings");
           const { nodeMappings, totalPages } = generateAndLogNodeMappings(storyContent);
+          
+          console.log("[StoryStore] Node mappings generated:", {
+            nodeCount: Object.keys(nodeMappings.nodeToPage).length,
+            pageCount: totalPages,
+            firstNodeName: Object.keys(nodeMappings.nodeToPage)[0],
+            firstNodePage: nodeMappings.nodeToPage[Object.keys(nodeMappings.nodeToPage)[0]]
+          });
+          
           set({ nodeMappings, totalPages });
+          console.log("[StoryStore] State updated with mappings and total pages:", totalPages);
           
           // Initialize story content
           const startNode = storyContent.start ? 'start' : 'root';
           const startNodeData = storyContent[startNode];
           
           if (startNodeData && startNodeData.text) {
+            console.log("[StoryStore] Setting initial node:", startNode);
             set({
               currentNode: startNode,
               currentText: startNodeData.text,
               currentChoices: startNodeData.choices || []
             });
           } else {
+            console.log("[StoryStore] No valid start node found, defaulting to 'root'");
             set({
               currentNode: 'root',
               currentText: "Story begins...",
@@ -89,6 +115,11 @@ export const createStorySlice: StateCreator<
           
           // Reset history
           set({ storyHistory: [], canGoBack: false });
+          console.log("[StoryStore] Initialization complete:", {
+            currentNode: get().currentNode,
+            totalPages: get().totalPages,
+            hasNodeMappings: !!get().nodeMappings && Object.keys(get().nodeMappings.nodeToPage || {}).length > 0
+          });
         } else {
           // Create default empty story structure
           console.log("[StoryStore] No valid story content found, creating default structure");
@@ -108,8 +139,16 @@ export const createStorySlice: StateCreator<
           });
           
           // Update node mappings for default story
+          console.log("[StoryStore] Generating default node mappings");
           const { nodeMappings, totalPages } = generateAndLogNodeMappings(defaultStory);
+          
+          console.log("[StoryStore] Default node mappings generated:", {
+            nodeCount: Object.keys(nodeMappings.nodeToPage).length,
+            pageCount: totalPages
+          });
+          
           set({ nodeMappings, totalPages });
+          console.log("[StoryStore] Default state updated with mappings and total pages:", totalPages);
         }
       } else {
         console.error("[StoryStore] Story not found");
@@ -120,15 +159,37 @@ export const createStorySlice: StateCreator<
       set({ error: error.message });
     } finally {
       set({ loading: false });
+      console.log("[StoryStore] Final state after initialization:", {
+        storyId: get().storyId,
+        hasStoryData: !!get().storyData,
+        currentNode: get().currentNode,
+        totalPages: get().totalPages,
+        hasNodeMappings: !!get().nodeMappings && Object.keys(get().nodeMappings.nodeToPage || {}).length > 0
+      });
     }
   },
   
   handleStoryDataChange: (data) => {
-    console.log("[StoryStore] Story data change requested");
+    console.log("[StoryStore] Story data change requested", {
+      nodeCount: Object.keys(data).length,
+      firstNode: Object.keys(data)[0]
+    });
+    
     set({ storyData: data, hasUnsavedChanges: true });
     
     // Update node mappings
+    console.log("[StoryStore] Regenerating node mappings after data change");
     const { nodeMappings, totalPages } = generateAndLogNodeMappings(data);
+    
+    console.log("[StoryStore] Updated node mappings:", {
+      nodeCount: Object.keys(nodeMappings.nodeToPage).length,
+      pageCount: totalPages
+    });
+    
     set({ nodeMappings, totalPages });
+    console.log("[StoryStore] State updated after data change:", {
+      totalPages: get().totalPages,
+      hasNodeMappings: !!get().nodeMappings && Object.keys(get().nodeMappings.nodeToPage || {}).length > 0
+    });
   },
 });
