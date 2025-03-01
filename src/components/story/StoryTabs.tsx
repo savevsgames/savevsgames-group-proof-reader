@@ -6,6 +6,7 @@ import JsonEditor from "./JsonEditor";
 import InkView from "./InkView";
 import LlmIntegration from "./LlmIntegration";
 import CommentsView from "./CommentsView";
+import ReaderView from "./ReaderView";
 import { useAuth } from "@/context/AuthContext";
 import { CustomStory, storyNodeToPageMap, pageToStoryNodeMap } from "@/lib/storyUtils";
 import { AlertCircle } from "lucide-react";
@@ -19,7 +20,7 @@ interface StoryTabsProps {
   onNodeChange?: (nodeName: string) => void;
 }
 
-export type TabType = "json" | "ink" | "comments" | "llm";
+export type TabType = "json" | "ink" | "comments" | "llm" | "reader";
 
 const StoryTabs: React.FC<StoryTabsProps> = ({
   storyId,
@@ -63,6 +64,7 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
       <TabsList className="mb-4 w-full justify-start">
         <TabsTrigger value="json">JSON View</TabsTrigger>
         <TabsTrigger value="ink">Ink View</TabsTrigger>
+        <TabsTrigger value="reader">Reader</TabsTrigger>
         <TabsTrigger value="comments" className="relative">
           Comments
           {commentCount > 0 && (
@@ -91,6 +93,15 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
           <InkView 
             storyData={storyData} 
             currentNode={currentNode}
+          />
+        </TabsContent>
+        
+        <TabsContent value="reader" className="mt-0">
+          <ReaderView 
+            storyId={storyId}
+            storyData={storyData}
+            currentNode={currentNode}
+            onNodeChange={handleNodeSelection}
           />
         </TabsContent>
 
