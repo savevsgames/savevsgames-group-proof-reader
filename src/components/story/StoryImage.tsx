@@ -31,6 +31,7 @@ export const StoryImage: React.FC<StoryImageProps> = ({
   const [loading, setLoading] = useState(false);
   const [imageData, setImageData] = useState<ImageData | null>(null);
   const [pollingCount, setPollingCount] = useState(0);
+  const [shouldFetchImage, setShouldFetchImage] = useState(false);
   const { toast } = useToast();
 
   const MAX_POLLING_ATTEMPTS = 30; // 30 attempts * 2 seconds = 60 seconds max
@@ -50,8 +51,10 @@ export const StoryImage: React.FC<StoryImageProps> = ({
 
   const imagePrompt = extractImagePrompt(text);
   
-  // Fetch existing image
+  // Fetch existing image, but only if shouldFetchImage is true
   const fetchExistingImage = async () => {
+    if (!shouldFetchImage) return;
+    
     try {
       const { data, error } = await supabase
         .from('story_images')
@@ -154,7 +157,10 @@ export const StoryImage: React.FC<StoryImageProps> = ({
   // Initial data load when component mounts or parameters change
   useEffect(() => {
     if (!storyId || !currentNode) return;
-    fetchExistingImage();
+    
+    // Reset the shouldFetchImage state when the node or page changes
+    setShouldFetchImage(false);
+    setImageData(null);
   }, [storyId, currentNode]);
 
   const generateImage = async () => {
@@ -169,6 +175,7 @@ export const StoryImage: React.FC<StoryImageProps> = ({
 
     setLoading(true);
     setPollingCount(0); // Reset polling count
+    setShouldFetchImage(true); // Set to true to enable fetching
     
     try {
       // Call the edge function to start image generation
