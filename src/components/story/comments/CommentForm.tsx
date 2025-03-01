@@ -77,7 +77,11 @@ const CommentForm = ({
     try {
       const { data, error } = await supabase
         .from('comments')
-        .update({ text: text, comment_type: type })
+        .update({ 
+          text: text, 
+          comment_type: type,
+          // Don't update story_node or story_position when editing
+        })
         .eq('id', commentId)
         .select('*')
         .single();

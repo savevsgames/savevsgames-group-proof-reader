@@ -155,6 +155,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
             user_id: currentUser.id,
             story_id: storyId,
             story_position: storyPosition,
+            story_node: 'modal-comment', // Default node for modal comments
             text: commentText,
             comment_type: selectedCommentType,
           });

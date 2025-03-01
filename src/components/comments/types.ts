@@ -1,3 +1,4 @@
+
 // Import from supabase instead of AuthContext
 import { User } from '@/lib/supabase';
 
