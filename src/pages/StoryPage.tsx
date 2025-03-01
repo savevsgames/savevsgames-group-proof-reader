@@ -12,7 +12,7 @@ const StoryPage = () => {
     <div className="min-h-screen bg-[#3A2618] overflow-x-hidden">
       <Header />
       
-      <div className="max-w-7xl mx-auto px-4 pt-4">
+      <div className="max-w-7xl mx-auto px-4">
         <StoryEngine />
       </div>
     </div>
