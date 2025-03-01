@@ -145,6 +145,21 @@ export const generateComprehensiveNodeMapping = (storyJson: any): {
 };
 
 /**
+ * Analyzes a story's structure to generate node-to-page mappings
+ * This is exposed for the JsonEditor component to use
+ */
+export const analyzeStoryStructure = (storyJson: any): {
+  nodeToPage: Record<string, number>;
+  pageToNode: Record<number, string>;
+  totalPages: number;
+} => {
+  console.log("[Story Analysis] Analyzing story structure");
+  
+  // Use the comprehensive mapping generator for consistency
+  return generateComprehensiveNodeMapping(storyJson);
+};
+
+/**
  * Helper function to get a nested property from an object using a path string
  * Handles both dot notation (obj.prop) and array notation (obj[0])
  */

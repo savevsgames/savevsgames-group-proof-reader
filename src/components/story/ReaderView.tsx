@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, SkipBack, BookOpen, AlertCircle, Code } from "lucide-react";
 import { CustomStory } from "@/lib/storyUtils";
 import { useToast } from "@/hooks/use-toast";
-import { NodeMappings } from "@/lib/storyEditorUtils";
+import { NodeMappings } from "@/lib/storyNodeMapping";
 
 interface ReaderViewProps {
   storyId: string;

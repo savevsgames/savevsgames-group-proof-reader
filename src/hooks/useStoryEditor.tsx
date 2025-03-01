@@ -1,8 +1,8 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { CustomStory } from "@/lib/storyUtils";
-import { generateAndLogNodeMappings, NodeMappings, extractStoryContent } from "@/lib/storyEditorUtils";
+import { generateAndLogNodeMappings } from "@/lib/storyEditorUtils";
+import { NodeMappings } from "@/lib/storyNodeMapping";
 import { useNavigation, NavigationState, NavigationActions } from "@/hooks/navigation";
 import { useStorySaving } from "@/hooks/useStorySaving";
 

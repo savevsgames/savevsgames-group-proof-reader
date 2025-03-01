@@ -1,7 +1,6 @@
-
 import { Story } from "inkjs";
 import { CustomStory } from "@/lib/storyUtils";
-import { NodeMappings } from "@/lib/storyEditorUtils";
+import { NodeMappings } from "@/lib/storyNodeMapping";
 
 export interface NavigationState {
   currentNode: string;
