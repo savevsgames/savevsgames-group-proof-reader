@@ -123,7 +123,8 @@ export const handleCustomBack = async (
   const newHistory = [...storyHistory];
   const prevNode = newHistory.pop() as string;
   
-  setStoryHistory(newHistory);
+  // Fix: Use a function to update state instead of passing an array directly
+  setStoryHistory(prev => newHistory);
   setCanGoBack(newHistory.length > 0);
   
   // Determine previous page
@@ -156,7 +157,7 @@ export const restartCustomStory = async (
   storyData: any,
   storyId: string | undefined,
   setters: {
-    setStoryHistory: (history: string[]) => void,
+    setStoryHistory: (history: string[] | ((prev: string[]) => string[])) => void,
     setCanGoBack: (canGoBack: boolean) => void,
     setCurrentPage: (page: number) => void,
     setCurrentStoryPosition: (position: number) => void,
@@ -179,7 +180,8 @@ export const restartCustomStory = async (
     setCommentCount
   } = setters;
   
-  setStoryHistory([]);
+  // Fix: Use a function to update state
+  setStoryHistory(() => []);
   setCanGoBack(false);
   
   // Always reset to page 1

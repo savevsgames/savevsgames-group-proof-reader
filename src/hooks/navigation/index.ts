@@ -1,5 +1,3 @@
 
-export * from './types';
-export * from './useNavigation';
-export * from './customStoryNavigation';
-export * from './inkStoryNavigation';
+export { useNavigation } from './useNavigation';
+export type { NavigationState, NavigationActions, UseStoryNavigationProps, NavigationReturn } from './types';

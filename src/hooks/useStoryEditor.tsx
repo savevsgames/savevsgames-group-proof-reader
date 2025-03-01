@@ -1,9 +1,8 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { CustomStory, storyNodeToPageMap, pageToStoryNodeMap } from "@/lib/storyUtils";
 import { generateAndLogNodeMappings, extractStoryContent, NodeMappings } from "@/lib/storyEditorUtils";
-import { useStoryNavigation, NavigationState, NavigationActions } from "@/hooks/useStoryNavigation";
+import { useNavigation, NavigationState, NavigationActions } from "@/hooks/navigation";
 import { useStorySaving } from "@/hooks/useStorySaving";
 
 export const useStoryEditor = (storyId: string) => {
@@ -27,7 +26,7 @@ export const useStoryEditor = (storyId: string) => {
   } = useStorySaving({ storyId });
 
   // Use the navigation state and actions
-  const [navigationState, navigationActions] = useStoryNavigation({
+  const [navigationState, navigationActions] = useNavigation({
     storyData,
     story: null,
     usingCustomFormat: true,

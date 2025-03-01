@@ -198,7 +198,8 @@ export const handleInkBack = async (
   const previousState = newHistory.pop();
   
   if (previousState) {
-    setStoryHistory(newHistory);
+    // Fix: Use a function to update state instead of passing an array directly
+    setStoryHistory(prev => newHistory);
     setCanGoBack(newHistory.length > 0);
     
     // Determine previous page
@@ -250,7 +251,7 @@ export const restartInkStory = async (
   story: Story,
   storyId: string | undefined,
   setters: {
-    setStoryHistory: (history: string[]) => void,
+    setStoryHistory: (history: string[] | ((prev: string[]) => string[])) => void,
     setCanGoBack: (canGoBack: boolean) => void,
     setCurrentPage: (page: number) => void,
     setCurrentStoryPosition: (position: number) => void,
@@ -273,7 +274,8 @@ export const restartInkStory = async (
     setCommentCount
   } = setters;
   
-  setStoryHistory([]);
+  // Fix: Use a function to update state
+  setStoryHistory(() => []);
   setCanGoBack(false);
   
   // Always reset to page 1
