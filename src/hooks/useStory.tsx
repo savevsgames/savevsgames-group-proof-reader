@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Story } from 'inkjs';
 import { useToast } from '@/hooks/use-toast';
@@ -551,6 +550,7 @@ export const useStory = (storyId: string | undefined) => {
     canGoBack,
     commentCount,
     currentStoryPosition,
+    currentNode,
     handleContinue,
     handleChoice,
     handleBack,
