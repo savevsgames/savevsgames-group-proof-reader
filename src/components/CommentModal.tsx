@@ -8,10 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import CommentTypeSelector from './comments/CommentTypeSelector';
 import CommentsList from './comments/CommentsList';
 import { CommentType } from '@/lib/commentTypes';
-import { CommentModalProps } from './comments/types';
-
-// Use export type for re-export to fix TS1205 error
-export type { Comment } from './comments/types';
+import { Comment, CommentModalProps } from './comments/types';
 
 export const CommentModal: React.FC<CommentModalProps> = ({
   isOpen,

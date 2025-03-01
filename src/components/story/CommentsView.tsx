@@ -4,8 +4,9 @@ import { fetchComments } from "@/lib/storyUtils";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import CommentForm from "./comments/CommentForm";
-import CommentsList from "./comments/CommentsList";
+import CommentsList from "../comments/CommentsList";
 import { useCommentOperations } from "./comments/commentUtils";
+import { Comment } from "../comments/types";
 
 interface CommentsViewProps {
   storyId: string;
@@ -13,17 +14,6 @@ interface CommentsViewProps {
   onCommentsUpdate: (count: number) => void;
   currentPage: number;
   onAddToLlmContext?: (text: string) => void;
-}
-
-interface Comment {
-  id: string;
-  content: string;
-  created_at: string;
-  user_id: string;
-  comment_type: string;
-  profile: {
-    username: string;
-  };
 }
 
 const CommentsView: React.FC<CommentsViewProps> = ({
@@ -77,6 +67,12 @@ const CommentsView: React.FC<CommentsViewProps> = ({
     onCommentsUpdate(comments.length + 1);
   };
 
+  const handleEditComment = (comment: Comment) => {
+    // This would typically open a form to edit the comment
+    console.log("Edit comment:", comment);
+    // In this simplified version, we're not implementing edit functionality
+  };
+
   const handleDeleteComment = async (commentId: string) => {
     if (!user) return;
     
@@ -110,10 +106,10 @@ const CommentsView: React.FC<CommentsViewProps> = ({
 
         <CommentsList
           comments={comments}
-          loading={loading}
-          currentUserId={user?.id}
-          onDeleteComment={handleDeleteComment}
-          onAddToLlmContext={onAddToLlmContext}
+          isLoading={loading}
+          currentUser={user}
+          isModerator={false} // We would need to implement this check
+          onEditComment={handleEditComment}
         />
       </div>
     </div>
