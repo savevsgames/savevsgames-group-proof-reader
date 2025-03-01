@@ -1,334 +1,151 @@
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { MainHeader } from '@/components/MainHeader';
+import { useAuth } from '@/context/AuthContext';
+import { BookOpenCheck, BookPlus, Loader2, Search, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
-import React, { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
-import { useNavigate } from "react-router-dom";
-import { Book, LogOut, User } from "lucide-react";
-import { supabase } from "@/lib/supabase";
-
-// Define the book type
-interface BookType {
+interface Story {
   id: string;
   title: string;
-  subtitle?: string;
-  description?: string;
-  coverImage?: string;
-  cover_url?: string;
-  isFree: boolean;
-  category: string;
-  lastUpdated: Date | string;
-  story_url?: string;
+  description: string;
+  cover_url: string;
 }
 
 const Dashboard = () => {
-  const { user, isGuest, signOut } = useAuth();
-  const [selectedBook, setSelectedBook] = useState<BookType | null>(null);
-  const [books, setBooks] = useState<BookType[]>([]);
+  const [stories, setStories] = useState<Story[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const { user, isGuest } = useAuth();
   const navigate = useNavigate();
 
-  // Fetch books from Supabase
   useEffect(() => {
-    const fetchBooks = async () => {
+    const fetchStories = async () => {
+      setLoading(true);
       try {
-        const { data, error } = await supabase.from("books").select("*");
-
-        if (error) {
-          throw error;
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/stories`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-
-        if (data && data.length > 0) {
-          // Map Supabase data to our book format
-          const mappedBooks = data.map((book) => ({
-            id: book.id,
-            title: book.title || "Untitled Book",
-            subtitle: book.subtitle,
-            description:
-              book.description ||
-              "A mystical tale about love, sacrifice, and the meaning of existence.",
-            cover_url: book.cover_url,
-            story_url: book.story_url,
-            isFree: true,
-            category: book.category || "Fantasy",
-            lastUpdated: book.updated_at
-              ? new Date(book.updated_at)
-              : new Date(),
-          }));
-          setBooks(mappedBooks);
-          console.log("Fetched books:", mappedBooks);
-        } else {
-          // Fallback to sample data if no books in database
-          console.log("No books found, using fallback data");
-          setBooks([
-            {
-              id: "fallback-id",
-              title: "Shadowtide Island",
-              subtitle: "The Ending",
-              description:
-                "A mystical tale about love, sacrifice, and the meaning of existence.",
-              coverImage: "/shadowtidecover1.webp",
-              isFree: true,
-              category: "Fantasy",
-              lastUpdated: new Date(),
-              story_url:
-                "https://pakmcaxaxyvhjdddfpdh.supabase.co/storage/v1/object/public/stories//ShadowtideEndTestJSON.json",
-            },
-          ]);
-        }
+        const data = await response.json();
+        setStories(data);
       } catch (error) {
-        console.error("Error fetching books:", error);
-        // Fallback to sample data on error
-        setBooks([
-          {
-            id: "fallback-id",
-            title: "Shadowtide Island",
-            subtitle: "The Ending",
-            description:
-              "A mystical tale about love, sacrifice, and the meaning of existence.",
-            coverImage: "/shadowtidecover1.webp",
-            isFree: true,
-            category: "Fantasy",
-            lastUpdated: new Date(),
-            story_url:
-              "https://pakmcaxaxyvhjdddfpdh.supabase.co/storage/v1/object/public/stories//ShadowtideEndTestJSON.json",
-          },
-        ]);
+        console.error("Could not fetch stories:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchBooks();
+    fetchStories();
   }, []);
 
-  const handleBookClick = (book: BookType) => {
-    setSelectedBook(book);
+  const filteredStories = stories.filter(story =>
+    story.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    story.description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
   };
 
-  const handleReadBook = () => {
-    if (selectedBook) {
-      navigate(`/story/${selectedBook.id}`);
-    }
-  };
-
-  const handleCloseDetails = () => {
-    setSelectedBook(null);
-  };
-
-  // Function to get the appropriate category color
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case "Fantasy":
-        return "text-[#8B5CF6] bg-[#8B5CF6]/10";
-      case "Adventure":
-        return "text-[#F97316] bg-[#F97316]/10";
-      case "Horror":
-        return "text-[#2E3A18] bg-[#2E3A18]/10";
-      case "Sci-Fi":
-        return "text-[#1A3A5A] bg-[#1A3A5A]/10";
-      default:
-        return "text-[#5A3A28] bg-[#5A3A28]/10";
-    }
-  };
-
-  // Function to get the book cover image URL
-  const getBookCoverUrl = (book: BookType) => {
-    // First try to use the Supabase URL if available
-    if (book.cover_url) {
-      return book.cover_url;
-    }
-    // Then try to use the coverImage from our local data
-    if (book.coverImage) {
-      return book.coverImage;
-    }
-    // Fallback to default image in public folder
-    return "/shadowtidecover1.webp";
-  };
-
-  // Function to format the date
-  const formatDate = (date: Date | string) => {
-    if (!date) return "Unknown";
-    const d = typeof date === "string" ? new Date(date) : date;
-    return d.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+  const clearSearch = () => {
+    setSearchTerm('');
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F1E8]">
-      {/* Header */}
-      <header className="bg-[#3A2618] text-[#E8DCC4] py-4 px-6 shadow-md">
-        <div className="max-w-7xl mx-auto flex flex-col xs:flex-row justify-between items-center gap-4 xs:gap-0">
-          <div className="flex items-center space-x-3">
-            <img
-              src="/lovable-uploads/2386c015-8e81-4433-9997-ae0f0b94bb6a.png"
-              alt="saveVSgames logo"
-              className="h-8 w-8"
-            />
-            <div>
-              <h1 className="text-xl font-serif font-bold text-[#F97316]">
-                saveVSgames
-              </h1>
-              <p className="text-xs text-[#E8DCC4]">
-                Adventures on Shadowtide Island
-              </p>
-            </div>
+    <div className="min-h-screen bg-[#F1F1F1] flex flex-col">
+      <MainHeader />
+      
+      <div className="flex-1 pt-8 px-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-6 flex items-center">
+            <h1 className="text-3xl font-serif font-bold text-[#3A2618] mr-4">Library</h1>
+            {isGuest && (
+              <span className="text-sm text-[#3A2618]/70 italic">
+                (Browsing as guest)
+              </span>
+            )}
           </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-sm">
-              {isGuest ? (
-                <span className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  Guest User
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  {user?.username || user?.email || "User"}
-                </span>
+
+          <div className="mb-6 flex items-center space-x-2">
+            <div className="relative flex-1">
+              <Input
+                type="text"
+                placeholder="Search stories..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+                className="bg-white border-[#3A2618]/20 text-[#3A2618] pr-10"
+              />
+              {searchTerm && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={clearSearch}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full hover:bg-[#3A2618]/10"
+                >
+                  <X className="h-4 w-4 text-[#3A2618]" />
+                </Button>
+              )}
+              {!searchTerm && (
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <Search className="h-5 w-5 text-[#3A2618]/50" />
+                </div>
               )}
             </div>
-            <button
-              onClick={() => signOut().then(() => navigate("/"))}
-              className="flex items-center text-sm hover:text-white transition-colors"
-            >
-              <LogOut className="h-4 w-4 mr-1" />
-              Sign Out
-            </button>
+            {!isGuest && (
+              <Button
+                onClick={() => navigate('/story/new')}
+                className="bg-[#F97316] text-white hover:bg-[#F97316]/90"
+              >
+                <BookPlus className="h-4 w-4 mr-2" />
+                Add Story
+              </Button>
+            )}
           </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto py-8 px-4">
-        {/* Book Grid */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-serif font-bold text-[#3A2618] mb-6">
-            {isGuest ? "Browse as Guest" : "Your Library"}
-          </h2>
 
           {loading ? (
-            <div className="text-center py-8">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[#F97316] border-r-transparent"></div>
-              <p className="mt-2 text-[#3A2618]">Loading books...</p>
+            <div className="flex items-center justify-center">
+              <Loader2 className="h-6 w-6 text-[#F97316] animate-spin" />
+              <span className="ml-2 text-[#3A2618]">Loading stories...</span>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {books.map((book) => (
-                <div
-                  key={book.id}
-                  className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() => handleBookClick(book)}
-                >
-                  <div className="h-48 bg-gray-200 relative">
-                    {/* Book cover image */}
-                    <img
-                      src={getBookCoverUrl(book)}
-                      alt={`${book.title} cover`}
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        // Fallback if image fails to load
-                        const target = e.target as HTMLImageElement;
-                        target.src = "/shadowtidecover1.webp";
-                      }}
-                    />
+            <ScrollArea className="rounded-md border">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 p-4">
+                {filteredStories.map(story => (
+                  <Card key={story.id} className="bg-[#E8DCC4] text-[#3A2618]">
+                    <CardHeader>
+                      <CardTitle className="text-lg font-semibold line-clamp-1">{story.title}</CardTitle>
+                      <CardDescription className="line-clamp-2">{story.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                      <img
+                        src={story.cover_url}
+                        alt={story.title}
+                        className="w-full h-32 object-cover rounded-md mb-4"
+                      />
+                    </CardContent>
+                    <CardFooter className="flex justify-between items-center">
+                      <Link to={`/story/${story.id}`}>
+                        <Button className="bg-[#F97316] text-white hover:bg-[#F97316]/90">
+                          Read More <BookOpenCheck className="h-4 w-4 ml-2" />
+                        </Button>
+                      </Link>
+                    </CardFooter>
+                  </Card>
+                ))}
+                {filteredStories.length === 0 && (
+                  <div className="text-center text-[#3A2618]/70 col-span-full">
+                    No stories found.
                   </div>
-                  <div className="p-4">
-                    <h3 className="font-serif font-bold text-lg text-[#3A2618] mb-1">
-                      {book.title}
-                    </h3>
-                    {book.subtitle && (
-                      <p className="text-sm text-gray-600 mb-2">
-                        {book.subtitle}
-                      </p>
-                    )}
-                    <p
-                      className={`text-sm px-2 py-1 rounded-full inline-block ${getCategoryColor(
-                        book.category
-                      )}`}
-                    >
-                      {book.category}
-                    </p>
-                    <div className="flex justify-between items-center mt-2">
-                      <span className="text-xs text-gray-500">
-                        Updated: {formatDate(book.lastUpdated)}
-                      </span>
-                      <span className="text-xs font-medium bg-green-100 text-green-800 px-2 py-1 rounded">
-                        Free
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                )}
+              </div>
+            </ScrollArea>
           )}
         </div>
-      </main>
-
-      {/* Book Details Modal */}
-      {selectedBook && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4">
-          <div className="bg-[#E8DCC4] rounded-lg shadow-2xl max-w-2xl w-full overflow-hidden relative">
-            <button
-              onClick={handleCloseDetails}
-              className="absolute right-4 top-4 text-[#3A2618] hover:text-[#F97316] transition-colors"
-            >
-              ✕
-            </button>
-
-            <div className="flex flex-col md:flex-row">
-              <div className="md:w-1/3 p-6 flex items-center justify-center bg-gray-200">
-                {/* Book cover in the modal */}
-                <img
-                  src={getBookCoverUrl(selectedBook)}
-                  alt={`${selectedBook.title} cover`}
-                  className="h-full w-full object-cover"
-                  onError={(e) => {
-                    // Fallback if image fails to load
-                    const target = e.target as HTMLImageElement;
-                    target.src = "/shadowtidecover1.webp";
-                  }}
-                />
-              </div>
-
-              <div className="md:w-2/3 p-6">
-                <h2 className="text-2xl font-serif font-bold text-[#3A2618] mb-2">
-                  {selectedBook.title}
-                </h2>
-                {selectedBook.subtitle && (
-                  <p className="text-lg text-gray-700 mb-2">
-                    {selectedBook.subtitle}
-                  </p>
-                )}
-                <p
-                  className={`text-sm px-2 py-1 rounded-full inline-block mb-4 ${getCategoryColor(
-                    selectedBook.category
-                  )}`}
-                >
-                  {selectedBook.category}
-                </p>
-                <p className="text-gray-700 mb-6">{selectedBook.description}</p>
-
-                <div className="flex items-center justify-between mb-6">
-                  <span className="text-sm text-gray-600">
-                    Last updated: {formatDate(selectedBook.lastUpdated)}
-                  </span>
-                  <span className="text-sm font-medium bg-green-100 text-green-800 px-3 py-1 rounded">
-                    Free
-                  </span>
-                </div>
-
-                <button
-                  onClick={handleReadBook}
-                  className="w-full bg-[#F97316] text-[#E8DCC4] py-3 rounded-md font-medium hover:bg-[#E86305] transition-colors duration-200"
-                >
-                  Read Story
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 };

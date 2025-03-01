@@ -1,26 +1,84 @@
-
 import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { StoryEngine } from '@/components/StoryEngine';
-import { ArrowLeft } from 'lucide-react';
+import { MainHeader } from '@/components/MainHeader';
+import { useParams } from 'react-router-dom';
+import { BookContent } from '@/components/story/BookContent';
+import { BookHeader } from '@/components/story/BookHeader';
+import { BookFooter } from '@/components/story/BookFooter';
+import { CommentSection } from '@/components/story/CommentSection';
+import { useStory } from '@/hooks/use-story';
 
 const StoryPage = () => {
-  const { storyId } = useParams();
-  const navigate = useNavigate();
+  const { storyId } = useParams<{ storyId: string }>();
+  const {
+    story,
+    currentPage,
+    totalPages,
+    comments,
+    isLoading,
+    error,
+    canGoBack,
+    onPageChange,
+    onRestart,
+    onOpenComments,
+    onCloseComments,
+    isCommentsOpen,
+    onAddComment,
+  } = useStory(storyId || '');
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#F1F1F1] flex flex-col">
+        <MainHeader />
+        <div className="flex-grow flex items-center justify-center">
+          <p className="text-2xl font-semibold text-[#3A2618]">Loading story...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !story) {
+    return (
+      <div className="min-h-screen bg-[#F1F1F1] flex flex-col">
+        <MainHeader />
+        <div className="flex-grow flex items-center justify-center">
+          <p className="text-2xl font-semibold text-[#3A2618]">
+            Error: {error || 'Story not found'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[#3A2618] overflow-x-hidden">
-      <div className="max-w-7xl mx-auto px-4 py-4">
-        <button 
-          onClick={() => navigate('/dashboard')}
-          className="flex items-center text-[#E8DCC4] hover:text-[#F97316] transition-colors mb-4"
-        >
-          <ArrowLeft className="h-5 w-5 mr-2" />
-          Back to Library
-        </button>
-      </div>
+    <div className="min-h-screen bg-[#F1F1F1] flex flex-col">
+      <MainHeader />
       
-      <StoryEngine />
+      <BookHeader
+        bookTitle={story.title}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        canGoBack={canGoBack}
+        commentCount={comments.length}
+        onBack={onRestart}
+        onRestart={onRestart}
+        onOpenComments={onOpenComments}
+        onPageChange={onPageChange}
+      />
+
+      <BookContent story={story} currentPage={currentPage} />
+
+      <BookFooter
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+      />
+
+      <CommentSection
+        isOpen={isCommentsOpen}
+        onClose={onCloseComments}
+        comments={comments}
+        onAddComment={onAddComment}
+      />
     </div>
   );
 };
