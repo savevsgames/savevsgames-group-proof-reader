@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, SkipBack, BookOpen, AlertCircle } from "lucide-react";
@@ -40,13 +39,9 @@ const ReaderView: React.FC<ReaderViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Get current page number from node name
   const currentPage = currentNode ? (nodeMappings.nodeToPage[currentNode] || 1) : 1;
-  
-  // Calculate total pages from our nodeMappings
   const totalPages = Object.keys(nodeMappings.pageToNode).length;
 
-  // Load the story node's content when currentNode changes
   useEffect(() => {
     if (!storyData || !currentNode) {
       console.log("ReaderView: No storyData or currentNode", { storyData, currentNode });
@@ -54,7 +49,6 @@ const ReaderView: React.FC<ReaderViewProps> = ({
       return;
     }
     
-    // Reset error state
     setError(null);
     
     const node = storyData[currentNode];
@@ -66,22 +60,18 @@ const ReaderView: React.FC<ReaderViewProps> = ({
     
     console.log(`ReaderView: Loading node "${currentNode}"`, node);
     
-    // Extract display text and choices
     setCurrentText(node.text || "");
     setChoices(node.choices || []);
     
-    // Set canContinue flag if there's a single "Continue" choice
     setCanContinue(
       node.choices && 
       node.choices.length === 1 && 
       node.choices[0].text.toLowerCase().includes("continue")
     );
     
-    // Set ending flag
     setIsEnding(!!node.isEnding);
   }, [storyData, currentNode]);
 
-  // Handler for navigating to a specific node
   const handleNavigateToNode = (nodeName: string) => {
     if (!storyData[nodeName]) {
       console.error(`ReaderView: Node "${nodeName}" not found in story data`);
@@ -89,19 +79,15 @@ const ReaderView: React.FC<ReaderViewProps> = ({
       return;
     }
     
-    // Reset error state
     setError(null);
     
-    // Save current node to history for back navigation
     setHistory(prev => [...prev, currentNode]);
     
-    // Update the current node
     if (onNodeChange) {
       onNodeChange(nodeName);
     }
   };
 
-  // Handler for the Continue button
   const handleContinue = () => {
     if (!canContinue || choices.length === 0) return;
     
@@ -109,7 +95,6 @@ const ReaderView: React.FC<ReaderViewProps> = ({
     handleNavigateToNode(nextNode);
   };
 
-  // Handler for making a choice
   const handleChoice = (index: number) => {
     if (index < 0 || index >= choices.length) return;
     
@@ -117,7 +102,6 @@ const ReaderView: React.FC<ReaderViewProps> = ({
     handleNavigateToNode(choice.nextNode);
   };
 
-  // Handler for going back to the previous node
   const handleBack = () => {
     if (history.length === 0) return;
     
@@ -125,35 +109,27 @@ const ReaderView: React.FC<ReaderViewProps> = ({
     const prevNode = prevHistory.pop();
     
     if (prevNode) {
-      // Update history
       setHistory(prevHistory);
-      
-      // Update current node
       if (onNodeChange) {
         onNodeChange(prevNode);
       }
     }
   };
 
-  // Handler for restarting the story
   const handleRestart = () => {
-    // Clear history
     setHistory([]);
     
-    // Navigate to root node
     if (onNodeChange) {
       onNodeChange("root");
     }
   };
 
-  // Handler for going to a specific page by number
   const handleGoToPage = (pageNumber: number) => {
     if (pageNumber < 1 || pageNumber > totalPages) {
       console.error(`ReaderView: Invalid page number ${pageNumber}, total pages: ${totalPages}`);
       return;
     }
     
-    // We need to access the correct node name for this page number
     const nodeName = nodeMappings.pageToNode[pageNumber];
     
     if (!nodeName) {
@@ -167,7 +143,6 @@ const ReaderView: React.FC<ReaderViewProps> = ({
       return;
     }
     
-    // Skip metadata nodes
     if (nodeName === "inkVersion" || nodeName === "listDefs" || nodeName === "#f") {
       console.error(`ReaderView: Cannot navigate to metadata node "${nodeName}"`);
       toast({
@@ -192,16 +167,13 @@ const ReaderView: React.FC<ReaderViewProps> = ({
     
     console.log(`ReaderView: Navigating to page ${pageNumber}, node: ${nodeName}`);
     
-    // Save current node to history for back navigation
     setHistory(prev => [...prev, currentNode]);
     
-    // Update the current node
     if (onNodeChange) {
       onNodeChange(nodeName);
     }
   };
 
-  // Function to format text to handle newlines
   const formatText = (text: string) => {
     return text
       .split('\n')
@@ -210,13 +182,11 @@ const ReaderView: React.FC<ReaderViewProps> = ({
       ));
   };
 
-  // Function to get valid page numbers for the dropdown
   const getValidPageNumbers = () => {
     if (!nodeMappings.pageToNode) return [1];
     
     return Object.entries(nodeMappings.pageToNode)
       .filter(([_, node]) => {
-        // Filter out metadata nodes and make sure node exists in storyData
         return node !== "inkVersion" && 
                node !== "listDefs" && 
                node !== "#f" && 
@@ -228,9 +198,32 @@ const ReaderView: React.FC<ReaderViewProps> = ({
 
   const validPages = getValidPageNumbers();
 
+  const handleContinueToNextNode = () => {
+    const currentPageNumber = nodeMappings.nodeToPage[currentNode] || 1;
+    const nextPageNumber = currentPageNumber + 1;
+    
+    if (nextPageNumber <= totalPages) {
+      const nextNodeName = nodeMappings.pageToNode[nextPageNumber];
+      if (nextNodeName && storyData[nextNodeName]) {
+        handleNavigateToNode(nextNodeName);
+      } else {
+        toast({
+          title: "Navigation Error",
+          description: "Could not find the next node",
+          variant: "destructive"
+        });
+      }
+    } else {
+      toast({
+        title: "End of Story",
+        description: "You've reached the end of the story",
+        variant: "default"
+      });
+    }
+  };
+
   return (
     <div className="flex flex-col space-y-6">
-      {/* Story Navigation Header */}
       <div className="flex justify-between items-center border-b pb-4">
         <div className="flex items-center space-x-2">
           <Button
@@ -262,7 +255,6 @@ const ReaderView: React.FC<ReaderViewProps> = ({
           </span>
         </div>
         
-        {/* Page Selection */}
         <div className="flex items-center space-x-2">
           <span className="text-sm">Go to:</span>
           <select
@@ -279,7 +271,6 @@ const ReaderView: React.FC<ReaderViewProps> = ({
         </div>
       </div>
       
-      {/* Error Message */}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded flex items-start">
           <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
@@ -290,7 +281,6 @@ const ReaderView: React.FC<ReaderViewProps> = ({
         </div>
       )}
       
-      {/* Story Content */}
       <div className="bg-[#E8DCC4] p-6 rounded-lg min-h-[300px] prose prose-lg max-w-none prose-headings:font-serif prose-p:font-serif">
         {currentText ? (
           <div className="text-[#3A2618] font-serif leading-relaxed text-lg mb-8">
@@ -298,11 +288,19 @@ const ReaderView: React.FC<ReaderViewProps> = ({
           </div>
         ) : (
           <div className="text-[#3A2618] font-serif leading-relaxed text-lg mb-8 italic text-center">
-            No content available for this node.
+            <p>No content available for this node.</p>
+            
+            <div className="mt-6 flex justify-center">
+              <Button 
+                onClick={handleContinueToNextNode}
+                className="bg-[#F97316] text-[#E8DCC4] hover:bg-[#E86305] transition-colors flex items-center gap-2"
+              >
+                Continue to Next Node <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         )}
         
-        {/* Story Controls */}
         <div className="mt-8">
           {!isEnding ? (
             <div className="space-y-6">
@@ -347,7 +345,6 @@ const ReaderView: React.FC<ReaderViewProps> = ({
         </div>
       </div>
       
-      {/* Story Node Information (helpful for editors) */}
       <div className="border-t pt-4 text-sm text-gray-500">
         <p>Current Node: <span className="font-mono">{currentNode}</span></p>
         <p>Current Page: <span className="font-mono">{currentPage}</span></p>

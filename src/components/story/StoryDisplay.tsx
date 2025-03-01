@@ -58,12 +58,26 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({
           className="story-text mb-8 md:mb-16 text-[#3A2618] font-serif leading-relaxed text-base md:text-lg"
           key={`story-content-${text.substring(0, 20)}`} // Key helps React identify when content changes
         >
-          {formattedText}
+          {text ? (
+            formattedText
+          ) : (
+            <div className="text-center italic">
+              <p>No content available for this node.</p>
+              <div className="mt-4">
+                <Button 
+                  onClick={onContinue}
+                  className="bg-[#F97316] text-[#E8DCC4] hover:bg-[#E86305] transition-colors flex items-center gap-2"
+                >
+                  Continue <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
         
         {/* Story Controls - now on the left page */}
         <div className="mt-4 md:mt-8">
-          {!isEnding ? (
+          {!isEnding && text ? (
             <div className="space-y-4 md:space-y-6">
               {canContinue ? (
                 <div className="flex justify-center">
