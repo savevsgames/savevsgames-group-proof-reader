@@ -32,7 +32,7 @@ const StoryEditPage = () => {
     handleStoryDataChange,
     handleSave,
   } = useStoryStore(
-    state => ({
+    (state) => ({
       storyData: state.storyData,
       title: state.title,
       loading: state.loading,
@@ -48,7 +48,7 @@ const StoryEditPage = () => {
       handleStoryDataChange: state.handleStoryDataChange,
       handleSave: state.handleSave,
     }),
-    shallow // Use shallow comparison to prevent unnecessary rerenders
+    shallow
   );
   
   // State for leave dialog

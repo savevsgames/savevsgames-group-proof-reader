@@ -5,7 +5,6 @@ import { CustomStory } from "@/lib/storyUtils";
 import { useToast } from "@/hooks/use-toast";
 import { NodeMappings } from "@/lib/storyNodeMapping";
 import { useStoryStore } from "@/stores/storyState";
-import { shallow } from "zustand/shallow";
 
 interface ReaderViewProps {
   storyId: string;
@@ -29,12 +28,7 @@ const ReaderView: React.FC<ReaderViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   
-  const { totalPages } = useStoryStore(
-    state => ({
-      totalPages: state.totalPages
-    }),
-    shallow
-  );
+  const totalPages = useStoryStore(state => state.totalPages);
   
   const [currentText, setCurrentText] = useState<string>("");
   const [choices, setChoices] = useState<any[]>([]);
