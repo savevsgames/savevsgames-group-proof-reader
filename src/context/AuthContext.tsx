@@ -1,10 +1,10 @@
 
-import React, { createContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User } from '@/lib/supabase';
-import { useToast } from '@/hooks/use-toast';
 import { AuthContextType, AuthState, UserProfile } from './AuthTypes';
 import { getUserProfile, updateUserProfile, formatAuthError } from './authUtils';
+import { toast } from "sonner";
 
 // Create auth context with default values
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -21,7 +21,6 @@ const initialState: AuthState = {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AuthState>(initialState);
-  const { toast } = useToast();
 
   // Function to update state to avoid repetition
   const updateState = (updates: Partial<AuthState>) => {
