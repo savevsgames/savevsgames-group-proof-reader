@@ -19,8 +19,8 @@ function App() {
         <Route path="/" element={<Index />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/auth" element={<Auth />} />
-        <Route path="/story/:id" element={<StoryPage />} />
         <Route path="/story/edit/:id" element={<StoryEditPage />} />
+        <Route path="/story/:id" element={<StoryPage />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
