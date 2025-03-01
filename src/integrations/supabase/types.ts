@@ -49,8 +49,10 @@ export type Database = {
           book_id: string | null
           created_at: string | null
           id: string
+          model_settings: Json | null
           model_version: string | null
           permanent_context: string | null
+          system_prompt: string | null
           temperature: number | null
           updated_at: string | null
         }
@@ -58,8 +60,10 @@ export type Database = {
           book_id?: string | null
           created_at?: string | null
           id?: string
+          model_settings?: Json | null
           model_version?: string | null
           permanent_context?: string | null
+          system_prompt?: string | null
           temperature?: number | null
           updated_at?: string | null
         }
@@ -67,8 +71,10 @@ export type Database = {
           book_id?: string | null
           created_at?: string | null
           id?: string
+          model_settings?: Json | null
           model_version?: string | null
           permanent_context?: string | null
+          system_prompt?: string | null
           temperature?: number | null
           updated_at?: string | null
         }
