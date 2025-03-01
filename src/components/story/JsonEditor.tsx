@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { CustomStory } from "@/lib/storyUtils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -14,6 +15,14 @@ interface JsonEditorProps {
   onNodeSelect?: (nodeName: string) => void;
 }
 
+interface NodeRange {
+  start: number;
+  end: number;
+  startLine: number;
+  endLine: number;
+  content: string;
+}
+
 const JsonEditor: React.FC<JsonEditorProps> = ({ 
   storyData, 
   onChange,
@@ -24,8 +33,9 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<string>(currentNode);
   const [nodeOptions, setNodeOptions] = useState<string[]>([]);
-  const [highlightedText, setHighlightedText] = useState<string>("");
+  const [activeNodeRange, setActiveNodeRange] = useState<NodeRange | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const highlightOverlayRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -62,52 +72,62 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
     }
   }, [currentNode, jsonText]);
 
-  const highlightCurrentNode = (nodeName: string) => {
-    if (!textareaRef.current || !jsonText) return;
+  // Calculate the range of a node in the JSON text
+  const findNodeRange = (text: string, nodeName: string): NodeRange | null => {
+    if (!text) return null;
     
-    const text = jsonText;
     const nodePattern = new RegExp(`(["\'])${nodeName}\\1\\s*:\\s*\\{`, 'g');
     const match = nodePattern.exec(text);
     
-    if (match && match.index !== undefined) {
-      const position = match.index;
-      
-      const bracePos = text.indexOf('{', position);
-      if (bracePos === -1) return;
-      
-      let braceCount = 1;
-      let closingBracePos = bracePos + 1;
-      
-      while (braceCount > 0 && closingBracePos < text.length) {
-        if (text[closingBracePos] === '{') braceCount++;
-        if (text[closingBracePos] === '}') braceCount--;
-        closingBracePos++;
-      }
-      
-      const nodeContent = text.substring(position, closingBracePos);
-      setHighlightedText(nodeContent);
-      
-      textareaRef.current.focus();
-      textareaRef.current.setSelectionRange(position, closingBracePos);
-      
-      const lines = text.substring(0, position).split('\n');
-      const lineNumber = lines.length;
-      const lineHeight = 20;
-      textareaRef.current.scrollTop = lineHeight * (lineNumber - 5);
-      
-      console.log(`Highlighted node ${nodeName} at position ${position}, length ${nodeContent.length}`);
-      
-      document.documentElement.style.setProperty('--json-selection-bg', 'rgba(59, 130, 246, 0.2)');
-      textareaRef.current.classList.add('json-node-selected');
-      
-      setTimeout(() => {
-        if (textareaRef.current) {
-          textareaRef.current.classList.remove('json-node-selected');
-        }
-      }, 5000);
-    } else {
+    if (!match || match.index === undefined) {
       console.warn(`Node ${nodeName} not found in JSON text`);
+      return null;
     }
+    
+    const position = match.index;
+    const bracePos = text.indexOf('{', position);
+    if (bracePos === -1) return null;
+    
+    // Find closing brace by tracking brace count
+    let braceCount = 1;
+    let closingBracePos = bracePos + 1;
+    
+    while (braceCount > 0 && closingBracePos < text.length) {
+      if (text[closingBracePos] === '{') braceCount++;
+      if (text[closingBracePos] === '}') braceCount--;
+      closingBracePos++;
+    }
+    
+    const nodeContent = text.substring(position, closingBracePos);
+    
+    // Calculate line numbers for highlighting
+    const beforeNode = text.substring(0, position);
+    const startLine = beforeNode.split('\n').length;
+    const nodeLines = nodeContent.split('\n');
+    const endLine = startLine + nodeLines.length - 1;
+    
+    return {
+      start: position,
+      end: closingBracePos,
+      startLine,
+      endLine,
+      content: nodeContent
+    };
+  };
+
+  const highlightCurrentNode = (nodeName: string) => {
+    if (!textareaRef.current || !jsonText) return;
+    
+    const nodeRange = findNodeRange(jsonText, nodeName);
+    if (!nodeRange) return;
+    
+    setActiveNodeRange(nodeRange);
+    
+    // Scroll to the node (aim for a few lines above it)
+    const lineHeight = 20; // approximate line height
+    textareaRef.current.scrollTop = (nodeRange.startLine - 3) * lineHeight;
+    
+    console.log(`Highlighted node ${nodeName} from line ${nodeRange.startLine} to ${nodeRange.endLine}`);
   };
 
   const handleNodeChange = (value: string) => {
@@ -165,37 +185,86 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
     highlightCurrentNode(selectedNode);
   };
 
+  // Renders a highlighted overlay for the currently selected node
+  const renderHighlightOverlay = () => {
+    if (!activeNodeRange || !jsonText) return null;
+    
+    // Split the JSON text into lines
+    const lines = jsonText.split('\n');
+    
+    // Create an array of line highlights
+    const lineHighlights = lines.map((line, index) => {
+      const lineNumber = index + 1;
+      const isHighlighted = lineNumber >= activeNodeRange.startLine && lineNumber <= activeNodeRange.endLine;
+      
+      return (
+        <div 
+          key={`line-${lineNumber}`}
+          className={`json-line ${isHighlighted ? 'json-line-highlighted' : ''}`}
+        >
+          {line}
+        </div>
+      );
+    });
+    
+    return lineHighlights;
+  };
+
   const textAreaStyle = {
     fontFamily: 'monospace',
     fontSize: '14px',
     lineHeight: '1.5',
     whiteSpace: 'pre',
     tabSize: 2,
+    position: 'relative' as const,
   };
 
   return (
     <div className="flex flex-col h-full space-y-4">
-      <style>{`
-        .json-editor-textarea {
-          font-family: monospace;
-          font-size: 14px;
-          line-height: 1.5;
-          tab-size: 2;
-          white-space: pre;
-        }
-        
-        .json-editor-textarea::selection {
-          background-color: var(--json-selection-bg, rgba(59, 130, 246, 0.1));
-        }
-        
-        .json-node-selected {
-          border-left: 3px solid #3b82f6 !important;
-        }
-        
-        .json-node-selected::selection {
-          background-color: rgba(59, 130, 246, 0.2);
-        }
-      `}</style>
+      <style>
+        {`
+          .json-editor-container {
+            position: relative;
+          }
+          
+          .json-editor-textarea {
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            tab-size: 2;
+            white-space: pre;
+          }
+          
+          .json-line {
+            height: 20px;
+            padding: 0 8px;
+            white-space: pre;
+            line-height: 1.5;
+          }
+          
+          .json-line-highlighted {
+            background-color: rgba(59, 130, 246, 0.1);
+            border-left: 3px solid #3b82f6;
+            border-right: 3px solid #3b82f6;
+          }
+          
+          .json-node-active {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            white-space: pre;
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            tab-size: 2;
+            overflow: auto;
+            user-select: none;
+          }
+        `}
+      </style>
       
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4">
@@ -245,7 +314,13 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
         </div>
       )}
 
-      <ScrollArea className="h-[500px] border rounded-md bg-gray-50">
+      <ScrollArea className="h-[500px] border rounded-md bg-gray-50 json-editor-container">
+        <div
+          ref={highlightOverlayRef}
+          className="json-node-active hidden"
+        >
+          {renderHighlightOverlay()}
+        </div>
         <Textarea
           ref={textareaRef}
           value={jsonText}
