@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+
+import React from 'react';
 import { StoryDisplay } from './StoryDisplay';
 import { BookHeader } from './BookHeader';
 import { StoryChoice } from '@/lib/storyUtils';
-import { Comment } from '../CommentModal';
+import { Comment } from '../comments/types';
 import { User } from '@/lib/supabase';
 import CommentsView from './CommentsView';
 
@@ -39,7 +40,6 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
   isEnding,
   canGoBack,
   commentCount,
-  comments,
   currentUser,
   storyId,
   onContinue,
@@ -88,7 +88,7 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
               storyId={storyId}
               currentNode={currentNode}
               currentPage={currentPage}
-              onCommentsUpdate={(count) => {/* Update comment count if needed */}}
+              onCommentsUpdate={(count) => {/* This is a no-op to prevent unnecessary re-renders */}}
             />
           </div>
         </div>

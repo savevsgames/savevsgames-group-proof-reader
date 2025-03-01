@@ -1,17 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { MessageSquare, ShieldCheck } from 'lucide-react';
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
-import { CommentType } from "@/lib/commentTypes";
-import { useNavigate } from 'react-router-dom';
-import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { supabase } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
+import CommentTypeSelector from './comments/CommentTypeSelector';
 import CommentsList from './comments/CommentsList';
-import CommentForm from './comments/CommentForm';
-import { Comment, CommentModalProps } from './comments/types';
+import { CommentType } from '@/lib/commentTypes';
+import { CommentModalProps } from './comments/types';
 
-export { Comment } from './comments/types';
+// Use export type for re-export to fix TS1205 error
+export type { Comment } from './comments/types';
 
 export const CommentModal: React.FC<CommentModalProps> = ({
   isOpen,
@@ -21,68 +21,64 @@ export const CommentModal: React.FC<CommentModalProps> = ({
   currentUser,
 }) => {
   const [comments, setComments] = useState<Comment[]>([]);
-  const [commentText, setCommentText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCommentType, setSelectedCommentType] = useState<CommentType>('edit');
   const [editingComment, setEditingComment] = useState<Comment | null>(null);
-  const [isModerator, setIsModerator] = useState(false);
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const [isModerator, setIsModerator] = useState(false);
 
-  // Check if current user is a comment moderator
   useEffect(() => {
+    if (isOpen && storyId && storyPosition !== undefined) {
+      fetchComments();
+    }
+    // Reset form when modal opens/closes
+    if (!isOpen) {
+      setCommentText('');
+      setEditingComment(null);
+      setSelectedCommentType('edit');
+    }
+  }, [isOpen, storyId, storyPosition]);
+
+  useEffect(() => {
+    // Check if current user is a moderator
     const checkModerator = async () => {
       if (!currentUser) {
         setIsModerator(false);
         return;
       }
-      
+
       try {
         const { data, error } = await supabase
-          .from('comment_moderators')
-          .select('id')
-          .eq('user_id', currentUser.id)
-          .single();
-          
-        if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" which is expected
+          .rpc('is_comment_moderator', { user_id: currentUser.id });
+
+        if (error) {
           console.error('Error checking moderator status:', error);
           setIsModerator(false);
-          return;
+        } else {
+          setIsModerator(data || false);
         }
-        
-        setIsModerator(data !== null);
       } catch (error) {
-        console.error('Exception checking moderator status:', error);
+        console.error('Failed to check moderator status:', error);
         setIsModerator(false);
       }
     };
-    
+
     checkModerator();
   }, [currentUser]);
 
-  // Fetch comments when the modal opens or story position changes
   useEffect(() => {
-    if (isOpen && storyId && storyPosition) {
-      fetchComments();
-      
-      // Check if there's an editing comment in sessionStorage
-      const storedEditingComment = sessionStorage.getItem('editingComment');
-      if (storedEditingComment) {
-        const parsedComment = JSON.parse(storedEditingComment);
-        setEditingComment(parsedComment);
-        setCommentText(parsedComment.text);
-        setSelectedCommentType(parsedComment.comment_type);
-        
-        // Clear the stored comment
-        sessionStorage.removeItem('editingComment');
-      }
+    // If editing a comment, populate the form with its values
+    if (editingComment) {
+      setCommentText(editingComment.text);
+      setSelectedCommentType(editingComment.comment_type);
     }
-  }, [isOpen, storyId, storyPosition]);
+  }, [editingComment]);
 
   const fetchComments = async () => {
     setIsLoading(true);
     try {
-      // Updated query to join with profiles table to get usernames
       const { data, error } = await supabase
         .from('comments')
         .select(`
@@ -101,61 +97,58 @@ export const CommentModal: React.FC<CommentModalProps> = ({
     } catch (error) {
       console.error('Error fetching comments:', error);
       toast({
-        title: "Failed to load comments",
-        description: "There was an error loading the comments. Please try again.",
-        variant: "destructive",
+        variant: 'destructive',
+        title: 'Error fetching comments',
+        description: 'Failed to load comments. Please try again.',
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmitComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     if (!commentText.trim()) {
       toast({
-        title: "Comment cannot be empty",
-        description: "Please enter a comment before submitting.",
-        variant: "destructive",
+        variant: 'destructive',
+        title: 'Comment cannot be empty',
+        description: 'Please enter a comment before submitting.',
       });
       return;
     }
 
     if (!currentUser) {
       toast({
-        title: "Authentication required",
-        description: "You must be logged in to add comments.",
-        variant: "destructive",
+        variant: 'destructive',
+        title: 'Authentication required',
+        description: 'You must be logged in to post comments.',
       });
-      onOpenChange(false);
-      navigate('/auth');
       return;
     }
 
-    setIsLoading(true);
-    
+    setIsSubmitting(true);
+
     try {
       if (editingComment) {
         // Update existing comment
-        let query = supabase
+        const { error } = await supabase
           .from('comments')
-          .update({ 
+          .update({
             text: commentText,
-            comment_type: selectedCommentType
+            comment_type: selectedCommentType,
+            updated_at: new Date().toISOString(),
           })
-          .eq('id', editingComment.id);
-          
-        // Only apply user_id filter if not a moderator
-        if (!isModerator) {
-          query = query.eq('user_id', currentUser.id);
-        }
-        
-        const { error } = await query;
+          .eq('id', editingComment.id)
+          .eq('user_id', currentUser.id); // Ensure user can only edit their own comments
 
-        if (error) throw error;
+        if (error) {
+          throw error;
+        }
 
         toast({
-          title: "Comment Updated",
-          description: "The comment has been updated successfully.",
+          title: 'Comment updated',
+          description: 'Your comment has been updated successfully.',
         });
       } else {
         // Create new comment
@@ -166,39 +159,38 @@ export const CommentModal: React.FC<CommentModalProps> = ({
             story_id: storyId,
             story_position: storyPosition,
             text: commentText,
-            comment_type: selectedCommentType
+            comment_type: selectedCommentType,
           });
 
-        if (error) throw error;
+        if (error) {
+          throw error;
+        }
 
         toast({
-          title: "Comment Added",
-          description: "Your comment has been saved successfully.",
+          title: 'Comment added',
+          description: 'Your comment has been added successfully.',
         });
       }
 
       // Reset form and refresh comments
       setCommentText('');
-      setSelectedCommentType('edit');
       setEditingComment(null);
+      setSelectedCommentType('edit');
       fetchComments();
-      
-      // Close the modal after successful submission
-      setTimeout(() => {
-        onOpenChange(false);
-        // Refresh the page to show updated comments
-        window.location.reload();
-      }, 1500);
     } catch (error) {
-      console.error('Error saving comment:', error);
+      console.error('Error submitting comment:', error);
       toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to save comment. Please try again.",
+        variant: 'destructive',
+        title: 'Failed to submit comment',
+        description: 'An error occurred while submitting your comment. Please try again.',
       });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
+  };
+
+  const handleCommentEdit = (comment: Comment) => {
+    setEditingComment(comment);
   };
 
   const cancelEdit = () => {
@@ -207,82 +199,65 @@ export const CommentModal: React.FC<CommentModalProps> = ({
     setSelectedCommentType('edit');
   };
 
-  const handleEditComment = (comment: Comment) => {
-    setEditingComment(comment);
-    setCommentText(comment.text);
-    setSelectedCommentType(comment.comment_type);
-  };
-
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-      onOpenChange(open);
-      if (!open) {
-        // Reset form when modal closes
-        setEditingComment(null);
-        setCommentText('');
-        setSelectedCommentType('edit');
-      }
-    }}>
-      <DialogContent className="bg-[#E8DCC4] text-[#3A2618] border-none max-w-lg">
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#E8DCC4]">
         <DialogHeader>
-          <DialogTitle className="text-[#3A2618] font-serif text-xl flex items-center">
-            <div className="flex items-center">
-              <MessageSquare className="mr-2 h-5 w-5" />
-              {editingComment ? "Edit Comment" : "Add Comment"}
-              
-              {isModerator && (
-                <div className="flex items-center text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full ml-2">
-                  <ShieldCheck className="h-3 w-3 mr-1" />
-                  Moderator
-                </div>
-              )}
-            </div>
+          <DialogTitle className="text-[#3A2618] text-xl">
+            Comments for Page {storyPosition}
           </DialogTitle>
-          <DialogDescription className="text-[#3A2618]/70 font-serif">
-            {editingComment 
-              ? (editingComment.user_id === currentUser?.id 
-                  ? "Edit your comment below" 
-                  : "Edit this comment (moderator mode)")
-              : "Leave feedback or notes for the author about this part of the story."}
-          </DialogDescription>
         </DialogHeader>
 
-        {/* Only show comments list when not editing */}
-        {!editingComment && (
-          <CommentsList
-            comments={comments}
-            isLoading={isLoading}
+        {currentUser ? (
+          <form onSubmit={handleSubmitComment} className="space-y-4">
+            <Textarea
+              placeholder="Share your feedback, suggestions, or corrections..."
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              className="min-h-[100px] bg-white border-[#3A2618]/20 text-[#3A2618]"
+            />
+
+            <CommentTypeSelector
+              selectedCommentType={selectedCommentType}
+              setSelectedCommentType={setSelectedCommentType}
+            />
+
+            <div className="flex justify-end space-x-2">
+              {editingComment && (
+                <Button 
+                  type="button"
+                  variant="outline"
+                  onClick={cancelEdit}
+                  className="border-[#3A2618]/30 text-[#3A2618]"
+                >
+                  Cancel Edit
+                </Button>
+              )}
+              <Button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="bg-[#3A2618] text-white hover:bg-[#3A2618]/80"
+              >
+                {isSubmitting ? 'Submitting...' : editingComment ? 'Update Comment' : 'Post Comment'}
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <div className="bg-white p-4 rounded text-center text-[#3A2618]/70">
+            Please sign in to leave a comment.
+          </div>
+        )}
+
+        <div className="mt-6">
+          <h3 className="text-[#3A2618] font-medium mb-4">All Comments</h3>
+          <CommentsList 
+            comments={comments} 
+            isLoading={isLoading} 
             currentUser={currentUser}
             isModerator={isModerator}
-            onEditComment={handleEditComment}
+            onEditComment={handleCommentEdit}
           />
-        )}
-        
-        {(!currentUser && !editingComment) ? (
-          <div className="bg-[#3A2618]/10 p-4 rounded-md text-center">
-            <p className="text-[#3A2618] mb-2">Please sign in to add comments</p>
-            <Button 
-              onClick={() => {
-                onOpenChange(false);
-                navigate('/auth');
-              }}
-              className="bg-[#F97316] hover:bg-[#E86305] text-[#E8DCC4]"
-            >
-              Sign In
-            </Button>
-          </div>
-        ) : (
-          <CommentForm
-            commentText={commentText}
-            setCommentText={setCommentText}
-            selectedCommentType={selectedCommentType}
-            setSelectedCommentType={setSelectedCommentType}
-            handleSubmit={handleSubmit}
-            isLoading={isLoading}
-            editingComment={editingComment}
-            cancelEdit={cancelEdit}
-          />
-        )}
+        </div>
       </DialogContent>
     </Dialog>
   );

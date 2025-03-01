@@ -7,7 +7,7 @@ import { BookLayout } from './story/BookLayout';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { fetchComments } from '@/lib/storyUtils';
-import { Comment } from './CommentModal';
+import { Comment } from './comments/types';
 
 export const StoryEngine: React.FC = () => {
   const { id: storyId } = useParams<{ id: string }>();
@@ -32,7 +32,7 @@ export const StoryEngine: React.FC = () => {
     handleRestart,
     handlePageChange,
     updateCommentCount,
-  } = useStory(storyId);
+  } = useStory(storyId || '');
 
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);

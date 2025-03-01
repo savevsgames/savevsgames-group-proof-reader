@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { fetchComments } from "@/lib/storyUtils";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -43,33 +43,34 @@ const CommentsView: React.FC<CommentsViewProps> = ({
     onCommentsUpdate
   );
 
+  // Create a memoized loadComments function to prevent infinite loops
+  const loadComments = useCallback(async () => {
+    if (!storyId || currentPage === undefined) return;
+    
+    setLoading(true);
+    try {
+      console.log(`Loading comments for story ${storyId}, page ${currentPage}`);
+      const commentsData = await fetchComments(storyId, currentPage);
+      setComments(commentsData);
+      
+      // Update the comment count in the parent component
+      onCommentsUpdate(commentsData.length);
+    } catch (error) {
+      console.error("Error loading comments:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load comments",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [storyId, currentPage, onCommentsUpdate, toast]);
+
   // Load comments for the current page
   useEffect(() => {
-    const loadComments = async () => {
-      if (!storyId || currentPage === undefined) return;
-      
-      setLoading(true);
-      try {
-        console.log(`Loading comments for story ${storyId}, page ${currentPage}`);
-        const commentsData = await fetchComments(storyId, currentPage);
-        setComments(commentsData);
-        
-        // Update the comment count in the parent component
-        onCommentsUpdate(commentsData.length);
-      } catch (error) {
-        console.error("Error loading comments:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load comments",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadComments();
-  }, [storyId, currentPage, onCommentsUpdate, toast]);
+  }, [loadComments]);
 
   const handleCommentAdded = (newComment: Comment) => {
     setComments([newComment, ...comments]);
