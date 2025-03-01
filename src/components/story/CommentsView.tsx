@@ -1,7 +1,5 @@
 
 import React, { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { RefreshCw, MessageCircle } from "lucide-react";
 import { fetchComments } from "@/lib/storyUtils";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -14,7 +12,6 @@ interface CommentsViewProps {
   currentNode: string;
   onCommentsUpdate: (count: number) => void;
   currentPage: number;
-  // Optional prop for LLM context integration
   onAddToLlmContext?: (text: string) => void;
 }
 
@@ -88,32 +85,8 @@ const CommentsView: React.FC<CommentsViewProps> = ({
     }
   };
 
-  const handleRefreshComments = async () => {
-    setLoading(true);
-    const refreshedComments = await refreshComments();
-    if (refreshedComments) {
-      setComments(refreshedComments);
-    }
-    setLoading(false);
-  };
-
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium">
-          Comments
-        </h3>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefreshComments}
-          disabled={loading}
-          title="Refresh Comments"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-        </Button>
-      </div>
-
       {user ? (
         <CommentForm
           storyId={storyId}
@@ -130,8 +103,7 @@ const CommentsView: React.FC<CommentsViewProps> = ({
       )}
 
       <div className="pt-4">
-        <h4 className="font-medium mb-4 flex items-center">
-          <MessageCircle className="h-4 w-4 mr-2" />
+        <h4 className="font-medium mb-4">
           {comments.length} {comments.length === 1 ? "Comment" : "Comments"}
         </h4>
 

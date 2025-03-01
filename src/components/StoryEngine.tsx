@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useStory } from '@/hooks/useStory';
@@ -9,7 +10,6 @@ import { fetchComments } from '@/lib/storyUtils';
 import { Comment } from './CommentModal';
 
 export const StoryEngine: React.FC = () => {
-  // Changed parameter name from storyId to id to match route parameter
   const { id: storyId } = useParams<{ id: string }>();
   const { user } = useAuth();
   
@@ -25,7 +25,7 @@ export const StoryEngine: React.FC = () => {
     canGoBack,
     commentCount,
     currentStoryPosition,
-    currentNode, // Make sure to extract this from the hook
+    currentNode,
     handleContinue,
     handleChoice,
     handleBack,
@@ -44,6 +44,10 @@ export const StoryEngine: React.FC = () => {
         try {
           const commentsData = await fetchComments(storyId, currentStoryPosition);
           setComments(commentsData);
+          // Update the comment count based on fetched comments
+          if (updateCommentCount) {
+            updateCommentCount(commentsData.length);
+          }
         } catch (error) {
           console.error('Error fetching comments:', error);
         }
@@ -51,7 +55,7 @@ export const StoryEngine: React.FC = () => {
     };
     
     getComments();
-  }, [storyId, currentStoryPosition]);
+  }, [storyId, currentStoryPosition, updateCommentCount]);
 
   // Refresh comments when modal closes
   const handleCommentModalOpenChange = (open: boolean) => {
@@ -62,7 +66,9 @@ export const StoryEngine: React.FC = () => {
         if (storyId && currentStoryPosition !== undefined) {
           fetchComments(storyId, currentStoryPosition).then(commentsData => {
             setComments(commentsData);
-            updateCommentCount();
+            if (updateCommentCount) {
+              updateCommentCount(commentsData.length);
+            }
           });
         }
       }, 300);
@@ -94,7 +100,7 @@ export const StoryEngine: React.FC = () => {
         currentPage={currentPage}
         totalPages={totalPages}
         currentText={currentText}
-        currentNode={currentNode || 'root'} // Pass the current node, default to 'root'
+        currentNode={currentNode || 'root'}
         canContinue={canContinue}
         choices={currentChoices}
         isEnding={!canContinue && currentChoices.length === 0}
