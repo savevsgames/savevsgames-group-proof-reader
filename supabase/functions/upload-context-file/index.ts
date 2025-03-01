@@ -1,124 +1,131 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.31.0'
+import { corsHeaders } from '../_shared/cors.ts'
+import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
+const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || ''
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 
 serve(async (req) => {
-  // Handle CORS preflight requests
+  // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-    
-    // Initialize Supabase client with the service role key
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    
-    // Get the authorization header
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Missing Authorization header' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      );
+    const token = req.headers.get('Authorization')?.replace('Bearer ', '')
+    if (!token) {
+      throw new Error('No authorization token provided')
     }
-    
-    // Verify the user is authenticated
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized', details: authError?.message }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      );
+
+    // Create a Supabase client with the auth token
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    })
+
+    // Get user from the token
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token)
+    if (userError || !user) {
+      throw new Error('Invalid token or user not found')
     }
+
+    // Parse the request body
+    const formData = await req.formData()
+    const file = formData.get('file') as File
+    const bookId = formData.get('bookId') as string
     
-    // Get the form data
-    const formData = await req.formData();
-    const file = formData.get('file') as File;
-    const bookId = formData.get('bookId') as string;
-    
-    if (!file) {
-      return new Response(
-        JSON.stringify({ error: 'No file uploaded' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
+    if (!file || !bookId) {
+      throw new Error('File or book ID missing')
     }
-    
-    if (!bookId) {
-      return new Response(
-        JSON.stringify({ error: 'Book ID is required' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
+
+    // Verify book ownership
+    const adminSupabase = createClient(supabaseUrl, supabaseServiceKey)
+    const { data: bookData, error: bookError } = await adminSupabase
+      .from('books')
+      .select('id, creator_id')
+      .eq('id', bookId)
+      .single()
+
+    if (bookError || !bookData) {
+      throw new Error('Book not found')
     }
-    
-    // Sanitize file name to remove non-ASCII characters
-    const sanitizedFileName = file.name.replace(/[^\x00-\x7F]/g, '');
-    const fileExt = sanitizedFileName.split('.').pop() || '';
-    const fileName = `${crypto.randomUUID()}.${fileExt}`;
-    
-    // Upload the file to Supabase Storage
-    const { data: storageData, error: storageError } = await supabase.storage
+
+    if (bookData.creator_id !== user.id) {
+      throw new Error('Unauthorized: User does not own this book')
+    }
+
+    // Generate a file path
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${crypto.randomUUID()}.${fileExt}`
+    const filePath = `${bookId}/${fileName}`
+
+    // Upload file to storage
+    const { data: uploadData, error: uploadError } = await supabase
+      .storage
       .from('rag_context_files')
-      .upload(fileName, file, {
-        contentType: file.type,
+      .upload(filePath, file, {
+        cacheControl: '3600',
         upsert: false
-      });
-    
-    if (storageError) {
-      console.error('Storage error:', storageError);
-      return new Response(
-        JSON.stringify({ error: 'Error uploading file to storage', details: storageError }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
+      })
+
+    if (uploadError) {
+      throw new Error(`File upload failed: ${uploadError.message}`)
     }
-    
-    // Get the public URL for the file
-    const { data: { publicUrl } } = supabase.storage
+
+    // Get public URL
+    const { data: urlData } = await supabase
+      .storage
       .from('rag_context_files')
-      .getPublicUrl(fileName);
-    
-    // Insert a record in the book_context_files table
-    const { data: dbData, error: dbError } = await supabase
+      .getPublicUrl(filePath)
+
+    // Create record in book_context_files table
+    const { data: contextFile, error: contextError } = await supabase
       .from('book_context_files')
       .insert({
         book_id: bookId,
-        file_path: fileName,
-        file_name: sanitizedFileName,
-        file_type: file.type,
-        created_at: new Date().toISOString()
+        file_path: filePath,
+        file_name: file.name,
+        file_type: file.type
       })
-      .select();
-    
-    if (dbError) {
-      console.error('Database error:', dbError);
-      return new Response(
-        JSON.stringify({ error: 'Error saving file metadata', details: dbError }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
+      .select()
+      .single()
+
+    if (contextError) {
+      throw new Error(`Failed to create context file record: ${contextError.message}`)
     }
-    
+
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        file: dbData[0],
-        publicUrl 
+      JSON.stringify({
+        success: true,
+        data: {
+          file: contextFile,
+          url: urlData.publicUrl
+        }
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-    
+      {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        },
+        status: 200
+      }
+    )
   } catch (error) {
-    console.error('Unexpected error:', error);
     return new Response(
-      JSON.stringify({ error: 'An unexpected error occurred', details: error.message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-    );
+      JSON.stringify({
+        success: false,
+        error: error.message
+      }),
+      {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        },
+        status: 400
+      }
+    )
   }
-});
+})
