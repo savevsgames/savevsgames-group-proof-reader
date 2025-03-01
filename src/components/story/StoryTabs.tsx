@@ -10,9 +10,7 @@ import ReaderView from "./ReaderView";
 import { useAuth } from "@/context/AuthContext";
 import { 
   CustomStory, 
-  storyNodeToPageMap, 
-  pageToStoryNodeMap, 
-  generateNodeMappings 
+  generateNodeMappings
 } from "@/lib/storyUtils";
 import { AlertCircle } from "lucide-react";
 
@@ -41,18 +39,17 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
   
   // Generate dynamic mappings when storyData changes
   const [mappings, setMappings] = useState({
-    nodeToPage: storyNodeToPageMap,
-    pageToNode: pageToStoryNodeMap
+    nodeToPage: {} as Record<string, number>,
+    pageToNode: {} as Record<number, string>
   });
   
   useEffect(() => {
     if (storyData) {
-      const { storyNodeToPageMap: updatedNodeToPage, pageToStoryNodeMap: updatedPageToNode } = 
-        generateNodeMappings(storyData);
+      const { storyNodeToPageMap, pageToStoryNodeMap } = generateNodeMappings(storyData);
       
       setMappings({
-        nodeToPage: updatedNodeToPage,
-        pageToNode: updatedPageToNode
+        nodeToPage: storyNodeToPageMap,
+        pageToNode: pageToStoryNodeMap
       });
     }
   }, [storyData]);

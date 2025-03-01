@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, BookOpen, ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import React, { useState } from 'react';
+import { Button } from '../ui/button';
+import { BookOpen, ChevronLeft, MessageSquare, SkipBack } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface BookHeaderProps {
   bookTitle: string;
@@ -27,133 +27,162 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
   onOpenComments,
   onPageChange
 }) => {
-  const navigate = useNavigate();
-  const [pageInput, setPageInput] = useState<string>(currentPage.toString());
-  const [isEditing, setIsEditing] = useState(false);
+  const [pageInputValue, setPageInputValue] = useState<string>(currentPage.toString());
+  
+  // Update the page input value when currentPage changes
+  React.useEffect(() => {
+    setPageInputValue(currentPage.toString());
+  }, [currentPage]);
 
-  // Extract subtitle if title contains a hyphen
-  const titleParts = bookTitle.split(' - ');
-  const mainTitle = titleParts[0];
-  const subtitle = titleParts.length > 1 ? titleParts[1] : '';
+  const handlePageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Allow only numeric input
+    const value = e.target.value.replace(/[^0-9]/g, '');
+    setPageInputValue(value);
+  };
 
   const handlePageSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const newPage = parseInt(pageInput);
-    if (!isNaN(newPage) && newPage >= 1 && newPage <= totalPages) {
-      console.log("Navigating to page from input:", newPage);
-      onPageChange(newPage);
+    const pageNum = parseInt(pageInputValue);
+    
+    if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+      onPageChange(pageNum);
     } else {
       // Reset to current page if invalid
-      setPageInput(currentPage.toString());
-    }
-    setIsEditing(false);
-  };
-
-  // Directly use onPageChange for navigation to ensure story state is properly updated
-  const goToPreviousPage = () => {
-    if (currentPage > 1) {
-      const targetPage = currentPage - 1;
-      console.log("Going to previous page:", targetPage);
-      onPageChange(targetPage);
+      setPageInputValue(currentPage.toString());
     }
   };
 
-  const goToNextPage = () => {
-    if (currentPage < totalPages) {
-      const targetPage = currentPage + 1;
-      console.log("Going to next page:", targetPage);
-      onPageChange(targetPage);
+  // Calculate visible page range for pagination
+  const getPageNumbers = () => {
+    const range = [];
+    const maxVisiblePages = 5;
+    let start, end;
+    
+    if (totalPages <= maxVisiblePages) {
+      // Show all pages if total is small
+      start = 1;
+      end = totalPages;
+    } else {
+      // Calculate range around current page
+      const offset = Math.floor(maxVisiblePages / 2);
+      
+      if (currentPage <= offset) {
+        // Near start
+        start = 1;
+        end = maxVisiblePages;
+      } else if (currentPage > totalPages - offset) {
+        // Near end
+        start = totalPages - maxVisiblePages + 1;
+        end = totalPages;
+      } else {
+        // Middle
+        start = currentPage - offset;
+        end = currentPage + offset;
+      }
     }
-  };
-
-  // Update pageInput when currentPage changes
-  useEffect(() => {
-    setPageInput(currentPage.toString());
-  }, [currentPage]);
-
-  // Function to handle Back to Library click
-  const handleBackToLibraryClick = () => {
-    console.log("Navigating to dashboard");
-    navigate('/dashboard');
+    
+    for (let i = start; i <= end; i++) {
+      range.push(i);
+    }
+    
+    return range;
   };
 
   return (
-    <div className="w-full bg-[#F1F1F1] text-[#3A2618] shadow-md rounded-lg mb-6 p-3">
-      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between">
-        {/* Back to Library Button */}
+    <div className="flex justify-between items-center py-4 px-6 bg-[#3A2618] text-[#E8DCC4] rounded-t-lg md:rounded-t-none">
+      {/* Left side - Book title and navigation controls */}
+      <div className="flex items-center space-x-4">
         <Button
           variant="ghost"
-          onClick={handleBackToLibraryClick}
-          className="text-[#3A2618] hover:bg-[#3A2618]/10 mb-3 sm:mb-0"
-          type="button"
+          size="sm"
+          className="text-[#E8DCC4] hover:text-white hover:bg-[#4A3628]"
+          onClick={onRestart}
+          title="Start Over"
         >
-          <ArrowLeft className="h-5 w-5 mr-2" />
-          Back to Library
+          <SkipBack className="h-4 w-4 mr-1" />
+          <span className="hidden sm:inline">Restart</span>
         </Button>
-
-        {/* Title and Page Navigation */}
-        <div className="flex flex-col sm:flex-row items-center gap-4">
-          <div className="flex items-center">
-            <BookOpen className="h-5 w-5 text-[#F97316] mr-2 hidden sm:block" />
-            <div className="text-center sm:text-left">
-              <h1 className="font-serif font-bold text-lg sm:text-xl">{mainTitle}</h1>
-              {subtitle && (
-                <p className="text-[#3A2618]/70 text-sm font-serif italic">{subtitle}</p>
-              )}
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-[#E8DCC4] hover:text-white hover:bg-[#4A3628] disabled:opacity-50"
+          onClick={onBack}
+          disabled={!canGoBack}
+          title="Go Back"
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" />
+          <span className="hidden sm:inline">Back</span>
+        </Button>
+        
+        <h1 className="font-serif text-lg md:text-xl font-medium">{bookTitle}</h1>
+      </div>
+      
+      {/* Right side - Page information and comment button */}
+      <div className="flex items-center space-x-4">
+        <Popover>
+          <PopoverTrigger asChild>
+            <div className="flex items-center cursor-pointer hover:bg-[#4A3628] rounded px-2 py-1">
+              <BookOpen className="h-4 w-4 mr-2" />
+              <span className="text-sm">
+                Page <span className="font-bold">{currentPage}</span> of {totalPages}
+              </span>
             </div>
-          </div>
-
-          {/* Page Navigation using the same styling as StoryControls */}
-          <div className="flex items-center gap-2">
-            {/* Previous page button */}
-            <button
-              onClick={goToPreviousPage}
-              disabled={currentPage <= 1}
-              className="h-8 w-8 p-0 flex items-center justify-center border border-[#3A2618]/20 rounded hover:bg-[#3A2618]/10 transition-colors disabled:opacity-50 disabled:pointer-events-none"
-              type="button"
-              aria-label="Previous page"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-
-            <form onSubmit={handlePageSubmit} className="flex items-center">
-              {isEditing ? (
+          </PopoverTrigger>
+          <PopoverContent className="w-80 bg-[#E8DCC4] text-[#3A2618] p-4">
+            <div className="space-y-4">
+              <h4 className="font-medium">Jump to Page</h4>
+              
+              <form onSubmit={handlePageSubmit} className="flex space-x-2">
                 <input
                   type="text"
-                  value={pageInput}
-                  onChange={(e) => setPageInput(e.target.value)}
-                  onBlur={handlePageSubmit}
-                  autoFocus
-                  className="w-12 h-8 text-center border border-[#3A2618]/20 rounded"
+                  value={pageInputValue}
+                  onChange={handlePageInputChange}
+                  className="w-16 px-2 py-1 border border-[#3A2618] rounded text-center"
+                  aria-label="Enter page number"
                 />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(true)}
-                  className="px-2 py-1 min-w-[80px] text-center hover:bg-[#3A2618]/10 rounded cursor-pointer"
+                <Button 
+                  type="submit" 
+                  className="bg-[#3A2618] text-[#E8DCC4] hover:bg-[#4A3628]"
                 >
-                  <span className="font-medium">{currentPage}</span> of {totalPages}
-                </button>
-              )}
-            </form>
-
-            {/* Next page button */}
-            <button
-              onClick={goToNextPage}
-              disabled={currentPage >= totalPages}
-              className="h-8 w-8 p-0 flex items-center justify-center border border-[#3A2618]/20 rounded hover:bg-[#3A2618]/10 transition-colors disabled:opacity-50 disabled:pointer-events-none"
-              type="button"
-              aria-label="Next page"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Hidden comment count data for use by other components */}
-        <div className="hidden">
-          <span id="comment-count-data" data-count={commentCount}></span>
-        </div>
+                  Go
+                </Button>
+              </form>
+              
+              <div className="flex flex-wrap gap-1 justify-center">
+                {getPageNumbers().map(page => (
+                  <div
+                    key={`page-${page}`}
+                    onClick={() => onPageChange(page)}
+                    className={`px-2 py-1 min-w-[30px] text-center ${
+                      currentPage === page
+                        ? 'bg-[#3A2618] text-[#E8DCC4]'
+                        : 'hover:bg-[#3A2618]/10'
+                    } rounded cursor-pointer`}
+                  >
+                    {page}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-[#E8DCC4] hover:text-white hover:bg-[#4A3628] relative"
+          onClick={onOpenComments}
+          title="View Comments"
+        >
+          <MessageSquare className="h-4 w-4 mr-1" />
+          <span className="hidden sm:inline">Comments</span>
+          {commentCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-[#F97316] text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+              {commentCount > 9 ? '9+' : commentCount}
+            </span>
+          )}
+        </Button>
       </div>
     </div>
   );

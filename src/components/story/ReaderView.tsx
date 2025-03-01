@@ -2,8 +2,9 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, SkipBack, BookOpen } from "lucide-react";
-import { CustomStory } from "@/lib/storyUtils";
+import { CustomStory, generateNodeMappings } from "@/lib/storyUtils";
 import { StoryChoice } from "@/lib/storyUtils";
+import { useToast } from "@/hooks/use-toast";
 
 interface ReaderViewProps {
   storyId: string;
@@ -31,12 +32,28 @@ const ReaderView: React.FC<ReaderViewProps> = ({
   const [canContinue, setCanContinue] = useState<boolean>(false);
   const [isEnding, setIsEnding] = useState<boolean>(false);
   const [history, setHistory] = useState<string[]>([]);
+  const { toast } = useToast();
+
+  // Generate proper node mappings on component load if not provided
+  const [mappings, setMappings] = useState(nodeMappings);
+  
+  useEffect(() => {
+    if (Object.keys(nodeMappings.nodeToPage).length === 0 && storyData) {
+      const generatedMappings = generateNodeMappings(storyData);
+      setMappings({
+        nodeToPage: generatedMappings.storyNodeToPageMap,
+        pageToNode: generatedMappings.pageToStoryNodeMap
+      });
+    } else {
+      setMappings(nodeMappings);
+    }
+  }, [storyData, nodeMappings]);
 
   // Get current page number from node name using provided mappings
-  const currentPage = nodeMappings.nodeToPage[currentNode] || 1;
+  const currentPage = mappings.nodeToPage[currentNode] || 1;
   
   // Calculate total pages based on number of nodes in the story
-  const totalPages = Object.keys(nodeMappings.nodeToPage).length || 
+  const totalPages = Object.keys(mappings.pageToNode).length || 
                     Object.keys(storyData).length;
 
   // Load the story node's content when currentNode changes
@@ -44,7 +61,10 @@ const ReaderView: React.FC<ReaderViewProps> = ({
     if (!storyData || !currentNode) return;
     
     const node = storyData[currentNode];
-    if (!node) return;
+    if (!node) {
+      console.error(`Node "${currentNode}" not found in story data`);
+      return;
+    }
     
     setCurrentText(node.text || "");
     setChoices(node.choices || []);
@@ -117,9 +137,14 @@ const ReaderView: React.FC<ReaderViewProps> = ({
   const handleGoToPage = (pageNumber: number) => {
     if (pageNumber < 1 || pageNumber > totalPages) return;
     
-    const nodeName = nodeMappings.pageToNode[pageNumber];
+    const nodeName = mappings.pageToNode[pageNumber];
     if (!nodeName || !storyData[nodeName]) {
       console.error(`No node found for page ${pageNumber}`);
+      toast({
+        title: "Navigation Error",
+        description: `Could not find content for page ${pageNumber}`,
+        variant: "destructive"
+      });
       return;
     }
     
