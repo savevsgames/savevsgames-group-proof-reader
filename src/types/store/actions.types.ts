@@ -6,6 +6,7 @@
  */
 
 import { CustomStory, StoryChoice } from '../core/story.types';
+import { Comment } from '../features/comments.types';
 
 /**
  * Actions for manipulating story data.
@@ -42,6 +43,29 @@ export interface StoryActions {
   
   // Node mapping actions
   updateNodeMappings: () => void;
+  
+  // Comment actions
+  fetchComments: (storyId: string, storyPosition: number) => Promise<void>;
+  addComment: (
+    storyId: string, 
+    storyPosition: number, 
+    text: string, 
+    commentType: string, 
+    userId: string,
+    currentNode: string
+  ) => Promise<void>;
+  updateComment: (
+    commentId: string, 
+    storyId: string,
+    storyPosition: number,
+    text: string, 
+    commentType: string
+  ) => Promise<void>;
+  deleteComment: (
+    commentId: string,
+    storyId: string,
+    storyPosition: number
+  ) => Promise<void>;
   
   // Compound actions
   initializeStory: (storyId: string) => Promise<void>;

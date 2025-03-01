@@ -6,6 +6,7 @@ import { createStorySlice } from './storySlice';
 import { createNavigationSlice } from './navigationSlice';
 import { createEditorSlice } from './editorSlice';
 import { createUiSlice } from './uiSlice';
+import { createCommentsSlice } from './commentsSlice';
 
 // Create the store with all slices combined
 export const useStoryStore = create<StoryStore>()(
@@ -18,6 +19,7 @@ export const useStoryStore = create<StoryStore>()(
           ...createNavigationSlice(...params),
           ...createEditorSlice(...params),
           ...createUiSlice(...params),
+          ...createCommentsSlice(...params),
         };
         
         // Only log during development and not during frequent updates

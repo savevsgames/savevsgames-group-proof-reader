@@ -1,58 +1,84 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CommentType } from '@/lib/commentTypes';
 import CommentForm from './comments/CommentForm';
 import CommentSection from './comments/CommentSection';
-import { useComments } from './comments/useComments';
-import { User } from '@supabase/supabase-js';
+import { useStoryStore } from '@/stores/storyState';
+import { Comment } from '@/types/features/comments.types';
+import { useAuth } from '@/context/AuthContext';
 
 interface CommentsViewProps {
   storyId: string;
   currentNode: string;
   currentPage: number;
-  onCommentsUpdate: (count: number) => void;
+  onCommentsUpdate?: (count: number) => void;
   onAddToLlmContext?: (commentType: string, commentText: string, username: string) => void;
 }
 
 const CommentsView = ({ 
   storyId, 
   currentNode, 
-  currentPage, 
-  onCommentsUpdate, 
+  currentPage,
+  onCommentsUpdate,
   onAddToLlmContext 
 }: CommentsViewProps) => {
   const { bookId } = useParams();
-  const prevPageRef = useRef(currentPage);
+  const { user } = useAuth();
   
-  const {
-    comments,
-    commentText,
-    commentType,
-    isEditing,
-    editingCommentId,
-    user,
-    setCommentText,
-    setCommentType,
-    handleEditComment,
-    handleCancelEdit,
-    deleteComment
-  } = useComments(storyId, currentPage, onCommentsUpdate);
-
-  // Use both node and page for complete context
-  const commentPageData = {
-    node: currentNode,
-    page: currentPage
+  // Use store selectors for comments state
+  const { comments, commentCount, isLoading } = useStoryStore(state => ({
+    comments: state.comments,
+    commentCount: state.commentCount,
+    isLoading: state.commentsLoading
+  }));
+  
+  // Use store actions for comments operations
+  const { fetchComments } = useStoryStore(state => ({
+    fetchComments: state.fetchComments
+  }));
+  
+  // Local UI state for the comment form
+  const [commentText, setCommentText] = React.useState('');
+  const [commentType, setCommentType] = React.useState<CommentType>('general');
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [editingCommentId, setEditingCommentId] = React.useState<string | null>(null);
+  
+  // Fetch comments when page or node changes
+  useEffect(() => {
+    if (storyId && currentPage > 0) {
+      console.log(`[CommentsView] Fetching comments for page ${currentPage}, node: ${currentNode}`);
+      fetchComments(storyId, currentPage);
+    }
+  }, [storyId, currentPage, currentNode, fetchComments]);
+  
+  // Notify parent component when comment count changes
+  useEffect(() => {
+    if (onCommentsUpdate) {
+      onCommentsUpdate(commentCount);
+    }
+  }, [commentCount, onCommentsUpdate]);
+  
+  // Comment editing handlers
+  const handleEditComment = (comment: Comment) => {
+    setIsEditing(true);
+    setEditingCommentId(comment.id);
+    setCommentText(comment.text);
+    setCommentType(comment.comment_type as CommentType || 'general');
   };
   
-  // Only log when the page actually changes to reduce console spam
-  useEffect(() => {
-    if (prevPageRef.current !== currentPage) {
-      console.log(`[CommentsView] Showing comments for page ${currentPage}, node: ${currentNode}`);
-      prevPageRef.current = currentPage;
-    }
-  }, [currentPage, currentNode]);
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditingCommentId(null);
+    setCommentText('');
+    setCommentType('general');
+  };
+  
+  // Comment delete handler
+  const handleDeleteComment = (commentId: string) => {
+    useStoryStore.getState().deleteComment(commentId, storyId, currentPage);
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -69,11 +95,11 @@ const CommentsView = ({
               isEditing={isEditing}
               editingCommentId={editingCommentId}
               commentText={commentText}
-              commentType={commentType as CommentType}
+              commentType={commentType}
               onCommentTextChange={setCommentText}
               onCommentTypeChange={setCommentType}
               onCancelEdit={handleCancelEdit}
-              onCommentsUpdate={onCommentsUpdate}
+              onCommentsUpdate={() => {}} // No longer needed as store handles updates
               comments={comments}
             />
           ) : null}
@@ -82,7 +108,7 @@ const CommentsView = ({
             user={user}
             comments={comments}
             onEditComment={handleEditComment}
-            onDeleteComment={deleteComment}
+            onDeleteComment={handleDeleteComment}
             onAddToLlmContext={onAddToLlmContext}
           />
         </div>

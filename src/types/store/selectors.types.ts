@@ -13,12 +13,17 @@ import { StoryStore } from './store.types';
 export type EqualityFn<T> = (previous: T, next: T) => boolean;
 
 /**
- * Type for story selector function that supports the optional equality function argument.
+ * Type for a selector function that extracts data from the store and supports an optional equality function.
  */
-export interface StorySelector<T> {
+export type StorySelector<T> = {
   (state: StoryStore): T;
-  (state: StoryStore, equalityFn: EqualityFn<T>): T;
-}
+  (state: StoryStore, equalityFn?: EqualityFn<T>): T;
+};
+
+/**
+ * Helper type for creating type-safe store selectors.
+ */
+export type TypedSelector<T> = <U>(selector: (state: T) => U, equalityFn?: EqualityFn<U>) => U;
 
 /**
  * Store selector utility types for Zustand usage.
@@ -28,4 +33,5 @@ export interface StoreSelectors {
   useNavigationState: () => import('../core/navigation.types').NavigationSelector;
   useContentState: () => import('./state.types').ContentSelector;
   useMetadataState: () => import('./state.types').MetadataSelector;
+  useCommentsState: () => import('./state.types').CommentsSelector;
 }

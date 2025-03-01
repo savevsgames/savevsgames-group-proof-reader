@@ -1,182 +1,80 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+
+import React, { useState, useEffect, useCallback } from "react";
 import { CommentModal } from "./CommentModal";
 import { BookLayout } from "./story/BookLayout";
 import { useAuth } from "@/context/AuthContext";
-import { fetchComments } from "@/lib/storyUtils";
 import { User } from "@supabase/supabase-js";
 import { useStoryStore } from "@/stores/storyState";
 import { shallow } from "zustand/shallow";
 import { 
-  StoryEngineProps, 
-  Comment,
+  StoryEngineProps,
   StoryStore,
-  StorySelector,
-  EqualityFn
+  StorySelector
 } from "@/types";
 
 export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
   const { user } = useAuth();
   
-  // Stable references to prevent infinite update loops
-  const stableStoryId = useRef(storyId);
-  const updateCountRef = useRef(0);
+  // Use specific selectors to minimize re-renders
+  const uiState = useStoryStore(state => ({
+    loading: state.loading,
+    error: state.error
+  }));
   
-  useEffect(() => {
-    // Update stable ref when prop changes
-    stableStoryId.current = storyId;
-  }, [storyId]);
+  const metadataState = useStoryStore(state => ({
+    bookTitle: state.title,
+    totalPages: state.totalPages
+  }), shallow);
   
-  // Group selectors into logical categories to minimize re-renders
-  // UI state
-  const uiState = useStoryStore(
-    (state: StoryStore) => ({ 
-      loading: state.loading,
-      error: state.error 
-    }),
-    shallow as unknown as EqualityFn<{ loading: boolean; error: string | null }>
-  );
+  const navigationState = useStoryStore(state => ({
+    currentPage: state.currentPage,
+    canGoBack: state.canGoBack,
+    currentNode: state.currentNode
+  }), shallow);
   
-  // Book metadata - separate selector
-  const metadataState = useStoryStore(
-    (state: StoryStore) => ({ 
-      bookTitle: state.title,
-      totalPages: state.totalPages
-    }),
-    shallow as unknown as EqualityFn<{ bookTitle: string; totalPages: number }>
-  );
+  const contentState = useStoryStore(state => ({
+    currentText: state.currentText,
+    currentChoices: state.currentChoices,
+    canContinue: state.canContinue,
+    currentStoryPosition: state.currentStoryPosition
+  }), shallow);
   
-  // Navigation and content state - separate selector 
-  const contentState = useStoryStore(
-    (state: StoryStore) => ({
-      currentPage: state.currentPage,
-      currentText: state.currentText,
-      currentChoices: state.currentChoices,
-      canContinue: state.canContinue,
-      canGoBack: state.canGoBack,
-      currentStoryPosition: state.currentStoryPosition,
-      currentNode: state.currentNode,
-      nodeMappings: state.nodeMappings,
-      storyData: state.storyData
-    }),
-    shallow as unknown as EqualityFn<{
-      currentPage: number;
-      currentText: string;
-      currentChoices: any[];
-      canContinue: boolean;
-      canGoBack: boolean;
-      currentStoryPosition: number;
-      currentNode: string;
-      nodeMappings: any;
-      storyData: any;
-    }>
-  );
+  const commentsState = useStoryStore(state => ({
+    comments: state.comments,
+    commentCount: state.commentCount
+  }), shallow);
   
-  // UI state that can change frequently
-  const [commentCount, setCommentCount] = useState(0);
+  // Actions don't need shallow comparison as they don't change
+  const actions = useStoryStore(state => ({
+    handleContinue: state.handleContinue,
+    handleChoice: state.handleChoice,
+    goBack: state.goBack,
+    handleRestart: state.handleRestart,
+    handlePageChange: state.handlePageChange,
+    fetchComments: state.fetchComments
+  }));
   
-  // Actions get their own selector to avoid re-renders on state changes
-  const actions = useStoryStore(
-    (state: StoryStore) => ({
-      handleContinue: state.handleContinue,
-      handleChoice: state.handleChoice,
-      goBack: state.goBack,
-      handleRestart: state.handleRestart,
-      handlePageChange: state.handlePageChange,
-      setCommentCount: state.setCommentCount
-    }),
-    shallow as unknown as EqualityFn<{
-      handleContinue: () => Promise<void>;
-      handleChoice: (index: number) => Promise<void>;
-      goBack: () => void;
-      handleRestart: () => Promise<void>;
-      handlePageChange: (pageNumber: number) => Promise<void>;
-      setCommentCount: (count: number) => void;
-    }>
-  );
-  
-  // Log component state - limit frequency to avoid console flooding
-  useEffect(() => {
-    updateCountRef.current += 1;
-    const updateCount = updateCountRef.current;
-    
-    // Only log every 5th update or important ones
-    if (updateCount % 5 === 0 || metadataState.totalPages > 1) {
-      console.log("[StoryEngine] Component state updated:", {
-        updateCount,
-        storyId,
-        currentPage: contentState.currentPage,
-        totalPages: metadataState.totalPages,
-        currentNode: contentState.currentNode,
-        mappedNodes: contentState.nodeMappings?.nodeToPage 
-          ? Object.keys(contentState.nodeMappings.nodeToPage).length 
-          : 0,
-        hasChoices: contentState.currentChoices.length > 0,
-        commentCount
-      });
-    }
-  }, [
-    storyId, 
-    contentState.currentPage, 
-    metadataState.totalPages, 
-    contentState.currentNode, 
-    contentState.nodeMappings, 
-    contentState.currentChoices.length, 
-    commentCount
-  ]);
-
-  // Comment state and handling
+  // This is UI-only state and should remain local
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [fetchingComments, setFetchingComments] = useState(false);
 
-  // Creating a stable reference to updateCommentCount
-  const updateCommentCount = useCallback(() => {
-    if (fetchingComments) return;
-    
-    setFetchingComments(true);
-    const currentStoryPos = contentState.currentStoryPosition;
-    
-    // Don't log frequently
-    if (updateCountRef.current % 10 === 0) {
-      console.log("[StoryEngine] Fetching comments for position:", currentStoryPos);
-    }
-    
-    fetchComments(stableStoryId.current, currentStoryPos)
-      .then(commentsData => {
-        setComments(commentsData);
-        setCommentCount(commentsData.length);
-        // Only update store if count changed to reduce updates
-        if (commentCount !== commentsData.length) {
-          actions.setCommentCount(commentsData.length);
-        }
-      })
-      .finally(() => {
-        setFetchingComments(false);
-      });
-  }, [storyId, contentState.currentStoryPosition, fetchingComments, actions, commentCount]);
-
-  // Only update comments when currentStoryPosition changes
-  useEffect(() => {
-    updateCommentCount();
-  }, [contentState.currentStoryPosition, updateCommentCount]);
-
-  // Handle comment modal open/close
+  // Only load comments when modal opens to avoid unnecessary API calls
   const handleCommentModalOpenChange = useCallback((open: boolean) => {
     setIsCommentModalOpen(open);
     
     if (open) {
-      // Fetch comments when modal opens
-      fetchComments(storyId, contentState.currentStoryPosition).then(commentsData => {
-        setComments(commentsData);
-      });
-    } else {
-      // Use setTimeout to avoid state update loops
-      setTimeout(() => {
-        updateCommentCount();
-      }, 300);
+      // Fetch latest comments when modal opens
+      actions.fetchComments(storyId, contentState.currentStoryPosition);
     }
-  }, [storyId, contentState.currentStoryPosition, updateCommentCount]);
+  }, [storyId, contentState.currentStoryPosition, actions]);
 
+  // Initialize comments when we load a new story position
+  useEffect(() => {
+    if (storyId && contentState.currentStoryPosition > 0) {
+      actions.fetchComments(storyId, contentState.currentStoryPosition);
+    }
+  }, [storyId, contentState.currentStoryPosition, actions.fetchComments]);
+
+  // Show loading state
   if (uiState.loading) {
     return (
       <div className="flex justify-center items-center h-[60vh]">
@@ -186,6 +84,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
     );
   }
 
+  // Show error state
   if (uiState.error) {
     return (
       <div className="text-center p-8 text-[#E8DCC4]">
@@ -199,16 +98,16 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
     <div className="flex justify-center items-center w-full">
       <BookLayout
         bookTitle={metadataState.bookTitle}
-        currentPage={contentState.currentPage}
+        currentPage={navigationState.currentPage}
         totalPages={metadataState.totalPages}
         currentText={contentState.currentText}
-        currentNode={contentState.currentNode}
+        currentNode={navigationState.currentNode}
         canContinue={contentState.canContinue}
         choices={contentState.currentChoices}
         isEnding={!contentState.canContinue && contentState.currentChoices.length === 0}
-        canGoBack={contentState.canGoBack}
-        commentCount={commentCount}
-        comments={comments}
+        canGoBack={navigationState.canGoBack}
+        commentCount={commentsState.commentCount}
+        comments={commentsState.comments}
         currentUser={user as User}
         storyId={storyId}
         onContinue={actions.handleContinue}

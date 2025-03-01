@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Send } from 'lucide-react';
 import CommentTypeSelector from "@/components/comments/CommentTypeSelector";
 import { CommentType } from '@/lib/commentTypes';
-import { User } from '@supabase/supabase-js'; // Import the correct User type
-import { supabase } from '@/lib/supabase';
-import { Comment } from '@/components/comments/types';
+import { User } from '@supabase/supabase-js';
+import { Comment } from '@/types/features/comments.types';
+import { useStoryStore } from '@/stores/storyState';
 
 interface CommentFormProps {
   user: User | null;
@@ -21,7 +21,7 @@ interface CommentFormProps {
   onCommentTextChange: (text: string) => void;
   onCommentTypeChange: (type: CommentType) => void;
   onCancelEdit: () => void;
-  onCommentsUpdate: (count: number) => void;
+  onCommentsUpdate: (count: number) => void; // Keeping for backward compatibility
   comments: Comment[];
 }
 
@@ -40,69 +40,27 @@ const CommentForm = ({
   onCommentsUpdate,
   comments,
 }: CommentFormProps) => {
+  // Get store actions
+  const { addComment, updateComment } = useStoryStore(state => ({
+    addComment: state.addComment,
+    updateComment: state.updateComment
+  }));
   
-  const postComment = async (text: string, type: CommentType) => {
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    
     if (!user) {
       console.error("User not logged in.");
       return;
     }
-
-    try {
-      const { data, error } = await supabase
-        .from('comments')
-        .insert([{
-          story_id: storyId,
-          story_position: currentPage,
-          story_position_old: String(currentPage), // Add the required field
-          story_node: currentNode,
-          text: text,
-          comment_type: type,
-          user_id: user.id
-        }])
-        .select('*')
-        .single();
-
-      if (error) {
-        console.error("Error posting comment:", error);
-      } else if (data) {
-        onCommentTextChange('');
-        onCommentsUpdate(comments.length + 1);
-      }
-    } catch (error) {
-      console.error("Unexpected error posting comment:", error);
-    }
-  };
-
-  const updateComment = async (commentId: string, text: string, type: CommentType) => {
-    try {
-      const { data, error } = await supabase
-        .from('comments')
-        .update({ 
-          text: text, 
-          comment_type: type,
-          // Don't update story_node or story_position when editing
-        })
-        .eq('id', commentId)
-        .select('*')
-        .single();
-  
-      if (error) {
-        console.error("Error updating comment:", error);
-      } else if (data) {
-        onCommentTextChange('');
-        onCancelEdit();
-      }
-    } catch (error) {
-      console.error("Unexpected error updating comment:", error);
-    }
-  };
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+    
     if (isEditing && editingCommentId) {
-      await updateComment(editingCommentId, commentText, commentType);
+      await updateComment(editingCommentId, storyId, currentPage, commentText, commentType);
+      onCommentTextChange('');
+      onCancelEdit();
     } else {
-      await postComment(commentText, commentType);
+      await addComment(storyId, currentPage, commentText, commentType, user.id, currentNode);
+      onCommentTextChange('');
     }
   };
 

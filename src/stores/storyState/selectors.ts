@@ -28,6 +28,11 @@ export const selectStoryData: StorySelector<any> = (state: StoryStore) => state.
 export const selectStoryId: StorySelector<string | null> = (state: StoryStore) => state.storyId;
 export const selectTitle: StorySelector<string> = (state: StoryStore) => state.title;
 
+// Comment selectors
+export const selectComments: StorySelector<any[]> = (state: StoryStore) => state.comments;
+export const selectCommentsLoading: StorySelector<boolean> = (state: StoryStore) => state.commentsLoading;
+export const selectCommentsError: StorySelector<string | null> = (state: StoryStore) => state.commentsError;
+
 // Compound selectors
 export const selectStoryIsReady: StorySelector<boolean> = (state: StoryStore) => 
   !state.loading && state.storyData !== null && !state.error;
@@ -65,4 +70,17 @@ export const selectUiState: StorySelector<{
   loading: state.loading,
   error: state.error,
   commentCount: state.commentCount
+});
+
+// Selector for comments state
+export const selectCommentsState: StorySelector<{
+  comments: any[];
+  commentCount: number;
+  isLoading: boolean;
+  error: string | null;
+}> = (state: StoryStore) => ({
+  comments: state.comments,
+  commentCount: state.commentCount,
+  isLoading: state.commentsLoading,
+  error: state.commentsError
 });

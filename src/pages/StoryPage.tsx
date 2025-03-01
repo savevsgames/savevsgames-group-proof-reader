@@ -6,7 +6,6 @@ import Header from "@/components/Header";
 import { useToast } from "@/hooks/use-toast";
 import { useStoryStore } from "@/stores/storyState";
 import { shallow } from "zustand/shallow";
-import { StoryStore, StorySelector, EqualityFn } from "@/types";
 
 const StoryPage = () => {
   const { id } = useParams();
@@ -20,32 +19,22 @@ const StoryPage = () => {
     error,
     title,
     totalPages
-  } = useStoryStore(
-    (state: StoryStore) => ({
-      storyId: state.storyId,
-      loading: state.loading,
-      error: state.error,
-      title: state.title,
-      totalPages: state.totalPages
-    }), 
-    shallow as unknown as EqualityFn<{
-      storyId: string | null;
-      loading: boolean;
-      error: string | null;
-      title: string;
-      totalPages: number;
-    }>
-  );
+  } = useStoryStore(state => ({
+    storyId: state.storyId,
+    loading: state.loading,
+    error: state.error,
+    title: state.title,
+    totalPages: state.totalPages
+  }), shallow);
   
   // Actions selector - separate from state to avoid re-renders
-  const initializeStory = useStoryStore((state: StoryStore) => state.initializeStory);
+  const initializeStory = useStoryStore(state => state.initializeStory);
   
   // Memoize the initialization to prevent multiple calls
-  // IMPORTANT: Remove dependencies that cause circular updates
   const handleInitialization = useCallback(async (storyId: string) => {
     console.log("[StoryPage] Initializing story with ID:", storyId);
     await initializeStory(storyId);
-  }, [initializeStory]); // Only depend on the stable action
+  }, [initializeStory]);
   
   // Initialize story on mount or when ID changes
   useEffect(() => {

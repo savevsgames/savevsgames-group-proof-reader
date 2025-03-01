@@ -7,6 +7,7 @@
 
 import { CustomStory } from '../core/story.types';
 import { NavigationState } from '../core/navigation.types';
+import { Comment } from '../features/comments.types';
 
 /**
  * Core state of the story store.
@@ -43,6 +44,11 @@ export interface StoryState {
   
   // Format
   usingCustomFormat: boolean;
+  
+  // Comments state
+  comments: Comment[];
+  commentsLoading: boolean;
+  commentsError: string | null;
 }
 
 /**
@@ -68,4 +74,13 @@ export interface ContentSelector {
 export interface MetadataSelector {
   bookTitle: string;
   totalPages: number;
+}
+
+/**
+ * Type for the comments selector.
+ */
+export interface CommentsSelector {
+  comments: Comment[];
+  commentCount: number;
+  isLoading: boolean;
 }

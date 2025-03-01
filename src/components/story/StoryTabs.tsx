@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
@@ -10,7 +11,8 @@ import ReaderView from "./ReaderView";
 import { useAuth } from "@/context/AuthContext";
 import { generateNodeMappings } from "@/lib/story/mappings";
 import { CustomStory, NodeMappings, TabType } from "@/types";
-import { AlertCircle, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
+import { useStoryStore } from "@/stores/storyState";
+import { BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface StoryTabsProps {
   storyId: string;
@@ -30,8 +32,12 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
   onNodeChange,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>("json");
-  const [commentCount, setCommentCount] = useState<number>(0);
   const { user } = useAuth();
+  
+  // Get comment count from store
+  const { commentCount } = useStoryStore(state => ({
+    commentCount: state.commentCount
+  }));
   
   const [mappings, setMappings] = useState<NodeMappings>({
     nodeToPage: {},
@@ -75,10 +81,15 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
 
   const handleTabChange = (value: string) => {
     setActiveTab(value as TabType);
-  };
-
-  const handleCommentsUpdate = (count: number) => {
-    setCommentCount(count);
+    
+    // When switching to comments tab, make sure we fetch the latest comments
+    if (value === 'comments') {
+      const currentPage = currentNode && mappings.nodeToPage ? 
+        (mappings.nodeToPage[currentNode] || 1) : 1;
+      
+      // Fetch comments from store
+      useStoryStore.getState().fetchComments(storyId, currentPage);
+    }
   };
 
   const currentPage = currentNode && mappings.nodeToPage ? 
@@ -211,7 +222,6 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
           <CommentsView 
             storyId={storyId} 
             currentNode={currentNode}
-            onCommentsUpdate={handleCommentsUpdate}
             currentPage={currentPage}
             onAddToLlmContext={handleAddToLlmContext}
           />
