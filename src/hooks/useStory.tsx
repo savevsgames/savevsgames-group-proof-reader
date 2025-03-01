@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useStoryLoading } from './useStoryLoading';
-import { useStoryNavigation, NavigationState, NavigationActions } from './useStoryNavigation';
+import { useNavigation } from './navigation/useNavigation';
 
 export const useStory = (storyId: string | undefined) => {
   const {
@@ -17,7 +17,7 @@ export const useStory = (storyId: string | undefined) => {
   } = useStoryLoading(storyId);
 
   // Initialize navigation with loaded story data
-  const [navigationState, navigationActions] = useStoryNavigation({
+  const [navigationState, navigationActions] = useNavigation({
     storyData: customStory,
     story,
     usingCustomFormat,
@@ -26,36 +26,12 @@ export const useStory = (storyId: string | undefined) => {
     totalPages
   });
 
-  // Initialize story content once loading is complete
-  useEffect(() => {
-    if (!isLoading && story && story.canContinue) {
-      const nextText = story.Continue();
-      navigationState.currentText = nextText;
-      navigationState.canContinue = story.canContinue;
-      
-      if (!story.canContinue) {
-        navigationState.currentChoices = story.currentChoices;
-      } else {
-        navigationState.currentChoices = [];
-      }
-    } else if (!isLoading && customStory) {
-      const startNode = customStory.start ? 'start' : 'root';
-      navigationState.currentNode = startNode;
-      
-      const startNodeData = customStory[startNode];
-      if (startNodeData && startNodeData.text) {
-        navigationState.currentText = startNodeData.text;
-        navigationState.currentChoices = startNodeData.choices || [];
-      }
-    }
-  }, [isLoading, story, customStory]);
-
   // Load comment count when navigation state changes
   useEffect(() => {
     if (!isLoading && storyId) {
       navigationActions.updateCommentCount();
     }
-  }, [isLoading, navigationState.currentStoryPosition, storyId]);
+  }, [isLoading, navigationState.currentStoryPosition, storyId, navigationActions]);
 
   // Destructure and return all the components of our hook
   return {
