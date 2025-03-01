@@ -38,25 +38,42 @@ const StoryEditPage = () => {
           console.log("Fetched story data:", data);
           setStory(data);
           
-          // Check if story_content exists and is not null/undefined
+          // Try to get story content from various possible sources
+          let storyContent = null;
+          
+          // First, check if story_content exists (it might have been added in previous edits)
           if (data.story_content) {
             try {
-              const parsedStory = JSON.parse(data.story_content);
-              setStoryData(parsedStory);
+              storyContent = JSON.parse(data.story_content);
+              console.log("Found story_content, using that");
             } catch (parseError) {
-              console.error("Error parsing story content:", parseError);
-              setError("Failed to parse existing story content.");
-              // Create a default empty story structure
-              setStoryData({
-                root: {
-                  text: "Failed to parse story format.",
-                  choices: [],
-                },
-              });
+              console.error("Error parsing story_content:", parseError);
             }
+          }
+          
+          // If no valid story_content, try to fetch from story_url
+          if (!storyContent && data.story_url) {
+            try {
+              console.log("Attempting to fetch story from URL:", data.story_url);
+              const response = await fetch(data.story_url);
+              if (response.ok) {
+                storyContent = await response.json();
+                console.log("Successfully loaded story from URL");
+              } else {
+                console.error("Failed to fetch story from URL:", response.statusText);
+              }
+            } catch (fetchError) {
+              console.error("Error fetching story from URL:", fetchError);
+            }
+          }
+          
+          // If we have valid story content, use it
+          if (storyContent) {
+            setStoryData(storyContent);
+            setError(null);
           } else {
-            console.log("No story_content found, creating default structure");
-            // If story_content is null/undefined, create a default structure
+            // Create a default empty story structure as fallback
+            console.log("No valid story content found, creating default structure");
             setStoryData({
               root: {
                 text: "Start writing your story here...",
