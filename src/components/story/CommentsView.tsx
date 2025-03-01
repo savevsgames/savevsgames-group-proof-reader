@@ -8,14 +8,16 @@ import { fetchComments } from "@/lib/storyUtils";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Trash, RefreshCw, MessageCircle } from "lucide-react";
+import { Trash, RefreshCw, MessageCircle, ArrowUpRight } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { commentTypeLabels, commentTypeColors } from "@/lib/commentTypes";
 
 interface CommentsViewProps {
   storyId: string;
   currentNode: string;
   onCommentsUpdate: (count: number) => void;
   currentPage: number;
+  onAddToLlmContext?: (text: string) => void;
 }
 
 interface Comment {
@@ -23,6 +25,7 @@ interface Comment {
   content: string;
   created_at: string;
   user_id: string;
+  comment_type: string;
   profile: {
     username: string;
   };
@@ -33,6 +36,7 @@ const CommentsView: React.FC<CommentsViewProps> = ({
   currentNode,
   onCommentsUpdate,
   currentPage,
+  onAddToLlmContext,
 }) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
@@ -171,6 +175,22 @@ const CommentsView: React.FC<CommentsViewProps> = ({
     }
   };
 
+  const handleAddToLlmContext = (comment: Comment) => {
+    if (!onAddToLlmContext) return;
+    
+    const commentType = comment.comment_type || 'general';
+    const typeLabel = commentTypeLabels[commentType as keyof typeof commentTypeLabels] || 'Comment';
+    
+    const formattedComment = `Comment Type: ${typeLabel}\nUsername: ${comment.profile?.username || 'Anonymous'}\nContent: ${comment.content}`;
+    
+    onAddToLlmContext(formattedComment);
+    
+    toast({
+      title: "Added to context",
+      description: "Comment has been added to the LLM context",
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -226,41 +246,70 @@ const CommentsView: React.FC<CommentsViewProps> = ({
         ) : comments.length > 0 ? (
           <ScrollArea className="h-[400px] pr-4">
             <div className="space-y-4">
-              {comments.map((comment) => (
-                <div
-                  key={comment.id}
-                  className="p-4 border rounded-md bg-slate-50"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center">
-                      <Avatar className="h-8 w-8 mr-2">
-                        <AvatarFallback>
-                          {comment.profile.username.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{comment.profile.username}</p>
-                        <p className="text-xs text-gray-500">
-                          {new Date(comment.created_at).toLocaleString()}
-                        </p>
+              {comments.map((comment) => {
+                const commentType = comment.comment_type || 'general';
+                const typeColor = commentTypeColors[commentType as keyof typeof commentTypeColors] || '#9ca3af';
+                const isDarkBackground = !['suggestion', 'spelling'].includes(commentType);
+                
+                return (
+                  <div
+                    key={comment.id}
+                    className="p-4 border rounded-md bg-slate-50"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center">
+                        <Avatar className="h-8 w-8 mr-2">
+                          <AvatarFallback>
+                            {comment.profile?.username?.charAt(0).toUpperCase() || 'A'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{comment.profile?.username || 'Anonymous'}</p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(comment.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        {onAddToLlmContext && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleAddToLlmContext(comment)}
+                            title="Add to LLM Context"
+                          >
+                            <ArrowUpRight className="h-4 w-4 text-blue-500" />
+                          </Button>
+                        )}
+                        {user && user.id === comment.user_id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteComment(comment.id)}
+                            title="Delete Comment"
+                          >
+                            <Trash className="h-4 w-4 text-red-500" />
+                          </Button>
+                        )}
                       </div>
                     </div>
-                    {user && user.id === comment.user_id && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteComment(comment.id)}
-                        title="Delete Comment"
-                      >
-                        <Trash className="h-4 w-4 text-red-500" />
-                      </Button>
-                    )}
+                    
+                    <div 
+                      className="inline-block px-2 py-1 rounded text-xs font-medium my-2"
+                      style={{ 
+                        backgroundColor: typeColor,
+                        color: isDarkBackground ? 'white' : '#3A2618'
+                      }}
+                    >
+                      {commentTypeLabels[commentType as keyof typeof commentTypeLabels] || 'Comment'}
+                    </div>
+                    
+                    <p className="mt-2 text-gray-700 whitespace-pre-wrap">
+                      {comment.content}
+                    </p>
                   </div>
-                  <p className="mt-2 text-gray-700 whitespace-pre-wrap">
-                    {comment.content}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </ScrollArea>
         ) : (

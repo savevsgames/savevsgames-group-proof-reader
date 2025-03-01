@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +11,7 @@ import { fetchComments } from "@/lib/storyUtils";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import CommentsView from "./CommentsView";
 
 interface LlmIntegrationProps {
   storyId: string;
@@ -241,6 +241,18 @@ User instruction: ${prompt}
     }
   };
 
+  const handleAddToLlmContext = (text: string) => {
+    setPrompt(prev => {
+      const newPrompt = prev ? `${prev}\n\n${text}` : text;
+      return newPrompt;
+    });
+    
+    toast({
+      title: "Added to prompt",
+      description: "Comment information has been added to your prompt.",
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -332,37 +344,17 @@ User instruction: ${prompt}
           <Card className="p-4">
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-lg font-semibold">Reader Comments</h3>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={loadComments}
-                title="Refresh comments"
-              >
-                <RefreshCw className="h-4 w-4" />
-              </Button>
             </div>
             
-            <ScrollArea className="h-[160px]">
-              {comments.length > 0 ? (
-                <div className="space-y-3">
-                  {comments.map((comment, index) => (
-                    <div key={index} className="p-2 border rounded">
-                      <div className="flex items-center text-sm text-gray-500 mb-1">
-                        <MessageSquare className="h-3 w-3 mr-1" />
-                        <span className="font-medium">
-                          {comment.profile?.username || 'Anonymous'}
-                        </span>
-                      </div>
-                      <p className="text-sm">{comment.content}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-gray-400 italic text-center mt-8">
-                  No comments for this page
-                </div>
-              )}
-            </ScrollArea>
+            <CommentsView 
+              storyId={storyId}
+              currentNode={currentNode}
+              currentPage={currentPage}
+              onCommentsUpdate={(count) => {
+                // This function can stay the same
+              }}
+              onAddToLlmContext={handleAddToLlmContext}
+            />
           </Card>
         </div>
       </div>
