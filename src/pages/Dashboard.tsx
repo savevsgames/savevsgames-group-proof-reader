@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { supabase } from '@/lib/supabase';
+import { toast } from "sonner";
 
 interface Story {
   id: string;
@@ -27,14 +29,23 @@ const Dashboard = () => {
     const fetchStories = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/stories`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        const { data: booksData, error: booksError } = await supabase
+          .from('books')
+          .select('*');
+
+        if (booksError) {
+          throw booksError;
         }
-        const data = await response.json();
-        setStories(data);
+
+        setStories(booksData.map(book => ({
+          id: book.id,
+          title: book.title,
+          description: book.subtitle || 'No description available',
+          cover_url: book.cover_url || '/placeholder.svg'
+        })));
       } catch (error) {
         console.error("Could not fetch stories:", error);
+        toast.error("Failed to load stories");
       } finally {
         setLoading(false);
       }
@@ -73,12 +84,13 @@ const Dashboard = () => {
 
           <div className="mb-6 flex items-center space-x-2">
             <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#3A2618]/50" />
               <Input
                 type="text"
                 placeholder="Search stories..."
                 value={searchTerm}
                 onChange={handleSearchChange}
-                className="bg-white border-[#3A2618]/20 text-[#3A2618] pr-10"
+                className="bg-white border-[#3A2618]/20 text-[#3A2618] pl-10 pr-10"
               />
               {searchTerm && (
                 <Button
@@ -89,11 +101,6 @@ const Dashboard = () => {
                 >
                   <X className="h-4 w-4 text-[#3A2618]" />
                 </Button>
-              )}
-              {!searchTerm && (
-                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                  <Search className="h-5 w-5 text-[#3A2618]/50" />
-                </div>
               )}
             </div>
             {isAuthenticated && !isGuest && (
@@ -108,7 +115,7 @@ const Dashboard = () => {
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center">
+            <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 text-[#F97316] animate-spin" />
               <span className="ml-2 text-[#3A2618]">Loading stories...</span>
             </div>
@@ -116,7 +123,7 @@ const Dashboard = () => {
             <ScrollArea className="rounded-md border">
               <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 p-4">
                 {filteredStories.map(story => (
-                  <Card key={story.id} className="bg-[#E8DCC4] text-[#3A2618]">
+                  <Card key={story.id} className="bg-[#E8DCC4] text-[#3A2618] hover:shadow-lg transition-shadow">
                     <CardHeader>
                       <CardTitle className="text-lg font-semibold line-clamp-1">{story.title}</CardTitle>
                       <CardDescription className="line-clamp-2">{story.description}</CardDescription>
@@ -138,7 +145,7 @@ const Dashboard = () => {
                   </Card>
                 ))}
                 {filteredStories.length === 0 && (
-                  <div className="text-center text-[#3A2618]/70 col-span-full">
+                  <div className="text-center text-[#3A2618]/70 col-span-full py-8">
                     No stories found.
                   </div>
                 )}
