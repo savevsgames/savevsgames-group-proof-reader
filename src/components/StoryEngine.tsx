@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { fetchComments } from '@/lib/storyUtils';
 import { Comment } from './comments/types';
-import { User } from '@supabase/supabase-js'; // Import the correct User type
+import { User } from '@supabase/supabase-js';
 
 export const StoryEngine: React.FC = () => {
   const { id: storyId } = useParams<{ id: string }>();
@@ -115,7 +115,7 @@ export const StoryEngine: React.FC = () => {
         canGoBack={canGoBack}
         commentCount={commentCount}
         comments={comments}
-        currentUser={user as User} // Cast to the expected User type
+        currentUser={user as User}
         storyId={storyId || ''}
         onContinue={handleContinue}
         onChoice={handleChoice}
@@ -130,7 +130,7 @@ export const StoryEngine: React.FC = () => {
         onOpenChange={handleCommentModalOpenChange}
         storyId={storyId || ''}
         storyPosition={currentStoryPosition}
-        currentUser={user as User} // Cast to the expected User type
+        currentUser={user as User}
       />
     </div>
   );
