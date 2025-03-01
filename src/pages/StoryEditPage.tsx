@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
@@ -5,6 +6,7 @@ import { CustomStory } from "@/lib/storyUtils";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import StoryTabs from "@/components/story/StoryTabs";
+import { useToast } from "@/hooks/use-toast";
 
 const StoryEditPage = () => {
   const { id } = useParams();
@@ -15,11 +17,13 @@ const StoryEditPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchStory = async () => {
       setLoading(true);
       try {
+        console.log("Fetching story with ID:", storyId);
         const { data, error } = await supabase
           .from("books")
           .select("*")
@@ -31,16 +35,31 @@ const StoryEditPage = () => {
         }
 
         if (data) {
+          console.log("Fetched story data:", data);
           setStory(data);
-          try {
-            const parsedStory = JSON.parse(data.story_content);
-            setStoryData(parsedStory);
-          } catch (parseError) {
-            console.error("Error parsing story content:", parseError);
-            setError("Failed to parse existing story content.");
+          
+          // Check if story_content exists and is not null/undefined
+          if (data.story_content) {
+            try {
+              const parsedStory = JSON.parse(data.story_content);
+              setStoryData(parsedStory);
+            } catch (parseError) {
+              console.error("Error parsing story content:", parseError);
+              setError("Failed to parse existing story content.");
+              // Create a default empty story structure
+              setStoryData({
+                root: {
+                  text: "Failed to parse story format.",
+                  choices: [],
+                },
+              });
+            }
+          } else {
+            console.log("No story_content found, creating default structure");
+            // If story_content is null/undefined, create a default structure
             setStoryData({
               root: {
-                text: "Failed to parse story format.",
+                text: "Start writing your story here...",
                 choices: [],
               },
             });
@@ -49,6 +68,7 @@ const StoryEditPage = () => {
           setError("Story not found.");
         }
       } catch (error: any) {
+        console.error("Error fetching story:", error);
         setError(error.message);
       } finally {
         setLoading(false);
@@ -78,10 +98,19 @@ const StoryEditPage = () => {
         throw error;
       }
 
-      alert("Story saved successfully!");
+      toast({
+        title: "Success",
+        description: "Story saved successfully!",
+        duration: 3000,
+      });
     } catch (error: any) {
       console.error("Error saving story:", error);
-      alert(`Failed to save story: ${error.message}`);
+      toast({
+        title: "Error",
+        description: `Failed to save story: ${error.message}`,
+        variant: "destructive",
+        duration: 3000,
+      });
     } finally {
       setSaving(false);
     }
