@@ -23,6 +23,7 @@ const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [rawData, setRawData] = useState<any>(null);
   const { isAuthenticated, isGuest } = useAuth();
   const navigate = useNavigate();
 
@@ -32,18 +33,28 @@ const Dashboard = () => {
       try {
         console.log("Fetching stories from Supabase...");
         
+        // Log authentication state
+        console.log("Auth state:", { isAuthenticated, isGuest });
+        
         // Log the supabase client to verify it's properly initialized
         console.log("Supabase client:", supabase);
+        
+        // Add more detailed information on the query request
+        console.log("Executing query: supabase.from('books').select('*')");
         
         const { data: booksData, error: booksError } = await supabase
           .from('books')
           .select('*');
 
         console.log("Raw response from Supabase:", { data: booksData, error: booksError });
+        
+        // Store the raw data for debugging
+        setRawData(booksData);
 
         if (booksError) {
           console.error("Error fetching books:", booksError);
           setError(`Failed to fetch books: ${booksError.message}`);
+          toast.error(`Failed to fetch books: ${booksError.message}`);
           throw booksError;
         }
 
@@ -59,9 +70,22 @@ const Dashboard = () => {
         
         if (booksData.length === 0) {
           console.log("The books table exists but is empty");
+          toast.info("No stories found in the database");
           setStories([]);
           setLoading(false);
           return;
+        }
+
+        // Check if we can access the books table structure
+        try {
+          const { data: tableInfo, error: tableError } = await supabase
+            .from('books')
+            .select('*')
+            .limit(0);
+          
+          console.log("Table structure check:", { tableInfo, tableError });
+        } catch (tableCheckError) {
+          console.error("Error checking table structure:", tableCheckError);
         }
 
         // Log each book to check their structure
@@ -74,8 +98,13 @@ const Dashboard = () => {
         });
 
         const formattedStories = booksData.map(book => {
+          console.log("Processing book:", book);
+          
+          if (!book.id) console.warn("Book missing ID:", book);
+          if (!book.title) console.warn("Book missing title:", book);
+          
           const story = {
-            id: book.id,
+            id: book.id || 'missing-id',
             title: book.title || 'Untitled Story',
             description: book.subtitle || 'No description available',
             cover_url: book.cover_url || '/placeholder.svg'
@@ -89,14 +118,44 @@ const Dashboard = () => {
       } catch (error: any) {
         console.error("Could not fetch stories:", error);
         setError(`Failed to load stories: ${error.message}`);
-        toast.error("Failed to load stories");
+        toast.error(`Failed to load stories: ${error.message}`);
       } finally {
         setLoading(false);
       }
     };
 
+    // Check if supabase is initialized correctly
+    if (!supabase) {
+      console.error("Supabase client is not initialized");
+      setError("Database connection is not available");
+      setLoading(false);
+      return;
+    }
+
     fetchStories();
-  }, []);
+  }, [isAuthenticated, isGuest]);
+
+  // Function to try and diagnose database issues
+  const diagnoseDbIssues = async () => {
+    try {
+      console.log("Running database diagnostics...");
+      
+      // Check if we can connect to supabase
+      const { data: healthCheck, error: healthError } = await supabase.from('books').select('count(*)', { count: 'exact' });
+      
+      console.log("Health check results:", { healthCheck, healthError });
+      
+      // List all tables the current user can access
+      const { data: tableList, error: tableListError } = await supabase.rpc('get_schema_info');
+      
+      console.log("Available tables:", { tableList, tableListError });
+      
+      toast.info("Diagnostics results logged to console");
+    } catch (error) {
+      console.error("Diagnostics failed:", error);
+      toast.error("Failed to run diagnostics");
+    }
+  };
 
   const filteredStories = stories.filter(story =>
     story.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -167,6 +226,9 @@ const Dashboard = () => {
             <div className="p-6 text-center text-red-600 bg-white rounded-md border border-[#3A2618]/20">
               <p>{error}</p>
               <p className="mt-2">Please check the console for more details.</p>
+              <Button onClick={diagnoseDbIssues} className="mt-4 bg-[#3A2618] hover:bg-[#3A2618]/80">
+                Run Diagnostics
+              </Button>
             </div>
           ) : (
             <div className="rounded-md border border-[#3A2618]/20 bg-white p-4">
@@ -214,18 +276,39 @@ const Dashboard = () => {
                           <>Stories may need to be added by an administrator.</>
                         )}
                       </p>
+                      {!isAuthenticated && (
+                        <p className="mt-2">
+                          You may need to <Link to="/auth" className="text-[#F97316] hover:underline">sign in</Link> to view stories.
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
               )}
 
-              <div className="mt-4 p-4 bg-gray-100 rounded-md">
+              <div className="mt-6 p-4 bg-gray-100 rounded-md">
                 <h3 className="font-bold mb-2">Debug Information:</h3>
-                <p>Stories array length: {stories.length}</p>
-                <p>Filtered stories length: {filteredStories.length}</p>
-                <p>Search term: "{searchTerm}"</p>
-                <p>Is authenticated: {isAuthenticated ? "Yes" : "No"}</p>
-                <p>Is guest: {isGuest ? "Yes" : "No"}</p>
+                <div className="space-y-2">
+                  <p><span className="font-semibold">Stories array length:</span> {stories.length}</p>
+                  <p><span className="font-semibold">Filtered stories length:</span> {filteredStories.length}</p>
+                  <p><span className="font-semibold">Search term:</span> "{searchTerm}"</p>
+                  <p><span className="font-semibold">Auth state:</span> {isAuthenticated ? "Authenticated" : "Not authenticated"} | {isGuest ? "Guest mode" : "Full user"}</p>
+                  
+                  <div className="mt-4">
+                    <h4 className="font-semibold mb-1">Raw Database Response:</h4>
+                    <div className="max-h-32 overflow-auto bg-gray-200 p-2 rounded text-sm">
+                      <pre>{JSON.stringify(rawData, null, 2) || "No data received"}</pre>
+                    </div>
+                  </div>
+                  
+                  <Button 
+                    onClick={diagnoseDbIssues} 
+                    className="mt-2 bg-[#3A2618] hover:bg-[#3A2618]/80 text-sm"
+                    size="sm"
+                  >
+                    Run Database Diagnostics
+                  </Button>
+                </div>
               </div>
             </div>
           )}
