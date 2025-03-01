@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Book } from "lucide-react";
+import { Book, Edit } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/Header";
 
@@ -17,6 +18,7 @@ interface BookType {
   category: string;
   lastUpdated: Date | string;
   story_url?: string;
+  creator_id?: string;
 }
 
 const Dashboard = () => {
@@ -52,6 +54,7 @@ const Dashboard = () => {
             lastUpdated: book.updated_at
               ? new Date(book.updated_at)
               : new Date(),
+            creator_id: book.creator_id,
           }));
           setBooks(mappedBooks);
           console.log("Fetched books:", mappedBooks);
@@ -110,8 +113,19 @@ const Dashboard = () => {
     }
   };
 
+  const handleEditBook = () => {
+    if (selectedBook) {
+      navigate(`/story/edit/${selectedBook.id}`);
+    }
+  };
+
   const handleCloseDetails = () => {
     setSelectedBook(null);
+  };
+
+  // Function to check if user is the creator of the book
+  const isCreator = (book: BookType) => {
+    return user && book.creator_id === user.id;
   };
 
   // Function to get the appropriate category color
@@ -192,6 +206,13 @@ const Dashboard = () => {
                         target.src = "/shadowtidecover1.webp";
                       }}
                     />
+                    
+                    {/* Edit icon for creator */}
+                    {isCreator(book) && (
+                      <div className="absolute top-2 right-2 bg-white bg-opacity-80 p-1 rounded-full">
+                        <Edit className="h-4 w-4 text-[#F97316]" />
+                      </div>
+                    )}
                   </div>
                   <div className="p-4">
                     <h3 className="font-serif font-bold text-lg text-[#3A2618] mb-1">
@@ -278,12 +299,24 @@ const Dashboard = () => {
                   </span>
                 </div>
 
-                <button
-                  onClick={handleReadBook}
-                  className="w-full bg-[#F97316] text-[#E8DCC4] py-3 rounded-md font-medium hover:bg-[#E86305] transition-colors duration-200"
-                >
-                  Read Story
-                </button>
+                <div className="flex flex-col space-y-3">
+                  <button
+                    onClick={handleReadBook}
+                    className="w-full bg-[#F97316] text-[#E8DCC4] py-3 rounded-md font-medium hover:bg-[#E86305] transition-colors duration-200"
+                  >
+                    Read Story
+                  </button>
+                  
+                  {/* Edit button - only shown to creators */}
+                  {isCreator(selectedBook) && (
+                    <button
+                      onClick={handleEditBook}
+                      className="w-full bg-white text-[#F97316] border border-[#F97316] py-3 rounded-md font-medium hover:bg-[#F97316]/10 transition-colors duration-200 flex items-center justify-center"
+                    >
+                      <Edit className="h-4 w-4 mr-2" /> Edit Story
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
