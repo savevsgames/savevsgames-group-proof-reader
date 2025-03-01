@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { uploadAvatar, deleteAvatar, supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/useAuth';
+import { uploadAvatar, deleteAvatar } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 
 export function UserProfileForm() {
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut, updateProfile, refreshUserProfile } = useAuth();
   const { toast } = useToast();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -22,45 +22,26 @@ export function UserProfileForm() {
   const [fileInputKey, setFileInputKey] = useState(0); // Used to reset file input
 
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (!user) return;
+    if (profile) {
+      setUsername(profile.username || '');
+      setEmail(user?.email || '');
+      setAvatarUrl(profile.avatar_url || null);
       
-      setIsLoading(true);
-      try {
-        // Fetch user profile from profiles table
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-          
-        if (error) {
-          throw error;
-        }
-        
-        if (data) {
-          setUsername(data.username || '');
-          setEmail(user.email || '');
-          setAvatarUrl(data.avatar_url || null);
-          // Format the created_at date
-          if (data.created_at) {
-            setCreatedAt(format(new Date(data.created_at), 'MMMM d, yyyy'));
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching profile:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Error loading profile',
-          description: 'Your profile could not be loaded. Please try again later.',
-        });
-      } finally {
-        setIsLoading(false);
+      // Format the created_at date
+      if (profile.created_at) {
+        setCreatedAt(format(new Date(profile.created_at), 'MMMM d, yyyy'));
       }
-    };
-
-    fetchUserProfile();
-  }, [user, toast]);
+      
+      setIsLoading(false);
+    } else if (user) {
+      // If we have a user but no profile, refresh the profile
+      refreshUserProfile().then(() => {
+        setIsLoading(false);
+      });
+    } else {
+      setIsLoading(false);
+    }
+  }, [user, profile, refreshUserProfile]);
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!user) return;
@@ -82,6 +63,10 @@ export function UserProfileForm() {
       
       if (url) {
         setAvatarUrl(url);
+        
+        // Update profile with new avatar URL
+        await refreshUserProfile();
+        
         toast({
           title: 'Avatar updated',
           description: 'Your avatar has been updated successfully.',
@@ -114,6 +99,10 @@ export function UserProfileForm() {
       }
       
       setAvatarUrl(null);
+      
+      // Update profile after removing avatar
+      await refreshUserProfile();
+      
       toast({
         title: 'Avatar removed',
         description: 'Your avatar has been removed.',
@@ -145,22 +134,11 @@ export function UserProfileForm() {
     setSaving(true);
     
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ username })
-        .eq('id', user.id);
-        
-      if (error) {
-        throw error;
+      const result = await updateProfile({ username });
+      
+      if (result?.error) {
+        throw result.error;
       }
-      
-      toast({
-        title: 'Profile updated',
-        description: 'Your username has been updated successfully.',
-      });
-      
-      // Refresh the page to update the context
-      window.location.reload();
     } catch (error) {
       console.error('Error updating username:', error);
       toast({

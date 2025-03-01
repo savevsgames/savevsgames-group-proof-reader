@@ -3,7 +3,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { User, Book, BookOpen, Home, LogIn, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, useUserInfo } from '@/context/useAuth';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -15,13 +15,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export const MainHeader: React.FC = () => {
-  const { user, isGuest, signOut } = useAuth();
+  const { isAuthenticated, isGuest, signOut } = useAuth();
+  const { userInfo, isLoading } = useUserInfo();
   const location = useLocation();
   const navigate = useNavigate();
   const isActive = (path: string) => location.pathname === path;
 
   const handleSignOut = async () => {
     await signOut();
+    navigate('/auth');
   };
 
   return (
@@ -70,23 +72,25 @@ export const MainHeader: React.FC = () => {
             </Button>
           </nav>
 
-          {user ? (
+          {isLoading ? (
+            <div className="h-9 w-9 rounded-full bg-gray-600/20 animate-pulse"></div>
+          ) : isAuthenticated && userInfo ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="rounded-full h-9 w-9 p-0 text-white">
                   <Avatar className="h-9 w-9 border border-white/30">
-                    {user.avatar_url ? (
-                      <AvatarImage src={user.avatar_url} alt={user.username || 'User'} />
+                    {userInfo.avatarUrl ? (
+                      <AvatarImage src={userInfo.avatarUrl} alt={userInfo.username || 'User'} />
                     ) : (
                       <AvatarFallback className="bg-[#F97316]/90 text-white">
-                        {user.username ? user.username.substring(0, 2).toUpperCase() : 'U'}
+                        {userInfo.username ? userInfo.username.substring(0, 2).toUpperCase() : 'U'}
                       </AvatarFallback>
                     )}
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuLabel>{userInfo.username || 'My Account'}</DropdownMenuLabel>
                 <DropdownMenuItem asChild>
                   <Link to="/profile" className="flex cursor-pointer items-center">
                     <User className="mr-2 h-4 w-4" />

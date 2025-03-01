@@ -1,12 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { MainHeader } from '@/components/MainHeader';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/useAuth';
 import { BookOpenCheck, BookPlus, Loader2, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Story {
   id: string;
@@ -19,7 +20,7 @@ const Dashboard = () => {
   const [stories, setStories] = useState<Story[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-  const { user, isGuest } = useAuth();
+  const { isAuthenticated, isGuest } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -95,7 +96,7 @@ const Dashboard = () => {
                 </div>
               )}
             </div>
-            {!isGuest && (
+            {isAuthenticated && !isGuest && (
               <Button
                 onClick={() => navigate('/story/new')}
                 className="bg-[#F97316] text-white hover:bg-[#F97316]/90"

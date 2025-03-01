@@ -1,48 +1,90 @@
 
-import React, { createContext, useEffect, useState } from 'react';
+import React, { createContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
-import { AuthContextType } from './AuthTypes';
-import { getUserProfile } from './authUtils';
+import { AuthContextType, AuthState, UserProfile } from './AuthTypes';
+import { getUserProfile, updateUserProfile, formatAuthError } from './authUtils';
 
+// Create auth context with default values
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isGuest, setIsGuest] = useState(false);
-  const { toast } = useToast();
-  const navigate = useNavigate();
+// Initial auth state
+const initialState: AuthState = {
+  user: null,
+  profile: null,
+  isLoading: true,
+  isAuthenticated: false,
+  isGuest: false,
+  error: null
+};
 
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [state, setState] = useState<AuthState>(initialState);
+  const { toast } = useToast();
+
+  // Function to update state to avoid repetition
+  const updateState = (updates: Partial<AuthState>) => {
+    setState(prev => ({ ...prev, ...updates }));
+  };
+
+  // Function to refresh user profile data
+  const refreshUserProfile = useCallback(async () => {
+    if (!state.user) return;
+    
+    try {
+      const profileData = await getUserProfile(state.user.id);
+      
+      if (profileData) {
+        updateState({ 
+          profile: profileData,
+          isAuthenticated: true
+        });
+      }
+    } catch (error) {
+      console.error('Error refreshing user profile:', error);
+    }
+  }, [state.user]);
+
+  // Initialize auth state on mount
   useEffect(() => {
     const getInitialSession = async () => {
       try {
-        setIsLoading(true);
+        updateState({ isLoading: true });
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user) {
           // Get additional user profile data
           const profileData = await getUserProfile(session.user.id);
           
-          setUser({
-            ...session.user as User,
-            username: profileData?.username,
-            avatar_url: profileData?.avatar_url
+          updateState({
+            user: session.user as User,
+            profile: profileData,
+            isAuthenticated: true,
+            isGuest: false,
+            error: null
           });
-          setIsGuest(false);
           
           console.log('User authenticated:', session.user.email);
         } else {
           console.log('No active session found');
-          setUser(null);
+          updateState({
+            user: null,
+            profile: null,
+            isAuthenticated: false,
+            error: null
+          });
         }
       } catch (error) {
         console.error('Error checking initial auth session:', error);
-        setUser(null);
+        updateState({
+          user: null,
+          profile: null,
+          isAuthenticated: false,
+          error: 'Failed to check authentication status'
+        });
       } finally {
-        setIsLoading(false);
+        updateState({ isLoading: false });
       }
     };
 
@@ -53,20 +95,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       async (_event, session) => {
         console.log('Auth state changed:', _event, session?.user?.email);
         
+        updateState({ isLoading: true });
+        
         if (session?.user) {
           // Get additional user profile data
           const profileData = await getUserProfile(session.user.id);
           
-          setUser({
-            ...session.user as User,
-            username: profileData?.username,
-            avatar_url: profileData?.avatar_url
+          updateState({
+            user: session.user as User,
+            profile: profileData,
+            isAuthenticated: true,
+            isGuest: false,
+            error: null
           });
-          setIsGuest(false);
         } else {
-          setUser(null);
+          updateState({
+            user: null,
+            profile: null,
+            isAuthenticated: false,
+            isGuest: false
+          });
         }
-        setIsLoading(false);
+        
+        updateState({ isLoading: false });
       }
     );
 
@@ -76,15 +127,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  // Sign in with email and password
   const signIn = async (email: string, password: string) => {
     try {
-      setIsLoading(true);
+      updateState({ isLoading: true, error: null });
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
       if (error) {
+        const errorMessage = formatAuthError(error);
+        updateState({ error: errorMessage });
+        
+        toast({
+          title: "Sign in failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        
         console.error('Sign in error:', error.message);
         return { error };
       }
@@ -93,12 +155,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Get additional user profile data
         const profileData = await getUserProfile(data.user.id);
         
-        setUser({
-          ...data.user as User,
-          username: profileData?.username,
-          avatar_url: profileData?.avatar_url
+        updateState({
+          user: data.user as User,
+          profile: profileData,
+          isAuthenticated: true,
+          isGuest: false
         });
-        setIsGuest(false);
+        
         toast({
           title: "Signed in successfully",
           description: `Welcome back${profileData?.username ? ', ' + profileData.username : ''}!`,
@@ -110,15 +173,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { error: null };
     } catch (error) {
       console.error('Exception during sign in:', error);
+      updateState({ error: 'An unexpected error occurred' });
       return { error };
     } finally {
-      setIsLoading(false);
+      updateState({ isLoading: false });
     }
   };
 
+  // Sign up with email, password, and username
   const signUp = async (email: string, password: string, username: string) => {
     try {
-      setIsLoading(true);
+      updateState({ isLoading: true, error: null });
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -131,6 +197,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       if (error) {
+        const errorMessage = formatAuthError(error);
+        updateState({ error: errorMessage });
+        
+        toast({
+          title: "Sign up failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        
         console.error('Sign up error:', error.message);
         return { error };
       }
@@ -146,62 +221,120 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { error: null };
     } catch (error) {
       console.error('Exception during sign up:', error);
+      updateState({ error: 'An unexpected error occurred' });
       return { error };
     } finally {
-      setIsLoading(false);
+      updateState({ isLoading: false });
     }
   };
 
+  // Sign out
   const signOut = async () => {
     try {
-      setIsLoading(true);
+      updateState({ isLoading: true });
       await supabase.auth.signOut();
-      setUser(null);
-      setIsGuest(false);
+      
+      updateState({
+        user: null,
+        profile: null,
+        isAuthenticated: false,
+        isGuest: false,
+        error: null
+      });
+      
       toast({
         title: "Signed out",
         description: "You have been signed out successfully.",
       });
-      navigate('/auth');
+      
       console.log('User signed out');
     } catch (error) {
       console.error('Error during sign out:', error);
+      
       toast({
         title: "Sign out failed",
         description: "There was an error signing out. Please try again.",
         variant: "destructive",
       });
+      
+      updateState({ error: 'Failed to sign out' });
     } finally {
-      setIsLoading(false);
+      updateState({ isLoading: false });
     }
   };
 
+  // Continue as guest
   const continueAsGuest = () => {
-    setUser(null);
-    setIsGuest(true);
+    updateState({
+      user: null,
+      profile: null,
+      isAuthenticated: false,
+      isGuest: true,
+      error: null
+    });
+    
     toast({
       title: "Guest mode",
       description: "You're browsing as a guest. Some features may be limited.",
     });
+    
     console.log('Continuing as guest');
   };
 
+  // Update user profile
+  const updateProfile = async (updates: Partial<UserProfile>) => {
+    if (!state.user) {
+      return { error: new Error('No user is logged in') };
+    }
+    
+    try {
+      const { error } = await updateUserProfile(state.user.id, updates);
+      
+      if (error) {
+        toast({
+          title: "Update failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return { error };
+      }
+      
+      // Refresh profile after update
+      await refreshUserProfile();
+      
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been updated successfully.",
+      });
+      
+      return { error: null };
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      
+      toast({
+        title: "Update failed",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+      
+      return { error };
+    }
+  };
+
+  // Combine state and functions for context value
+  const contextValue: AuthContextType = {
+    ...state,
+    signIn,
+    signUp,
+    signOut,
+    continueAsGuest,
+    refreshUserProfile,
+    updateProfile
+  };
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoading,
-        isGuest,
-        signIn,
-        signUp,
-        signOut,
-        continueAsGuest,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
 };
-
-// Re-export the useAuth hook
-export { useAuth } from './useAuth';

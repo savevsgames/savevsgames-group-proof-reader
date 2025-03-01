@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { UserProfileForm } from '@/components/UserProfileForm';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { ArrowLeft } from 'lucide-react';
 import { MainHeader } from '@/components/MainHeader';
 
 const Profile = () => {
-  const { user, isLoading, isGuest } = useAuth();
+  const { isAuthenticated, isLoading, isGuest } = useAuth();
   const navigate = useNavigate();
   const [localLoading, setLocalLoading] = useState(true);
 
@@ -24,15 +24,15 @@ const Profile = () => {
 
   // Redirect to login if not logged in and not loading
   useEffect(() => {
-    if (!isLoading && !localLoading && !user && !isGuest) {
+    if (!isLoading && !localLoading && !isAuthenticated && !isGuest) {
       navigate('/auth');
     }
-  }, [user, isLoading, localLoading, isGuest, navigate]);
+  }, [isAuthenticated, isLoading, localLoading, isGuest, navigate]);
 
   const shouldShowLoading = isLoading || localLoading;
-  const shouldShowProfile = user && !shouldShowLoading;
+  const shouldShowProfile = isAuthenticated && !shouldShowLoading;
   const shouldShowGuestMessage = isGuest && !shouldShowLoading;
-  const shouldShowAuthMessage = !user && !isGuest && !shouldShowLoading;
+  const shouldShowAuthMessage = !isAuthenticated && !isGuest && !shouldShowLoading;
 
   return (
     <div className="min-h-screen bg-[#F1F1F1] flex flex-col">
@@ -89,6 +89,6 @@ const Profile = () => {
       </div>
     </div>
   );
-}
+};
 
 export default Profile;
