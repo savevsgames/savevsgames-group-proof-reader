@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Send, RefreshCw, MessageSquare } from "lucide-react";
-import { CustomStory } from "@/lib/storyUtils";
+import { CustomStory, generateNodeMappings } from "@/lib/storyUtils";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { fetchComments } from "@/lib/storyUtils";
