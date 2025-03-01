@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Story } from 'inkjs';
 import { useToast } from '@/hooks/use-toast';
@@ -27,7 +26,7 @@ export const useStory = (storyId: string | undefined) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(17);
   const [commentCount, setCommentCount] = useState(0);
-  const [currentStoryPosition, setCurrentStoryPosition] = useState<number>(1); // Changed to number
+  const [currentStoryPosition, setCurrentStoryPosition] = useState<number>(1);
   const [canContinue, setCanContinue] = useState(false);
   const { toast } = useToast();
 
@@ -132,11 +131,9 @@ export const useStory = (storyId: string | undefined) => {
             setCurrentChoices([]);
           }
           
-          // Use page 1 as the initial position
           setCurrentStoryPosition(1);
           setCurrentPage(1);
           
-          // Fetch comment count for page 1
           const count = await fetchCommentCount(sid, 1);
           setCommentCount(count);
           
@@ -154,7 +151,6 @@ export const useStory = (storyId: string | undefined) => {
         setCurrentText(storyData.start.text);
         setCurrentChoices(storyData.start.choices || []);
         
-        // Use page 1 for start node
         setCurrentStoryPosition(1);
         setCurrentPage(1);
         
@@ -176,7 +172,6 @@ export const useStory = (storyId: string | undefined) => {
           setCurrentChoices([]);
         }
         
-        // Use page 1 for root node
         setCurrentStoryPosition(1);
         setCurrentPage(1);
         
@@ -201,17 +196,14 @@ export const useStory = (storyId: string | undefined) => {
   const handleContinue = async () => {
     if (!story || !storyId) return;
     
-    // Save current state to history for back navigation
     const currentState = story.state.toJson();
     setStoryHistory(prev => [...prev, currentState]);
     setCanGoBack(true);
     
-    // Key change: set text directly instead of appending
     const nextText = story.Continue();
     setCurrentText(nextText);
     setCanContinue(story.canContinue);
     
-    // Update page number and use it as the position
     const newPage = Math.min(currentPage + 1, totalPages);
     setCurrentPage(newPage);
     setCurrentStoryPosition(newPage);
@@ -222,7 +214,6 @@ export const useStory = (storyId: string | undefined) => {
       setCurrentChoices([]);
     }
     
-    // Fetch comments for the new page number
     const count = await fetchCommentCount(storyId, newPage);
     setCommentCount(count);
   };
@@ -236,11 +227,9 @@ export const useStory = (storyId: string | undefined) => {
     const nextStoryNode = customStory[nextNode];
     if (nextStoryNode) {
       setCurrentNode(nextNode);
-      // Set text directly for the new node
       setCurrentText(nextStoryNode.text);
       setCurrentChoices(nextStoryNode.choices || []);
       
-      // Update page based on node mapping or increment by 1
       const newPage = storyNodeToPageMap[nextNode] || (currentPage + 1);
       setCurrentPage(newPage);
       setCurrentStoryPosition(newPage);
@@ -262,7 +251,6 @@ export const useStory = (storyId: string | undefined) => {
 
     story.ChooseChoiceIndex(index);
     
-    // Set text directly for the new choice
     if (story.canContinue) {
       const newText = story.Continue();
       setCurrentText(newText);
@@ -278,12 +266,10 @@ export const useStory = (storyId: string | undefined) => {
       setCanContinue(false);
     }
     
-    // Update page and use it as position
     const newPage = Math.min(currentPage + 1, totalPages);
     setCurrentPage(newPage);
     setCurrentStoryPosition(newPage);
     
-    // Fetch comments for the new page
     const count = await fetchCommentCount(storyId, newPage);
     setCommentCount(count);
   };
@@ -308,27 +294,26 @@ export const useStory = (storyId: string | undefined) => {
     const previousState = newHistory.pop();
     
     if (previousState) {
-      // First update the history state
       setStoryHistory(newHistory);
       setCanGoBack(newHistory.length > 0);
       
-      // Important fix: Calculate the new page number BEFORE updating content
       const newPage = Math.max(currentPage - 1, 1);
       console.log(`Back navigation: Page ${currentPage} → ${newPage}`);
       
-      // Update page numbers first to ensure UI and story content stay in sync
       setCurrentPage(newPage);
       setCurrentStoryPosition(newPage);
       
       if (usingCustomFormat && customStory) {
         const prevNode = previousState;
         if (customStory[prevNode]) {
-          console.log(`Back navigation: Moving to node ${prevNode}`);
           setCurrentNode(prevNode);
-          setCurrentText(customStory[prevNode].text);
+          
+          const textContent = customStory[prevNode].text;
+          setCurrentText(textContent + " ");
+          setTimeout(() => setCurrentText(textContent), 10);
+          
           setCurrentChoices(customStory[prevNode].choices || []);
           
-          // Page number is already updated above
           const count = await fetchCommentCount(storyId, newPage);
           setCommentCount(count);
         } else {
@@ -337,16 +322,17 @@ export const useStory = (storyId: string | undefined) => {
       } else if (story) {
         console.log("Back navigation: Loading previous story state");
         try {
-          // Load the previous state
           story.state.LoadJson(previousState);
           
-          // Get the text for this state
+          let newText = "";
           if (story.canContinue) {
-            const text = story.Continue();
-            setCurrentText(text);
+            newText = story.Continue();
+            setCurrentText(newText + " ");
+            setTimeout(() => setCurrentText(newText), 10);
           } else {
-            // If we can't continue, use whatever text is in the current state
-            setCurrentText(story.currentText);
+            newText = story.currentText;
+            setCurrentText(newText + " ");
+            setTimeout(() => setCurrentText(newText), 10);
           }
           
           setCanContinue(story.canContinue);
@@ -357,13 +343,10 @@ export const useStory = (storyId: string | undefined) => {
             setCurrentChoices([]);
           }
           
-          // Page number is already updated above
-          // Fetch comments for the new page
           const count = await fetchCommentCount(storyId, newPage);
           setCommentCount(count);
         } catch (error) {
           console.error("Error loading previous state:", error);
-          // If there's an error, reset page numbers to ensure consistency
           setCurrentPage(currentPage);
           setCurrentStoryPosition(currentPage);
         }
@@ -379,7 +362,6 @@ export const useStory = (storyId: string | undefined) => {
     setStoryHistory([]);
     setCanGoBack(false);
     
-    // Reset to page 1
     setCurrentPage(1);
     setCurrentStoryPosition(1);
     
@@ -411,7 +393,6 @@ export const useStory = (storyId: string | undefined) => {
     }
   };
 
-  // Add direct page navigation function
   const handlePageChange = async (newPage: number) => {
     if (!storyId || newPage === currentPage || newPage < 1 || newPage > totalPages) {
       console.log(`Invalid page navigation attempt: current=${currentPage}, target=${newPage}, max=${totalPages}`);
@@ -420,27 +401,22 @@ export const useStory = (storyId: string | undefined) => {
     
     console.log(`Navigating to page ${newPage} (current: ${currentPage})`);
     
-    // For custom story format with node mappings
     if (usingCustomFormat && customStory) {
       const targetNode = pageToStoryNodeMap[newPage];
       
       if (targetNode && customStory[targetNode]) {
         console.log(`Found node ${targetNode} for page ${newPage}`);
         
-        // Save current node to history
         setStoryHistory(prev => [...prev, currentNode]);
         setCanGoBack(true);
         
-        // Set the story state to the new node
         setCurrentNode(targetNode);
         setCurrentText(customStory[targetNode].text);
         setCurrentChoices(customStory[targetNode].choices || []);
         
-        // Update page number and position
         setCurrentPage(newPage);
         setCurrentStoryPosition(newPage);
         
-        // Fetch comments for this page
         const count = await fetchCommentCount(storyId, newPage);
         setCommentCount(count);
       } else {
@@ -452,21 +428,17 @@ export const useStory = (storyId: string | undefined) => {
         });
       }
     } 
-    // For inkjs stories, we need to try to navigate by continuing or choosing
     else if (story) {
-      // Save current state to history
       const currentState = story.state.toJson();
       setStoryHistory(prev => [...prev, currentState]);
       setCanGoBack(true);
       
       if (newPage < currentPage) {
         console.log(`Backwards navigation from ${currentPage} to ${newPage}`);
-        // For going back, we need to restart and play forward
         try {
           const originalState = story.state.toJson();
           story.ResetState();
           
-          // Simulate continuing to the desired page
           let currentPageCounter = 1;
           
           while (currentPageCounter < newPage && story.canContinue) {
@@ -483,7 +455,6 @@ export const useStory = (storyId: string | undefined) => {
             setCurrentStoryPosition(newPage);
             console.log(`Successfully navigated to page ${newPage}`);
           } else {
-            // Failed to reach the page, restore original state
             console.error(`Failed to navigate to page ${newPage}, only reached ${currentPageCounter}`);
             story.state.LoadJson(originalState);
             toast({
@@ -504,7 +475,6 @@ export const useStory = (storyId: string | undefined) => {
         }
       } else {
         console.log(`Forward navigation from ${currentPage} to ${newPage}`);
-        // For going forward, we continue from current position
         try {
           let currentPageCounter = currentPage;
           let success = false;
@@ -515,7 +485,6 @@ export const useStory = (storyId: string | undefined) => {
               currentPageCounter++;
               console.log(`Navigation progress: at page ${currentPageCounter}`);
             } else if (story.currentChoices.length > 0) {
-              // Always choose the first option at choice points
               story.ChooseChoiceIndex(0);
               if (story.canContinue) {
                 story.Continue();
@@ -559,7 +528,6 @@ export const useStory = (storyId: string | undefined) => {
         }
       }
       
-      // Fetch comments for the new page
       const count = await fetchCommentCount(storyId, newPage);
       setCommentCount(count);
     }
