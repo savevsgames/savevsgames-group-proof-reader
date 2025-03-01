@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { CustomStory, storyNodeToPageMap, pageToStoryNodeMap } from "@/lib/storyUtils";
+import { 
+  CustomStory, 
+  storyNodeToPageMap, 
+  pageToStoryNodeMap,
+  generateNodeMappings 
+} from "@/lib/storyUtils";
 import { useToast } from "@/hooks/use-toast";
 
 export const useStoryEditor = (storyId: string) => {
@@ -16,30 +21,39 @@ export const useStoryEditor = (storyId: string) => {
   const [totalPages, setTotalPages] = useState<number>(1);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
   const [navigationPath, setNavigationPath] = useState<string | null>(null);
+  const [nodeMappings, setNodeMappings] = useState({
+    nodeToPage: storyNodeToPageMap,
+    pageToNode: pageToStoryNodeMap
+  });
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Calculate total pages based on story data
+  // Generate node mappings when storyData changes
   useEffect(() => {
     if (storyData) {
-      // For our story format, we consider each node to be a page
-      // Using Object.keys().length gives us accurate count including all nodes
-      const totalNodes = Object.keys(storyData).length;
+      const { storyNodeToPageMap: updatedNodeToPage, pageToStoryNodeMap: updatedPageToNode } = 
+        generateNodeMappings(storyData);
       
-      // Set total pages based on number of nodes, or use story.total_pages if available
+      setNodeMappings({
+        nodeToPage: updatedNodeToPage,
+        pageToNode: updatedPageToNode
+      });
+      
+      // Calculate total pages based on the number of nodes
+      const totalNodes = Object.keys(storyData).length;
       const calculatedPages = Math.max(totalNodes, 1);
-      setTotalPages(story?.total_pages || calculatedPages);
+      setTotalPages(calculatedPages);
       
       console.log(`Total story nodes: ${totalNodes}, Set total pages to: ${calculatedPages}`);
     }
-  }, [storyData, story]);
+  }, [storyData]);
 
   // Handle page change
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages) return;
     
-    // Get the node name for this page
-    const nodeName = pageToStoryNodeMap[newPage] || Object.keys(storyData || {})[newPage - 1] || "root";
+    // Get the node name for this page using our updated mappings
+    const nodeName = nodeMappings.pageToNode[newPage] || "root";
     
     console.log(`Page changed to ${newPage}, corresponding to node: ${nodeName}`);
     setCurrentNode(nodeName);
@@ -52,19 +66,8 @@ export const useStoryEditor = (storyId: string) => {
     
     setCurrentNode(nodeName);
     
-    // Calculate page number from node
-    let pageNumber = 1;
-    if (storyNodeToPageMap[nodeName]) {
-      // If we have a direct mapping, use it
-      pageNumber = storyNodeToPageMap[nodeName];
-    } else {
-      // Otherwise calculate position in nodes array
-      const nodes = Object.keys(storyData);
-      const nodeIndex = nodes.indexOf(nodeName);
-      if (nodeIndex !== -1) {
-        pageNumber = nodeIndex + 1;
-      }
-    }
+    // Calculate page number from node using our updated mappings
+    const pageNumber = nodeMappings.nodeToPage[nodeName] || 1;
     
     console.log(`Node changed to ${nodeName}, corresponding to page: ${pageNumber}`);
     setCurrentPage(pageNumber);
@@ -170,9 +173,12 @@ export const useStoryEditor = (storyId: string) => {
     fetchStory();
   }, [storyId]);
 
+  // When story data is updated, recalculate mappings
   const handleStoryDataChange = (data: CustomStory) => {
     setStoryData(data);
     setHasUnsavedChanges(true);
+    
+    // Dynamic mappings will be recalculated in the useEffect
   };
 
   const handleSave = async () => {
@@ -222,6 +228,7 @@ export const useStoryEditor = (storyId: string) => {
     currentPage,
     totalPages,
     isLeaveDialogOpen,
+    nodeMappings,
     setIsLeaveDialogOpen,
     handlePageChange,
     handleNodeChange,

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, SkipBack, BookOpen } from "lucide-react";
-import { CustomStory, storyNodeToPageMap, pageToStoryNodeMap } from "@/lib/storyUtils";
+import { CustomStory } from "@/lib/storyUtils";
 import { StoryChoice } from "@/lib/storyUtils";
 
 interface ReaderViewProps {
@@ -10,6 +10,10 @@ interface ReaderViewProps {
   storyData: CustomStory;
   currentNode: string;
   onNodeChange?: (nodeName: string) => void;
+  nodeMappings?: {
+    nodeToPage: Record<string, number>;
+    pageToNode: Record<number, string>;
+  };
 }
 
 const ReaderView: React.FC<ReaderViewProps> = ({
@@ -17,6 +21,10 @@ const ReaderView: React.FC<ReaderViewProps> = ({
   storyData,
   currentNode,
   onNodeChange,
+  nodeMappings = { 
+    nodeToPage: {}, 
+    pageToNode: {} 
+  }
 }) => {
   const [currentText, setCurrentText] = useState<string>("");
   const [choices, setChoices] = useState<StoryChoice[]>([]);
@@ -24,11 +32,12 @@ const ReaderView: React.FC<ReaderViewProps> = ({
   const [isEnding, setIsEnding] = useState<boolean>(false);
   const [history, setHistory] = useState<string[]>([]);
 
-  // Get current page number from node name
-  const currentPage = currentNode ? (storyNodeToPageMap[currentNode] || 1) : 1;
+  // Get current page number from node name using provided mappings
+  const currentPage = nodeMappings.nodeToPage[currentNode] || 1;
   
   // Calculate total pages based on number of nodes in the story
-  const totalPages = Object.keys(storyNodeToPageMap).length;
+  const totalPages = Object.keys(nodeMappings.nodeToPage).length || 
+                    Object.keys(storyData).length;
 
   // Load the story node's content when currentNode changes
   useEffect(() => {
@@ -108,7 +117,7 @@ const ReaderView: React.FC<ReaderViewProps> = ({
   const handleGoToPage = (pageNumber: number) => {
     if (pageNumber < 1 || pageNumber > totalPages) return;
     
-    const nodeName = pageToStoryNodeMap[pageNumber];
+    const nodeName = nodeMappings.pageToNode[pageNumber];
     if (!nodeName || !storyData[nodeName]) {
       console.error(`No node found for page ${pageNumber}`);
       return;

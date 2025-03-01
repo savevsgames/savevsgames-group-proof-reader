@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { CustomStory } from "@/lib/storyUtils";
 import { Card } from "@/components/ui/card";
@@ -17,6 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 interface LlmIntegrationProps {
   storyId: string;
   storyData: CustomStory;
+  currentNode?: string;
   onStoryUpdate: (updatedStory: CustomStory) => void;
 }
 
@@ -37,7 +37,7 @@ interface ContextFile {
   created_at: string;
 }
 
-const DEFAULT_SETTINGS: LlmSettings = {
+const DEFAULT_SETTINGS = {
   book_id: "",
   model_version: "gpt-4o",
   temperature: 0.7,
@@ -50,22 +50,24 @@ const MODEL_OPTIONS = [
   { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" }
 ];
 
-const LlmIntegration: React.FC<LlmIntegrationProps> = ({ storyId, storyData, onStoryUpdate }) => {
-  const [settings, setSettings] = useState<LlmSettings>({ ...DEFAULT_SETTINGS, book_id: storyId });
-  const [contextFiles, setContextFiles] = useState<ContextFile[]>([]);
+const LlmIntegration: React.FC<LlmIntegrationProps> = ({ 
+  storyId, 
+  storyData, 
+  currentNode = "root",
+  onStoryUpdate 
+}) => {
+  const [settings, setSettings] = useState<any>({ ...DEFAULT_SETTINGS, book_id: storyId });
+  const [contextFiles, setContextFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [generationPrompt, setGenerationPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
   const { toast } = useToast();
 
-  // Fetch existing settings and files
   useEffect(() => {
     const fetchSettingsAndFiles = async () => {
       setLoading(true);
       try {
-        // Fetch LLM settings
         const { data: settingsData, error: settingsError } = await supabase
           .from("book_llm_settings")
           .select("*")
@@ -80,7 +82,6 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({ storyId, storyData, onS
         if (settingsData) {
           setSettings(settingsData);
         } else {
-          // Create default settings if none exist
           const { data: newSettings, error: createError } = await supabase
             .from("book_llm_settings")
             .insert({ ...DEFAULT_SETTINGS, book_id: storyId })
@@ -97,7 +98,6 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({ storyId, storyData, onS
           }
         }
 
-        // Fetch context files
         const { data: filesData, error: filesError } = await supabase
           .from("book_context_files")
           .select("*")
@@ -127,7 +127,6 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({ storyId, storyData, onS
     }
   }, [storyId, toast]);
 
-  // Save settings
   const saveSettings = async () => {
     setLoading(true);
     try {
@@ -153,7 +152,6 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({ storyId, storyData, onS
     }
   };
 
-  // Handle file upload
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) {
       return;
@@ -174,16 +172,13 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({ storyId, storyData, onS
     setUploading(true);
 
     try {
-      // Get JWT token
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("No active session");
       
-      // Create form data
       const formData = new FormData();
       formData.append("file", file);
       formData.append("bookId", storyId);
 
-      // Call the edge function
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/upload-context-file`,
         {
@@ -202,7 +197,6 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({ storyId, storyData, onS
 
       const result = await response.json();
 
-      // Refresh the file list
       const { data, error } = await supabase
         .from("book_context_files")
         .select("*")
@@ -223,19 +217,15 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({ storyId, storyData, onS
       });
     } finally {
       setUploading(false);
-      // Reset file input
       e.target.value = "";
     }
   };
 
-  // Delete context file
   const deleteContextFile = async (fileId: string) => {
     try {
-      // Find the file to get its path
       const fileToDelete = contextFiles.find(f => f.id === fileId);
       if (!fileToDelete) throw new Error("File not found");
 
-      // Delete from storage first
       const { error: storageError } = await supabase
         .storage
         .from("rag_context_files")
@@ -243,7 +233,6 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({ storyId, storyData, onS
 
       if (storageError) throw storageError;
 
-      // Delete the database record
       const { error: dbError } = await supabase
         .from("book_context_files")
         .delete()
@@ -251,7 +240,6 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({ storyId, storyData, onS
 
       if (dbError) throw dbError;
 
-      // Update state
       setContextFiles(contextFiles.filter(f => f.id !== fileId));
 
       toast({
@@ -267,12 +255,11 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({ storyId, storyData, onS
     }
   };
 
-  // Generate content with LLM
   const generateContent = async () => {
-    if (!selectedNode || !generationPrompt.trim()) {
+    if (!currentNode || !generationPrompt.trim()) {
       toast({
         title: "Missing information",
-        description: "Please select a node and provide a prompt.",
+        description: "Please provide a prompt for generating content.",
         variant: "destructive"
       });
       return;
@@ -281,11 +268,9 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({ storyId, storyData, onS
     setGenerating(true);
 
     try {
-      // Get JWT token
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("No active session");
       
-      // Call the edge function
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-story-content`,
         {
@@ -297,7 +282,7 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({ storyId, storyData, onS
           body: JSON.stringify({
             bookId: storyId,
             prompt: generationPrompt,
-            nodeId: selectedNode
+            nodeId: currentNode
           })
         }
       );
@@ -310,15 +295,14 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({ storyId, storyData, onS
       const result = await response.json();
       
       if (result.success && result.data.content) {
-        // Update the story data
         const updatedStory = { ...storyData };
-        if (updatedStory[selectedNode]) {
-          updatedStory[selectedNode].text = result.data.content;
+        if (updatedStory[currentNode]) {
+          updatedStory[currentNode].text = result.data.content;
           onStoryUpdate(updatedStory);
           
           toast({
             title: "Content generated",
-            description: `Content for node "${selectedNode}" has been updated.`
+            description: `Content for node "${currentNode}" has been updated.`
           });
         }
       }
@@ -493,26 +477,13 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({ storyId, storyData, onS
 
       <TabsContent value="generate" className="space-y-4">
         <Card className="p-4">
-          <h3 className="text-lg font-medium mb-4">Generate Content</h3>
+          <h3 className="text-lg font-medium mb-4">Generate Content for Node: {currentNode}</h3>
           
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="node-select">Select Story Node</Label>
-              <Select
-                value={selectedNode || ""}
-                onValueChange={setSelectedNode}
-              >
-                <SelectTrigger id="node-select">
-                  <SelectValue placeholder="Select a node to update" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.keys(storyData).map((nodeId) => (
-                    <SelectItem key={nodeId} value={nodeId}>
-                      {nodeId}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="rounded-md bg-blue-50 border border-blue-100 p-3">
+              <p className="text-sm text-blue-800">
+                You are generating content for the story node: <strong>{currentNode}</strong>
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -525,22 +496,13 @@ const LlmIntegration: React.FC<LlmIntegrationProps> = ({ storyId, storyData, onS
                 className="min-h-[150px]"
               />
               <p className="text-xs text-gray-500">
-                Provide specific instructions about the content you want to generate.
+                Provide specific instructions about the content you want to generate for this node.
               </p>
             </div>
 
-            {!selectedNode && (
-              <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3 flex items-start">
-                <AlertCircle className="h-5 w-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-yellow-700">
-                  Select a story node before generating content.
-                </p>
-              </div>
-            )}
-
             <Button 
               onClick={generateContent} 
-              disabled={generating || !selectedNode || !generationPrompt.trim()}
+              disabled={generating || !generationPrompt.trim()}
               className="w-full"
             >
               {generating ? (

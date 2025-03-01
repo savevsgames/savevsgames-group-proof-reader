@@ -8,7 +8,12 @@ import LlmIntegration from "./LlmIntegration";
 import CommentsView from "./CommentsView";
 import ReaderView from "./ReaderView";
 import { useAuth } from "@/context/AuthContext";
-import { CustomStory, storyNodeToPageMap, pageToStoryNodeMap } from "@/lib/storyUtils";
+import { 
+  CustomStory, 
+  storyNodeToPageMap, 
+  pageToStoryNodeMap, 
+  generateNodeMappings 
+} from "@/lib/storyUtils";
 import { AlertCircle } from "lucide-react";
 
 interface StoryTabsProps {
@@ -20,7 +25,7 @@ interface StoryTabsProps {
   onNodeChange?: (nodeName: string) => void;
 }
 
-export type TabType = "json" | "ink" | "comments" | "llm" | "reader";
+export type TabType = "json" | "ink" | "reader" | "comments" | "llm";
 
 const StoryTabs: React.FC<StoryTabsProps> = ({
   storyId,
@@ -33,6 +38,24 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
   const [activeTab, setActiveTab] = useState<TabType>("json");
   const [commentCount, setCommentCount] = useState<number>(0);
   const { user } = useAuth();
+  
+  // Generate dynamic mappings when storyData changes
+  const [mappings, setMappings] = useState({
+    nodeToPage: storyNodeToPageMap,
+    pageToNode: pageToStoryNodeMap
+  });
+  
+  useEffect(() => {
+    if (storyData) {
+      const { storyNodeToPageMap: updatedNodeToPage, pageToStoryNodeMap: updatedPageToNode } = 
+        generateNodeMappings(storyData);
+      
+      setMappings({
+        nodeToPage: updatedNodeToPage,
+        pageToNode: updatedPageToNode
+      });
+    }
+  }, [storyData]);
   
   // Update parent component when JSON editor changes node selection
   const handleNodeSelection = (nodeName: string) => {
@@ -51,8 +74,8 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
   };
 
   // Calculate current page number from node name
-  // This logic now matches how the reader component maps nodes to pages
-  const currentPage = currentNode ? (storyNodeToPageMap[currentNode] || 1) : 1;
+  // Using our dynamic mappings
+  const currentPage = currentNode ? (mappings.nodeToPage[currentNode] || 1) : 1;
 
   return (
     <Tabs
@@ -102,6 +125,7 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
             storyData={storyData}
             currentNode={currentNode}
             onNodeChange={handleNodeSelection}
+            nodeMappings={mappings}
           />
         </TabsContent>
 
@@ -110,13 +134,15 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
             storyId={storyId} 
             currentNode={currentNode}
             onCommentsUpdate={handleCommentsUpdate}
+            currentPage={currentPage}
           />
         </TabsContent>
 
         <TabsContent value="llm" className="mt-0">
           <LlmIntegration 
             storyId={storyId} 
-            storyData={storyData} 
+            storyData={storyData}
+            currentNode={currentNode} 
             onStoryUpdate={(data) => {
               onStoryDataChange(data);
               onUnsavedChanges(true);

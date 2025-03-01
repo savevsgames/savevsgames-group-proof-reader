@@ -5,7 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
-import { fetchComments, storyNodeToPageMap } from "@/lib/storyUtils";
+import { fetchComments } from "@/lib/storyUtils";
 import { CommentType, commentTypeColors, commentTypeLabels } from "@/lib/commentTypes";
 import { supabase } from "@/lib/supabase";
 import { MessageCircle, Trash, Copy, Check, X } from "lucide-react";
@@ -14,6 +14,7 @@ interface CommentsViewProps {
   storyId: string;
   currentNode: string;
   onCommentsUpdate?: () => void;
+  currentPage?: number;
 }
 
 interface Comment {
@@ -30,7 +31,8 @@ interface Comment {
 const CommentsView: React.FC<CommentsViewProps> = ({ 
   storyId, 
   currentNode,
-  onCommentsUpdate
+  onCommentsUpdate,
+  currentPage
 }) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
@@ -41,16 +43,17 @@ const CommentsView: React.FC<CommentsViewProps> = ({
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const currentPage = storyNodeToPageMap[currentNode] || 1;
+  // Use provided currentPage or default to 1
+  const pageToUse = currentPage || 1;
 
   useEffect(() => {
     loadComments();
-  }, [storyId, currentNode]);
+  }, [storyId, currentNode, pageToUse]);
 
   const loadComments = async () => {
     setLoading(true);
     try {
-      const commentsData = await fetchComments(storyId, currentPage);
+      const commentsData = await fetchComments(storyId, pageToUse);
       setComments(commentsData);
       setError(null);
     } catch (err) {
@@ -72,7 +75,7 @@ const CommentsView: React.FC<CommentsViewProps> = ({
           story_id: storyId,
           user_id: user.id,
           content: newComment.trim(),
-          story_position: currentPage,
+          story_position: pageToUse,
           comment_type: selectedType
         })
         .select('*, profile:profiles(username)');
@@ -158,7 +161,7 @@ const CommentsView: React.FC<CommentsViewProps> = ({
   return (
     <div className="flex flex-col h-full space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium">Comments for Page {currentPage}</h3>
+        <h3 className="text-lg font-medium">Comments for Page {pageToUse}</h3>
         {loading && <span className="text-sm text-gray-500">Loading...</span>}
       </div>
 

@@ -35,25 +35,53 @@ export const storyNodeToPageMap: Record<string, number> = {
   'dark_eye_reaction': 14,
   'dark_eye_withdraws': 15,
   'final_blast': 16,
-  'story_ending': 17
+  'story_ending': 17,
+  'start': 1
 };
 
 // Reverse map to look up node names from page numbers
 export const pageToStoryNodeMap: Record<number, string> = Object.entries(storyNodeToPageMap).reduce(
   (acc, [node, page]) => {
-    acc[page] = node;
+    if (!acc[page] || node !== 'start') {
+      acc[page] = node;
+    }
     return acc;
   },
   {} as Record<number, string>
 );
 
-// Define an interface for book data
-export interface BookData {
-  id: string;
-  title: string;
-  story_url?: string;
-  total_pages?: number;
-}
+// Dynamic mapping function that ensures all nodes in story have a page number
+export const generateNodeMappings = (storyData: CustomStory) => {
+  if (!storyData) return { storyNodeToPageMap, pageToStoryNodeMap };
+  
+  const updatedNodeToPageMap = { ...storyNodeToPageMap };
+  
+  // Ensure all nodes in story have a page number
+  Object.keys(storyData).forEach((nodeName, index) => {
+    if (!updatedNodeToPageMap[nodeName]) {
+      // Find the highest existing page number
+      const maxPage = Math.max(...Object.values(updatedNodeToPageMap));
+      // Assign the next page number to this node
+      updatedNodeToPageMap[nodeName] = maxPage + 1;
+    }
+  });
+  
+  // Regenerate the reverse mapping
+  const updatedPageToNodeMap = Object.entries(updatedNodeToPageMap).reduce(
+    (acc, [node, page]) => {
+      if (!acc[page] || node !== 'start') {
+        acc[page] = node;
+      }
+      return acc;
+    },
+    {} as Record<number, string>
+  );
+  
+  return {
+    storyNodeToPageMap: updatedNodeToPageMap,
+    pageToStoryNodeMap: updatedPageToNodeMap
+  };
+};
 
 // Fetch story content from URL
 export const fetchStoryContent = async (storyUrl: string) => {
