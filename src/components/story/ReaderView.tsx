@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, SkipBack, BookOpen } from "lucide-react";
+import { ChevronLeft, ChevronRight, SkipBack, BookOpen, AlertCircle } from "lucide-react";
 import { CustomStory } from "@/lib/storyUtils";
 import { StoryChoice } from "@/lib/storyUtils";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +36,7 @@ const ReaderView: React.FC<ReaderViewProps> = ({
 
   // Generate proper node mappings on component load if not provided
   const [mappings, setMappings] = useState(nodeMappings);
+  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
     // Always update with the latest provided mappings
@@ -48,20 +49,29 @@ const ReaderView: React.FC<ReaderViewProps> = ({
   // Get current page number from node name using provided mappings
   const currentPage = currentNode && mappings.nodeToPage ? mappings.nodeToPage[currentNode] || 1 : 1;
   
-  // Calculate total pages based on number of nodes in the story
-  const totalPages = mappings.pageToNode ? Object.keys(mappings.pageToNode).length : 
-                    (storyData ? Object.keys(storyData).length : 1);
+  // Calculate total pages based on number of story nodes (excluding metadata nodes)
+  const totalPages = mappings.pageToNode ? 
+    Math.max(...Object.keys(mappings.pageToNode).map(Number).filter(page => {
+      const node = mappings.pageToNode[page];
+      return node !== "inkVersion" && node !== "listDefs";
+    })) : 
+    (storyData ? Object.keys(storyData).filter(key => key !== "inkVersion" && key !== "listDefs").length : 1);
 
   // Load the story node's content when currentNode changes
   useEffect(() => {
     if (!storyData || !currentNode) {
       console.log("ReaderView: No storyData or currentNode", { storyData, currentNode });
+      setError("No story data available.");
       return;
     }
+    
+    // Reset error state
+    setError(null);
     
     const node = storyData[currentNode];
     if (!node) {
       console.error(`ReaderView: Node "${currentNode}" not found in story data`);
+      setError(`Node "${currentNode}" not found in story data.`);
       return;
     }
     
@@ -76,8 +86,12 @@ const ReaderView: React.FC<ReaderViewProps> = ({
   const handleNavigateToNode = (nodeName: string) => {
     if (!storyData[nodeName]) {
       console.error(`ReaderView: Node "${nodeName}" not found in story data`);
+      setError(`Node "${nodeName}" not found in story data.`);
       return;
     }
+    
+    // Reset error state
+    setError(null);
     
     // Save current node to history for back navigation
     setHistory(prev => [...prev, currentNode]);
@@ -154,10 +168,22 @@ const ReaderView: React.FC<ReaderViewProps> = ({
         description: `Could not find node mapping for page ${pageNumber}`,
         variant: "destructive"
       });
+      setError(`No node found for page ${pageNumber}`);
       return;
     }
     
-    // Make sure the node exists in storyData
+    // Make sure the node exists in storyData and is not a metadata node
+    if (nodeName === "inkVersion" || nodeName === "listDefs") {
+      console.error(`ReaderView: Cannot navigate to metadata node "${nodeName}"`);
+      toast({
+        title: "Navigation Error",
+        description: `Cannot navigate to metadata node "${nodeName}"`,
+        variant: "destructive"
+      });
+      setError(`Cannot navigate to metadata node "${nodeName}"`);
+      return;
+    }
+    
     if (!storyData[nodeName]) {
       console.error(`ReaderView: Node "${nodeName}" not found in storyData for page ${pageNumber}`);
       toast({
@@ -165,6 +191,7 @@ const ReaderView: React.FC<ReaderViewProps> = ({
         description: `Node "${nodeName}" not found in story data`,
         variant: "destructive"
       });
+      setError(`Node "${nodeName}" not found in storyData for page ${pageNumber}`);
       return;
     }
     
@@ -187,6 +214,18 @@ const ReaderView: React.FC<ReaderViewProps> = ({
         <p key={`p-${index}`} className="mb-4">{paragraph}</p>
       ));
   };
+
+  // Function to get valid page numbers for the dropdown
+  const getValidPageNumbers = () => {
+    if (!mappings.pageToNode) return [1];
+    
+    return Object.entries(mappings.pageToNode)
+      .filter(([_, node]) => node !== "inkVersion" && node !== "listDefs" && storyData[node])
+      .map(([page]) => parseInt(page))
+      .sort((a, b) => a - b);
+  };
+
+  const validPages = getValidPageNumbers();
 
   return (
     <div className="flex flex-col space-y-6">
@@ -230,7 +269,7 @@ const ReaderView: React.FC<ReaderViewProps> = ({
             value={currentPage}
             onChange={(e) => handleGoToPage(parseInt(e.target.value))}
           >
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+            {validPages.map(page => (
               <option key={page} value={page}>
                 Page {page}
               </option>
@@ -238,6 +277,17 @@ const ReaderView: React.FC<ReaderViewProps> = ({
           </select>
         </div>
       </div>
+      
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded flex items-start">
+          <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-medium">Error</p>
+            <p className="text-sm">{error}</p>
+          </div>
+        </div>
+      )}
       
       {/* Story Content */}
       <div className="bg-[#E8DCC4] p-6 rounded-lg min-h-[300px] prose prose-lg max-w-none prose-headings:font-serif prose-p:font-serif">
@@ -300,6 +350,7 @@ const ReaderView: React.FC<ReaderViewProps> = ({
       <div className="border-t pt-4 text-sm text-gray-500">
         <p>Current Node: <span className="font-mono">{currentNode}</span></p>
         <p>Available Choices: {choices.length}</p>
+        <p>Valid Pages: {validPages.join(', ')}</p>
       </div>
     </div>
   );

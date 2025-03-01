@@ -62,7 +62,7 @@ export const generateNodeMappings = (storyData: CustomStory) => {
   const storyNodes = Object.keys(storyData);
   
   // First pass: ensure all known story nodes are in the map
-  let nextPageNumber = Math.max(...Object.values(updatedNodeToPageMap)) + 1;
+  let nextPageNumber = Math.max(...Object.values(updatedNodeToPageMap), 0) + 1;
   
   storyNodes.forEach(nodeName => {
     // Skip meta nodes that aren't actual story nodes
@@ -86,7 +86,7 @@ export const generateNodeMappings = (storyData: CustomStory) => {
     }
     
     // Only add if node exists in story data or is a known node
-    if (storyData[nodeName] || storyNodeToPageMap[nodeName]) {
+    if (storyData[nodeName]) {
       updatedPageToNodeMap[pageNum] = nodeName;
     }
   });
@@ -121,22 +121,27 @@ export const extractCustomStoryFromInkJSON = (inkJSON: any): CustomStory => {
     
     // Extract the root node text
     if (inkJSON.root && Array.isArray(inkJSON.root) && inkJSON.root.length > 0) {
-      const rootText = inkJSON.root
-        .filter(item => typeof item === 'string' && item.startsWith('^'))
-        .map(item => (item as string).substring(1))
-        .join(' ');
+      // Extract text from the root array
+      let rootText = "";
+      for (const item of inkJSON.root) {
+        if (typeof item === 'string' && item.startsWith('^')) {
+          rootText += item.substring(1) + " ";
+        }
+      }
       
       customStory.root = {
-        text: rootText || "Story begins...",
+        text: rootText.trim() || "Story begins...",
         choices: [{
           text: "Continue",
           nextNode: "vault_description"
         }]
       };
       
-      // Try to extract other nodes from the structure
-      if (inkJSON.vault_description) {
-        extractNodesRecursively(inkJSON, customStory, "vault_description");
+      // Process all story nodes that aren't special properties
+      for (const nodeName in inkJSON) {
+        if (nodeName !== 'root' && nodeName !== 'inkVersion' && nodeName !== 'listDefs' && nodeName !== '#f') {
+          extractNodesRecursively(inkJSON, customStory, nodeName);
+        }
       }
     }
     
@@ -157,33 +162,41 @@ export const extractNodesRecursively = (inkJSON: any, customStory: CustomStory, 
   if (!inkJSON[nodeName]) return;
   
   try {
-    // Extract text from the node
-    const nodeText = Array.isArray(inkJSON[nodeName][0]) 
-      ? inkJSON[nodeName][0]
-          .filter(item => typeof item === 'string' && item.startsWith('^'))
-          .map(item => (item as string).substring(1))
-          .join(' ')
-      : "Continue the story...";
-    
-    // Find the next node reference if any
+    let nodeText = "";
     let nextNode = "";
-    if (Array.isArray(inkJSON[nodeName][0])) {
-      const lastItem = inkJSON[nodeName][0][inkJSON[nodeName][0].length - 1];
-      if (lastItem && typeof lastItem === 'object' && lastItem["^->"]) {
-        nextNode = lastItem["^->"];
+    let isEnding = false;
+    
+    // Process the node content
+    if (Array.isArray(inkJSON[nodeName])) {
+      for (const item of inkJSON[nodeName]) {
+        if (typeof item === 'string') {
+          // Direct text content
+          if (item.startsWith('^')) {
+            nodeText += item.substring(1) + " ";
+          } else if (item === 'end') {
+            isEnding = true;
+          }
+        } else if (item && typeof item === 'object') {
+          // Check for next node reference
+          if (item['->']) {
+            nextNode = item['->'];
+          }
+        }
       }
     }
     
+    // Create node entry
     customStory[nodeName] = {
-      text: nodeText,
+      text: nodeText.trim() || "Continue the story...",
       choices: nextNode ? [{
         text: "Continue",
         nextNode: nextNode
-      }] : []
+      }] : [],
+      isEnding: isEnding
     };
     
-    // If we found a next node, recursively process it
-    if (nextNode && !customStory[nextNode]) {
+    // If we found a next node, recursively process it if not already processed
+    if (nextNode && !customStory[nextNode] && nextNode !== 'end') {
       extractNodesRecursively(inkJSON, customStory, nextNode);
     }
   } catch (e) {
@@ -265,6 +278,9 @@ export const convertJSONToInk = (storyData: CustomStory): string => {
     const processNode = (nodeKey: string, depth: number = 0): void => {
       if (processedNodes.has(nodeKey)) return;
       
+      // Skip metadata nodes
+      if (nodeKey === 'inkVersion' || nodeKey === 'listDefs') return;
+      
       const node = storyData[nodeKey];
       if (!node) {
         inkContent += `// Warning: Node "${nodeKey}" referenced but not found in story data\n\n`;
@@ -326,6 +342,9 @@ export const convertJSONToInk = (storyData: CustomStory): string => {
     
     // Process any remaining nodes that weren't reached through the root
     Object.keys(storyData).forEach(nodeKey => {
+      // Skip metadata nodes
+      if (nodeKey === 'inkVersion' || nodeKey === 'listDefs') return;
+      
       if (!processedNodes.has(nodeKey)) {
         processNode(nodeKey);
       }

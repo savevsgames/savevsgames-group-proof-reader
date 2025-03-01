@@ -45,8 +45,14 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
   
   useEffect(() => {
     if (storyData) {
-      // Generate fresh mappings whenever storyData changes
-      const { storyNodeToPageMap, pageToStoryNodeMap } = generateNodeMappings(storyData);
+      // Create a filtered version of storyData without metadata nodes
+      const filteredStoryData = { ...storyData };
+      // Remove metadata nodes that aren't actual story content
+      if (filteredStoryData.inkVersion) delete filteredStoryData.inkVersion;
+      if (filteredStoryData.listDefs) delete filteredStoryData.listDefs;
+      
+      // Generate fresh mappings from the filtered story data
+      const { storyNodeToPageMap, pageToStoryNodeMap } = generateNodeMappings(filteredStoryData);
       
       // Update mappings state
       setMappings({
@@ -54,7 +60,11 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
         pageToNode: pageToStoryNodeMap
       });
       
-      console.log("StoryTabs: Generated mappings", { storyNodeToPageMap, pageToStoryNodeMap });
+      console.log("StoryTabs: Generated mappings", { 
+        storyNodeToPageMap, 
+        pageToStoryNodeMap,
+        nodeCount: Object.keys(filteredStoryData).length
+      });
     }
   }, [storyData]);
   
