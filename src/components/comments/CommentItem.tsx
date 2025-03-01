@@ -1,6 +1,4 @@
-
 import React from 'react';
-import { formatDistanceToNow } from 'date-fns';
 import { Button } from "@/components/ui/button";
 import { Trash, Edit, Send } from 'lucide-react';
 import { Comment } from './types';
@@ -33,7 +31,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
       onAddToLlmContext(
         commentTypeLabel, 
         comment.text,
-        comment.user_name || 'Anonymous'
+        comment.profile?.username || comment.user_name || 'Anonymous'
       );
     }
   };

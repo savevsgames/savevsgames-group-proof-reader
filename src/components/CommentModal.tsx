@@ -244,7 +244,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
           <h3 className="text-[#3A2618] font-medium mb-4">All Comments</h3>
           <CommentsList 
             comments={comments} 
-            isLoading={isLoading} 
+            loading={isLoading} 
             currentUser={currentUser}
             isModerator={isModerator}
             onEditComment={handleCommentEdit}
