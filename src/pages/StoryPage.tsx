@@ -27,7 +27,7 @@ const StoryPage = () => {
       <Header />
       
       <div className="mx-auto px-4 w-full">
-        <StoryEngine />
+        <StoryEngine storyId={id} />
       </div>
     </div>
   );

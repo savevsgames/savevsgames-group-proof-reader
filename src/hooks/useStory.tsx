@@ -9,7 +9,11 @@ import {
   storyNodeToPageMap,
   pageToStoryNodeMap
 } from '@/lib/storyUtils';
-import { analyzeStoryStructure } from '@/lib/storyNodeMapping';
+import { 
+  analyzeStoryStructure, 
+  extractAllNodesFromInkJSON, 
+  extractCustomStoryFromInkJSON 
+} from '@/lib/storyNodeMapping';
 
 export const useStory = (storyId: string | undefined) => {
   const [story, setStory] = useState<Story | null>(null);
@@ -72,6 +76,22 @@ export const useStory = (storyId: string | undefined) => {
     }
   };
 
+  const getNodeCountFromInkStory = (storyData: any): number => {
+    try {
+      const allNodes = extractAllNodesFromInkJSON(storyData);
+      console.log("Node count analysis found nodes:", allNodes);
+      
+      const contentNodes = allNodes.filter(node => 
+        node !== 'inkVersion' && node !== 'listDefs' && node !== '#f'
+      );
+      
+      return contentNodes.length;
+    } catch (e) {
+      console.error("Error counting nodes from Ink story:", e);
+      return 17;
+    }
+  };
+
   useEffect(() => {
     const initializeStory = async () => {
       if (!storyId) {
@@ -122,9 +142,23 @@ export const useStory = (storyId: string | undefined) => {
           setStory(newStory);
           setUsingCustomFormat(false);
           
-          const estimatedPages = estimateTotalPagesFromInkStory(newStory);
-          console.log("Estimated total pages:", estimatedPages);
-          setTotalPages(estimatedPages);
+          const nodeCount = getNodeCountFromInkStory(storyData);
+          console.log("Node count analysis found pages:", nodeCount);
+          
+          const customStoryData = extractCustomStoryFromInkJSON(storyData);
+          console.log("Converted Ink story to custom format:", customStoryData);
+          
+          try {
+            const { totalPages: analyzedPages } = analyzeStoryStructure(customStoryData);
+            console.log("Story structure analysis found pages:", analyzedPages);
+            
+            setTotalPages(analyzedPages);
+            
+            setCustomStory(customStoryData);
+          } catch (analysisErr) {
+            console.warn("Error in story structure analysis:", analysisErr);
+            setTotalPages(Math.max(nodeCount, 1));
+          }
           
           if (newStory.canContinue) {
             const nextText = newStory.Continue();
@@ -155,7 +189,6 @@ export const useStory = (storyId: string | undefined) => {
         setUsingCustomFormat(true);
         setCustomStory(storyData);
         
-        // Use our new dynamic node mapping system
         try {
           console.log("Analyzing story structure for node mappings...");
           const { nodeToPage, pageToNode, totalPages: calculatedPages } = analyzeStoryStructure(storyData);
@@ -165,7 +198,6 @@ export const useStory = (storyId: string | undefined) => {
           console.log("Dynamic node mapping successful:", { nodeToPage, pageToNode, totalPages: calculatedPages });
         } catch (err) {
           console.warn("Failed to use dynamic node mapping, falling back to static mappings", err);
-          // Fallback to static mappings
           setNodeMappings({
             nodeToPage: storyNodeToPageMap,
             pageToNode: pageToStoryNodeMap
@@ -188,7 +220,6 @@ export const useStory = (storyId: string | undefined) => {
         setUsingCustomFormat(true);
         setCustomStory(storyData);
         
-        // Use our new dynamic node mapping system
         try {
           console.log("Analyzing story structure for node mappings...");
           const { nodeToPage, pageToNode, totalPages: calculatedPages } = analyzeStoryStructure(storyData);
@@ -198,7 +229,6 @@ export const useStory = (storyId: string | undefined) => {
           console.log("Dynamic node mapping successful:", { nodeToPage, pageToNode, totalPages: calculatedPages });
         } catch (err) {
           console.warn("Failed to use dynamic node mapping, falling back to static mappings", err);
-          // Fallback to static mappings
           setNodeMappings({
             nodeToPage: storyNodeToPageMap,
             pageToNode: pageToStoryNodeMap
@@ -305,7 +335,6 @@ export const useStory = (storyId: string | undefined) => {
       setCurrentText(nextStoryNode.text);
       setCurrentChoices(nextStoryNode.choices || []);
       
-      // Use our dynamic node mappings first, fall back to static if needed
       const newPage = nodeMappings.nodeToPage[nextNode] || 
                       storyNodeToPageMap[nextNode] || 
                       (currentPage + 1);
@@ -449,7 +478,6 @@ export const useStory = (storyId: string | undefined) => {
     console.log(`Navigating to page ${newPage} (current: ${currentPage})`);
     
     if (usingCustomFormat && customStory) {
-      // Try dynamic mappings first, fall back to static if needed
       const targetNode = nodeMappings.pageToNode[newPage] || 
                         pageToStoryNodeMap[newPage];
       

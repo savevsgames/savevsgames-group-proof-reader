@@ -1,5 +1,6 @@
+
 import { CustomStory, generateNodeMappings } from "@/lib/storyUtils";
-import { analyzeStoryStructure, validateNodeMappings } from "@/lib/storyNodeMapping";
+import { analyzeStoryStructure, validateNodeMappings, extractAllNodesFromInkJSON } from "@/lib/storyNodeMapping";
 
 export interface NodeMappings {
   nodeToPage: Record<string, number>;
@@ -118,4 +119,5 @@ export const extractStoryContent = async (data: any): Promise<CustomStory | null
 
 // These functions are imported from storyUtils but included here for completion
 // In a real implementation, you would import these from storyUtils
-import { extractAllNodesFromInkJSON, extractCustomStoryFromInkJSON } from "@/lib/storyUtils";
+import { extractCustomStoryFromInkJSON } from "@/lib/storyUtils";
+

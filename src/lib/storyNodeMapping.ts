@@ -206,3 +206,182 @@ export const validateNodeMappings = (
   
   return hasAllNodes && isSequential && isBidirectional;
 };
+
+/**
+ * Extract all nodes from an Ink.js JSON structure
+ * @param inkJson The Ink.js story JSON
+ * @returns Array of node IDs found in the story
+ */
+export const extractAllNodesFromInkJSON = (inkJson: any): string[] => {
+  const nodes: string[] = [];
+  const visited = new Set<string>();
+  
+  // Skip these system keys
+  const skipKeys = ['inkVersion', 'listDefs', '#f'];
+  
+  // Recursive function to extract nodes
+  const extractNodes = (obj: any, path: string = '') => {
+    if (!obj || typeof obj !== 'object') return;
+    
+    // If this is a named object (likely a node)
+    if (path && !skipKeys.includes(path) && !visited.has(path)) {
+      visited.add(path);
+      nodes.push(path);
+    }
+    
+    // Process array items
+    if (Array.isArray(obj)) {
+      obj.forEach((item, index) => {
+        extractNodes(item, `${path}[${index}]`);
+      });
+      return;
+    }
+    
+    // Process object properties
+    Object.entries(obj).forEach(([key, value]) => {
+      // Skip special Ink metadata keys
+      if (skipKeys.includes(key)) return;
+      
+      const newPath = path ? `${path}.${key}` : key;
+      
+      // If it's a named node in the story structure
+      if (
+        typeof value === 'object' && 
+        value !== null && 
+        !Array.isArray(value) && 
+        Object.keys(value).length > 0 &&
+        !skipKeys.includes(key)
+      ) {
+        visited.add(key);
+        nodes.push(key);
+      }
+      
+      extractNodes(value, newPath);
+    });
+  };
+  
+  extractNodes(inkJson);
+  
+  return nodes;
+};
+
+/**
+ * Converts an Ink.js story to our custom format
+ * @param inkJson The original Ink.js JSON
+ * @returns A story in our custom format
+ */
+export const extractCustomStoryFromInkJSON = (inkJson: any): CustomStory => {
+  const customStory: CustomStory = { 
+    inkVersion: inkJson.inkVersion 
+  };
+  
+  // Get all nodes
+  const nodeNames = extractAllNodesFromInkJSON(inkJson);
+  console.log("Converted ink nodes:", nodeNames);
+  
+  // Start with the root container
+  if (inkJson.root) {
+    customStory.root = {
+      text: extractTextFromInkNode(inkJson.root),
+      choices: extractChoicesFromInkNode(inkJson.root, nodeNames)
+    };
+  }
+  
+  // Extract all other nodes
+  nodeNames.forEach(nodeName => {
+    const nodeContent = getNestedProperty(inkJson, nodeName);
+    if (nodeContent && typeof nodeContent === 'object') {
+      customStory[nodeName] = {
+        text: extractTextFromInkNode(nodeContent),
+        choices: extractChoicesFromInkNode(nodeContent, nodeNames)
+      };
+    }
+  });
+  
+  return customStory;
+};
+
+/**
+ * Helper to get a nested property from an object using a path string
+ */
+function getNestedProperty(obj: any, path: string): any {
+  const parts = path.split('.');
+  let current = obj;
+  
+  for (const part of parts) {
+    if (current === null || current === undefined) return undefined;
+    
+    // Handle array indexing
+    if (part.includes('[') && part.includes(']')) {
+      const [name, indexStr] = part.split('[');
+      const index = parseInt(indexStr.replace(']', ''));
+      
+      current = current[name]?.[index];
+    } else {
+      current = current[part];
+    }
+  }
+  
+  return current;
+}
+
+/**
+ * Extract text content from an Ink node
+ */
+function extractTextFromInkNode(node: any): string {
+  if (!node) return '';
+  
+  // If the node is an array, look for text entries
+  if (Array.isArray(node)) {
+    return node
+      .filter(item => typeof item === 'string' && !item.startsWith('^->') && !item.startsWith('ev'))
+      .map(item => typeof item === 'string' ? item.replace(/^\^/, '') : '')
+      .join(' ')
+      .trim();
+  }
+  
+  // If the node has a '_' property that's an array, process that
+  if (node['_'] && Array.isArray(node['_'])) {
+    return extractTextFromInkNode(node['_']);
+  }
+  
+  return '';
+}
+
+/**
+ * Extract choices from an Ink node
+ */
+function extractChoicesFromInkNode(node: any, allNodes: string[]): { text: string, nextNode: string }[] {
+  const choices: { text: string, nextNode: string }[] = [];
+  
+  // Helper to find pointers to other nodes
+  const findPointers = (obj: any) => {
+    if (!obj || typeof obj !== 'object') return;
+    
+    if (Array.isArray(obj)) {
+      obj.forEach(item => {
+        // Look for strings with format '^->' which are pointers to other nodes
+        if (typeof item === 'string' && item.startsWith('^->')) {
+          const targetNode = item.replace('^->', '').trim();
+          if (allNodes.includes(targetNode)) {
+            // Find the preceding text (choice text)
+            const choiceIndex = obj.indexOf(item) - 2;
+            if (choiceIndex >= 0 && typeof obj[choiceIndex] === 'string') {
+              let choiceText = obj[choiceIndex].replace(/^str\^/, '').replace(/\/str$/, '');
+              choices.push({ text: choiceText, nextNode: targetNode });
+            }
+          }
+        } else {
+          findPointers(item);
+        }
+      });
+    } else {
+      Object.values(obj).forEach(value => findPointers(value));
+    }
+  };
+  
+  findPointers(node);
+  
+  return choices;
+}
+
