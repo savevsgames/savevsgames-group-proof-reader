@@ -269,6 +269,53 @@ export type Database = {
         }
         Relationships: []
       }
+      story_images: {
+        Row: {
+          book_id: string
+          created_at: string | null
+          enhanced_prompt: string | null
+          id: string
+          image_prompt: string
+          image_url: string | null
+          page_number: number
+          status: string | null
+          story_node: string
+          updated_at: string | null
+        }
+        Insert: {
+          book_id: string
+          created_at?: string | null
+          enhanced_prompt?: string | null
+          id?: string
+          image_prompt: string
+          image_url?: string | null
+          page_number: number
+          status?: string | null
+          story_node: string
+          updated_at?: string | null
+        }
+        Update: {
+          book_id?: string
+          created_at?: string | null
+          enhanced_prompt?: string | null
+          id?: string
+          image_prompt?: string
+          image_url?: string | null
+          page_number?: number
+          status?: string | null
+          story_node?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_images_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       user_comments: {

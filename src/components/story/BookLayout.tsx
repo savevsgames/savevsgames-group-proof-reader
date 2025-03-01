@@ -77,6 +77,9 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
           <div className="h-full bg-[#E8DCC4] p-4 md:p-6 lg:p-8 book-page rounded-lg md:rounded-l-lg md:rounded-r-none overflow-y-auto">
             <StoryDisplay 
               text={currentText} 
+              storyId={storyId}
+              currentNode={currentNode}
+              currentPage={currentPage}
               canContinue={canContinue}
               choices={choices}
               isEnding={isEnding}

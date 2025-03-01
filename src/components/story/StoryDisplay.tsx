@@ -8,6 +8,9 @@ import { EmptyStoryContent } from './EmptyStoryContent';
 
 interface StoryDisplayProps {
   text: string;
+  storyId?: string;
+  currentNode?: string;
+  currentPage?: number;
   canContinue: boolean;
   choices: StoryChoice[];
   isEnding: boolean;
@@ -18,6 +21,9 @@ interface StoryDisplayProps {
 
 export const StoryDisplay: React.FC<StoryDisplayProps> = ({ 
   text,
+  storyId,
+  currentNode,
+  currentPage,
   canContinue,
   choices,
   isEnding,
@@ -29,7 +35,12 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({
     <div className="prose prose-lg max-w-none overflow-hidden prose-headings:font-serif prose-p:font-serif">
       {text ? (
         <>
-          <StoryText text={text} />
+          <StoryText 
+            text={text} 
+            storyId={storyId}
+            currentNode={currentNode}
+            currentPage={currentPage}
+          />
           
           {/* Story Controls - simplified for this component */}
           <div className="mt-4 md:mt-8">
