@@ -51,14 +51,12 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
   const goToPreviousPage = () => {
     if (currentPage > 1) {
       onPageChange(currentPage - 1);
-      setPageInput((currentPage - 1).toString());
     }
   };
 
   const goToNextPage = () => {
     if (currentPage < totalPages) {
       onPageChange(currentPage + 1);
-      setPageInput((currentPage + 1).toString());
     }
   };
 
