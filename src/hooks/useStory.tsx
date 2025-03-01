@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Story } from 'inkjs';
 import { useToast } from '@/hooks/use-toast';
@@ -10,8 +11,7 @@ import {
 import { 
   analyzeStoryStructure, 
   extractAllNodesFromInkJSON, 
-  extractCustomStoryFromInkJSON,
-  validateNodeMappings
+  extractCustomStoryFromInkJSON
 } from '@/lib/storyNodeMapping';
 import { generateAndLogNodeMappings } from '@/lib/storyEditorUtils';
 
@@ -130,6 +130,7 @@ export const useStory = (storyId: string | undefined) => {
           
           setCurrentStoryPosition(1);
           setCurrentPage(1);
+          setCurrentNode('root');
           
           const count = await fetchCommentCount(sid, 1);
           setCommentCount(count);
@@ -194,31 +195,64 @@ export const useStory = (storyId: string | undefined) => {
     }
   };
 
+  // UPDATED: Handle continue with new node mapping
   const handleContinue = async () => {
-    if (!story || !storyId) return;
+    if (!story && !customStory || !storyId) return;
     
-    const currentState = story.state.toJson();
-    setStoryHistory(prev => [...prev, currentState]);
-    setCanGoBack(true);
-    
-    const nextText = story.Continue();
-    setCurrentText(nextText);
-    setCanContinue(story.canContinue);
-    
-    const newPage = Math.min(currentPage + 1, totalPages);
-    setCurrentPage(newPage);
-    setCurrentStoryPosition(newPage);
-    
-    if (!story.canContinue) {
-      setCurrentChoices(story.currentChoices);
+    // Save current state for history
+    if (!usingCustomFormat && story) {
+      const currentState = story.state.toJson();
+      setStoryHistory(prev => [...prev, currentState]);
     } else {
-      setCurrentChoices([]);
+      setStoryHistory(prev => [...prev, currentNode]);
     }
     
-    const count = await fetchCommentCount(storyId, newPage);
-    setCommentCount(count);
+    setCanGoBack(true);
+    
+    if (!usingCustomFormat && story) {
+      // Ink story continues
+      const nextText = story.Continue();
+      setCurrentText(nextText);
+      setCanContinue(story.canContinue);
+      
+      if (!story.canContinue) {
+        setCurrentChoices(story.currentChoices);
+      } else {
+        setCurrentChoices([]);
+      }
+    } else if (usingCustomFormat && customStory && currentChoices.length === 1) {
+      // Follow single choice in custom story
+      const nextNode = currentChoices[0].nextNode;
+      if (customStory[nextNode]) {
+        setCurrentNode(nextNode);
+        setCurrentText(customStory[nextNode].text);
+        setCurrentChoices(customStory[nextNode].choices || []);
+      }
+    }
+    
+    // Update page number using node mappings
+    const newPage = Math.min(currentPage + 1, totalPages);
+    const newNode = nodeMappings.pageToNode[newPage];
+    
+    if (newNode && ((!usingCustomFormat && story) || (usingCustomFormat && customStory && customStory[newNode]))) {
+      console.log(`Navigating to page ${newPage}, node: ${newNode}`);
+      
+      // If using custom format, also update currentNode
+      if (usingCustomFormat && customStory) {
+        setCurrentNode(newNode);
+      }
+      
+      setCurrentPage(newPage);
+      setCurrentStoryPosition(newPage);
+      
+      const count = await fetchCommentCount(storyId, newPage);
+      setCommentCount(count);
+    } else {
+      console.warn(`Navigation issue: No valid node found for page ${newPage}`);
+    }
   };
 
+  // UPDATED: Handle ink choice with new node mapping
   const handleInkChoice = async (index: number) => {
     if (!story || !storyId) return;
 
@@ -243,14 +277,25 @@ export const useStory = (storyId: string | undefined) => {
       setCanContinue(false);
     }
     
-    const newPage = Math.min(currentPage + 1, totalPages);
-    setCurrentPage(newPage);
-    setCurrentStoryPosition(newPage);
+    // Use node mappings to determine the new page
+    const nextPage = currentPage + 1;
+    const nextNode = nodeMappings.pageToNode[nextPage];
     
-    const count = await fetchCommentCount(storyId, newPage);
+    if (nextNode) {
+      setCurrentPage(nextPage);
+      setCurrentStoryPosition(nextPage);
+    } else {
+      console.warn(`No node mapping for page ${nextPage}, using fallback`);
+      const newPage = Math.min(currentPage + 1, totalPages);
+      setCurrentPage(newPage);
+      setCurrentStoryPosition(newPage);
+    }
+    
+    const count = await fetchCommentCount(storyId, currentPage);
     setCommentCount(count);
   };
 
+  // UPDATED: Handle custom choice with new node mapping
   const handleCustomChoice = async (nextNode: string) => {
     if (!customStory || !storyId) return;
 
@@ -263,13 +308,21 @@ export const useStory = (storyId: string | undefined) => {
       setCurrentText(nextStoryNode.text);
       setCurrentChoices(nextStoryNode.choices || []);
       
-      const newPage = nodeMappings.nodeToPage[nextNode] || 
-                      Math.min(currentPage + 1, totalPages);
-                      
-      setCurrentPage(newPage);
-      setCurrentStoryPosition(newPage);
+      // Update page using node mappings
+      const nextPage = nodeMappings.nodeToPage[nextNode];
       
-      const count = await fetchCommentCount(storyId, newPage);
+      if (nextPage) {
+        console.log(`Choice navigation: node ${nextNode} maps to page ${nextPage}`);
+        setCurrentPage(nextPage);
+        setCurrentStoryPosition(nextPage);
+      } else {
+        console.warn(`No page mapping for node ${nextNode}, using incremental page`);
+        const newPage = Math.min(currentPage + 1, totalPages);
+        setCurrentPage(newPage);
+        setCurrentStoryPosition(newPage);
+      }
+      
+      const count = await fetchCommentCount(storyId, currentPage);
       setCommentCount(count);
     } else {
       console.error(`Node "${nextNode}" not found in story`);
@@ -277,6 +330,7 @@ export const useStory = (storyId: string | undefined) => {
     }
   };
 
+  // UPDATED: Handle choice with proper node mapping determination
   const handleChoice = (index: number) => {
     if (usingCustomFormat) {
       const choice = currentChoices[index];
@@ -288,6 +342,7 @@ export const useStory = (storyId: string | undefined) => {
     }
   };
 
+  // UPDATED: Handle back navigation with node mappings
   const handleBack = async () => {
     if (!storyId || storyHistory.length === 0) return;
 
@@ -300,14 +355,15 @@ export const useStory = (storyId: string | undefined) => {
       setStoryHistory(newHistory);
       setCanGoBack(newHistory.length > 0);
       
-      const newPage = Math.max(currentPage - 1, 1);
-      console.log(`Back navigation: Page ${currentPage} → ${newPage}`);
+      // Determine previous page based on node mappings
+      const prevPage = Math.max(currentPage - 1, 1);
+      console.log(`Back navigation: Page ${currentPage} → ${prevPage}`);
       
-      setCurrentPage(newPage);
-      setCurrentStoryPosition(newPage);
+      setCurrentPage(prevPage);
+      setCurrentStoryPosition(prevPage);
       
       if (usingCustomFormat && customStory) {
-        const prevNode = previousState;
+        const prevNode = previousState as string;
         if (customStory[prevNode]) {
           setCurrentNode(prevNode);
           
@@ -317,7 +373,7 @@ export const useStory = (storyId: string | undefined) => {
           
           setCurrentChoices(customStory[prevNode].choices || []);
           
-          const count = await fetchCommentCount(storyId, newPage);
+          const count = await fetchCommentCount(storyId, prevPage);
           setCommentCount(count);
         } else {
           console.error(`Back navigation error: Node "${prevNode}" not found`);
@@ -325,7 +381,7 @@ export const useStory = (storyId: string | undefined) => {
       } else if (story) {
         console.log("Back navigation: Loading previous story state");
         try {
-          story.state.LoadJson(previousState);
+          story.state.LoadJson(previousState as string);
           
           let newText = "";
           if (story.canContinue) {
@@ -346,7 +402,7 @@ export const useStory = (storyId: string | undefined) => {
             setCurrentChoices([]);
           }
           
-          const count = await fetchCommentCount(storyId, newPage);
+          const count = await fetchCommentCount(storyId, prevPage);
           setCommentCount(count);
         } catch (error) {
           console.error("Error loading previous state:", error);
@@ -359,12 +415,14 @@ export const useStory = (storyId: string | undefined) => {
     }
   };
 
+  // UPDATED: Handle restart with node mappings
   const handleRestart = async () => {
     if (!storyId) return;
     
     setStoryHistory([]);
     setCanGoBack(false);
     
+    // Always reset to page 1
     setCurrentPage(1);
     setCurrentStoryPosition(1);
     
@@ -404,6 +462,7 @@ export const useStory = (storyId: string | undefined) => {
     }
   };
 
+  // UPDATED: Handle page change with node mappings 
   const handlePageChange = async (newPage: number) => {
     if (!storyId || newPage === currentPage || newPage < 1 || newPage > totalPages) {
       console.log(`Invalid page navigation attempt: current=${currentPage}, target=${newPage}, max=${totalPages}`);
@@ -412,14 +471,32 @@ export const useStory = (storyId: string | undefined) => {
     
     console.log(`Navigating to page ${newPage} (current: ${currentPage})`);
     
+    // Get the target node for this page
+    const targetNode = nodeMappings.pageToNode[newPage];
+    
+    if (!targetNode) {
+      console.error(`No node mapping found for page ${newPage}`);
+      toast({
+        title: "Navigation Error",
+        description: `Could not find content for page ${newPage}`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Save current state for back navigation
+    if (usingCustomFormat) {
+      setStoryHistory(prev => [...prev, currentNode]);
+    } else if (story) {
+      const currentState = story.state.toJson();
+      setStoryHistory(prev => [...prev, currentState]);
+    }
+    
+    setCanGoBack(true);
+    
     if (usingCustomFormat && customStory) {
-      const targetNode = nodeMappings.pageToNode[newPage];
-      
-      if (targetNode && customStory[targetNode]) {
+      if (customStory[targetNode]) {
         console.log(`Found node ${targetNode} for page ${newPage}`);
-        
-        setStoryHistory(prev => [...prev, currentNode]);
-        setCanGoBack(true);
         
         setCurrentNode(targetNode);
         setCurrentText(customStory[targetNode].text);
@@ -431,7 +508,7 @@ export const useStory = (storyId: string | undefined) => {
         const count = await fetchCommentCount(storyId, newPage);
         setCommentCount(count);
       } else {
-        console.error(`No node mapping found for page ${newPage}`);
+        console.error(`Node "${targetNode}" not found in story data`);
         toast({
           title: "Navigation Error",
           description: `Could not find content for page ${newPage}`,
@@ -440,18 +517,16 @@ export const useStory = (storyId: string | undefined) => {
       }
     } 
     else if (story) {
-      const currentState = story.state.toJson();
-      setStoryHistory(prev => [...prev, currentState]);
-      setCanGoBack(true);
-      
-      if (newPage < currentPage) {
-        console.log(`Backwards navigation from ${currentPage} to ${newPage}`);
-        try {
+      try {
+        // For Ink.js stories, we need to reset and step through
+        if (newPage < currentPage) {
+          console.log(`Backwards navigation from ${currentPage} to ${newPage}`);
           const originalState = story.state.toJson();
           story.ResetState();
           
           let currentPageCounter = 1;
           
+          // Navigate through the story to reach the target page
           while (currentPageCounter < newPage && story.canContinue) {
             story.Continue();
             currentPageCounter++;
@@ -464,6 +539,12 @@ export const useStory = (storyId: string | undefined) => {
             setCurrentChoices(story.canContinue ? [] : story.currentChoices);
             setCurrentPage(newPage);
             setCurrentStoryPosition(newPage);
+            
+            // Also update currentNode to match
+            if (targetNode) {
+              setCurrentNode(targetNode);
+            }
+            
             console.log(`Successfully navigated to page ${newPage}`);
           } else {
             console.error(`Failed to navigate to page ${newPage}, only reached ${currentPageCounter}`);
@@ -475,72 +556,77 @@ export const useStory = (storyId: string | undefined) => {
             });
             return;
           }
-        } catch (error) {
-          console.error("Error during backward navigation:", error);
-          toast({
-            title: "Navigation Error",
-            description: "An error occurred during navigation",
-            variant: "destructive"
-          });
-          return;
-        }
-      } else {
-        console.log(`Forward navigation from ${currentPage} to ${newPage}`);
-        try {
-          let currentPageCounter = currentPage;
-          let success = false;
-          
-          while (currentPageCounter < newPage) {
-            if (story.canContinue) {
-              story.Continue();
-              currentPageCounter++;
-              console.log(`Navigation progress: at page ${currentPageCounter}`);
-            } else if (story.currentChoices.length > 0) {
-              story.ChooseChoiceIndex(0);
+        } else {
+          console.log(`Forward navigation from ${currentPage} to ${newPage}`);
+          try {
+            let currentPageCounter = currentPage;
+            let success = false;
+            
+            while (currentPageCounter < newPage) {
               if (story.canContinue) {
                 story.Continue();
+                currentPageCounter++;
+                console.log(`Navigation progress: at page ${currentPageCounter}`);
+              } else if (story.currentChoices.length > 0) {
+                story.ChooseChoiceIndex(0);
+                if (story.canContinue) {
+                  story.Continue();
+                }
+                currentPageCounter++;
+                console.log(`Navigation progress (after choice): at page ${currentPageCounter}`);
+              } else {
+                console.log(`Navigation stuck at page ${currentPageCounter}, no way to continue`);
+                break;
               }
-              currentPageCounter++;
-              console.log(`Navigation progress (after choice): at page ${currentPageCounter}`);
-            } else {
-              console.log(`Navigation stuck at page ${currentPageCounter}, no way to continue`);
-              break;
+              
+              if (currentPageCounter === newPage) {
+                success = true;
+                break;
+              }
             }
             
-            if (currentPageCounter === newPage) {
-              success = true;
-              break;
+            if (success) {
+              setCurrentText(story.currentText);
+              setCanContinue(story.canContinue);
+              setCurrentChoices(story.canContinue ? [] : story.currentChoices);
+              setCurrentPage(newPage);
+              setCurrentStoryPosition(newPage);
+              
+              // Also update currentNode to match
+              if (targetNode) {
+                setCurrentNode(targetNode);
+              }
+              
+              console.log(`Successfully navigated to page ${newPage}`);
+            } else {
+              toast({
+                title: "Navigation Error",
+                description: `Could not navigate to page ${newPage}`,
+                variant: "destructive"
+              });
+              return;
             }
-          }
-          
-          if (success) {
-            setCurrentText(story.currentText);
-            setCanContinue(story.canContinue);
-            setCurrentChoices(story.canContinue ? [] : story.currentChoices);
-            setCurrentPage(newPage);
-            setCurrentStoryPosition(newPage);
-            console.log(`Successfully navigated to page ${newPage}`);
-          } else {
+          } catch (error) {
+            console.error("Error during forward navigation:", error);
             toast({
               title: "Navigation Error",
-              description: `Could not navigate to page ${newPage}`,
+              description: "An error occurred during navigation",
               variant: "destructive"
             });
             return;
           }
-        } catch (error) {
-          console.error("Error during forward navigation:", error);
-          toast({
-            title: "Navigation Error",
-            description: "An error occurred during navigation",
-            variant: "destructive"
-          });
-          return;
         }
+        
+        const count = await fetchCommentCount(storyId, newPage);
+        setCommentCount(count);
+      } catch (error) {
+        console.error("Error during page navigation:", error);
+        toast({
+          title: "Navigation Error", 
+          description: "An error occurred during navigation",
+          variant: "destructive"
+        });
       }
-      
-      const count = await fetchCommentCount(storyId, newPage);
-      setCommentCount(count);
     }
   };
 
