@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
@@ -40,11 +41,15 @@ const CommentsView = ({ storyId, currentNode, currentPage, onCommentsUpdate, onA
   useEffect(() => {
     const fetchComments = async () => {
       try {
+        // Fixed the query - using story_position instead of node
         const { data, error } = await supabase
           .from('comments')
-          .select('*')
+          .select(`
+            *,
+            profile:profiles(username)
+          `)
           .eq('story_id', storyId)
-          .eq('node', currentNode)
+          .eq('story_position', currentPage)
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -58,10 +63,10 @@ const CommentsView = ({ storyId, currentNode, currentPage, onCommentsUpdate, onA
       }
     };
 
-    if (storyId && currentNode) {
+    if (storyId && currentPage) {
       fetchComments();
     }
-  }, [storyId, currentNode, onCommentsUpdate]);
+  }, [storyId, currentPage, onCommentsUpdate]);
 
   const postComment = async (text: string, type: CommentType) => {
     if (!user) {
@@ -74,8 +79,8 @@ const CommentsView = ({ storyId, currentNode, currentPage, onCommentsUpdate, onA
         .from('comments')
         .insert([{
           story_id: storyId,
-          node: currentNode,
-          page_number: currentPage,
+          story_position: currentPage,
+          story_node: currentNode, // Added story_node as reference
           text: text,
           comment_type: type,
           user_id: user.id,
