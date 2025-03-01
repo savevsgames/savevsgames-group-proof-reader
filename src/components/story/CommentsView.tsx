@@ -1,13 +1,17 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useSupabaseClient } from '@supabase/auth-helpers-react';
-import { Textarea } from "@/components/ui/textarea"
-import { Button } from "@/components/ui/button"
+import { supabase } from '@/lib/supabase';
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import { Send } from 'lucide-react';
-import { Comment, CommentType } from '../comments/types';
 import { User } from '@/lib/supabase';
-import { CommentsList } from './CommentsList';
-import { CommentTypeSelector } from './CommentTypeSelector';
+import { Comment } from '../comments/types';
+import CommentsList from '../comments/CommentsList';
+import { CommentTypeSelector } from "../comments/CommentTypeSelector";
+import { commentTypeLabels } from '@/lib/commentTypes';
+
+type CommentType = 'edit' | 'suggestion' | 'praise' | 'question' | 'issue' | 'spelling' | 'general';
 
 interface CommentsViewProps {
   storyId: string;
@@ -23,7 +27,6 @@ const CommentsView = ({ storyId, currentNode, currentPage, onCommentsUpdate }: C
   const [isEditing, setIsEditing] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const supabase = useSupabaseClient();
   const navigate = useNavigate();
   const { bookId } = useParams();
 
@@ -34,7 +37,7 @@ const CommentsView = ({ storyId, currentNode, currentPage, onCommentsUpdate }: C
     };
 
     fetchSession();
-  }, [supabase.auth]);
+  }, []);
 
   useEffect(() => {
     const fetchComments = async () => {
@@ -60,7 +63,7 @@ const CommentsView = ({ storyId, currentNode, currentPage, onCommentsUpdate }: C
     if (storyId && currentNode) {
       fetchComments();
     }
-  }, [supabase, storyId, currentNode, onCommentsUpdate]);
+  }, [storyId, currentNode, onCommentsUpdate]);
 
   const postComment = async (text: string, type: CommentType) => {
     if (!user) {
@@ -76,10 +79,10 @@ const CommentsView = ({ storyId, currentNode, currentPage, onCommentsUpdate }: C
           node: currentNode,
           page_number: currentPage,
           text: text,
-          type: type,
+          comment_type: type,
           user_id: user.id,
-          user_name: user.user_metadata.name || 'Anonymous',
-          user_avatar: user.user_metadata.avatar_url,
+          user_name: user.username || 'Anonymous',
+          user_avatar: user.avatar_url
         }])
         .select('*')
         .single();
@@ -100,7 +103,7 @@ const CommentsView = ({ storyId, currentNode, currentPage, onCommentsUpdate }: C
     try {
       const { data, error } = await supabase
         .from('comments')
-        .update({ text: text, type: type })
+        .update({ text: text, comment_type: type })
         .eq('id', commentId)
         .select('*')
         .single();
@@ -152,7 +155,7 @@ const CommentsView = ({ storyId, currentNode, currentPage, onCommentsUpdate }: C
     setIsEditing(true);
     setEditingCommentId(comment.id);
     setCommentText(comment.text);
-    setCommentType(comment.type);
+    setCommentType(comment.comment_type as CommentType || 'general');
   };
 
   const handleDeleteComment = async (commentId: string) => {
@@ -175,7 +178,7 @@ const CommentsView = ({ storyId, currentNode, currentPage, onCommentsUpdate }: C
             <div className="mt-4">
               <CommentTypeSelector
                 selectedType={commentType}
-                onSelect={setCommentType}
+                onSelect={(type) => setCommentType(type as CommentType)}
               />
             </div>
           </div>
@@ -222,9 +225,11 @@ const CommentsView = ({ storyId, currentNode, currentPage, onCommentsUpdate }: C
         <h3 className="font-medium text-[#3A2618] mb-4 font-serif">{comments.length} Comments</h3>
         <CommentsList 
           comments={comments}
+          isLoading={false}
           currentUser={user}
-          onEdit={handleEditComment}
-          onDelete={handleDeleteComment}
+          isModerator={false}
+          onEditComment={handleEditComment}
+          onDeleteComment={handleDeleteComment}
         />
       </div>
     </div>
