@@ -308,8 +308,17 @@ export const useStory = (storyId: string | undefined) => {
     const previousState = newHistory.pop();
     
     if (previousState) {
+      // First update the history state
       setStoryHistory(newHistory);
       setCanGoBack(newHistory.length > 0);
+      
+      // Important fix: Calculate the new page number BEFORE updating content
+      const newPage = Math.max(currentPage - 1, 1);
+      console.log(`Back navigation: Page ${currentPage} → ${newPage}`);
+      
+      // Update page numbers first to ensure UI and story content stay in sync
+      setCurrentPage(newPage);
+      setCurrentStoryPosition(newPage);
       
       if (usingCustomFormat && customStory) {
         const prevNode = previousState;
@@ -319,12 +328,7 @@ export const useStory = (storyId: string | undefined) => {
           setCurrentText(customStory[prevNode].text);
           setCurrentChoices(customStory[prevNode].choices || []);
           
-          // Update page based on node mapping or decrement
-          const newPage = storyNodeToPageMap[prevNode] || Math.max(currentPage - 1, 1);
-          console.log(`Back navigation: Page ${currentPage} → ${newPage}`);
-          setCurrentPage(newPage);
-          setCurrentStoryPosition(newPage);
-          
+          // Page number is already updated above
           const count = await fetchCommentCount(storyId, newPage);
           setCommentCount(count);
         } else {
@@ -333,15 +337,16 @@ export const useStory = (storyId: string | undefined) => {
       } else if (story) {
         console.log("Back navigation: Loading previous story state");
         try {
+          // Load the previous state
           story.state.LoadJson(previousState);
-          
-          // Reset text and rebuild from the beginning of this state
-          setCurrentText('');
           
           // Get the text for this state
           if (story.canContinue) {
             const text = story.Continue();
             setCurrentText(text);
+          } else {
+            // If we can't continue, use whatever text is in the current state
+            setCurrentText(story.currentText);
           }
           
           setCanContinue(story.canContinue);
@@ -352,17 +357,15 @@ export const useStory = (storyId: string | undefined) => {
             setCurrentChoices([]);
           }
           
-          // Update page and use it as position
-          const newPage = Math.max(currentPage - 1, 1);
-          console.log(`Back navigation: Page ${currentPage} → ${newPage}`);
-          setCurrentPage(newPage);
-          setCurrentStoryPosition(newPage);
-          
+          // Page number is already updated above
           // Fetch comments for the new page
           const count = await fetchCommentCount(storyId, newPage);
           setCommentCount(count);
         } catch (error) {
           console.error("Error loading previous state:", error);
+          // If there's an error, reset page numbers to ensure consistency
+          setCurrentPage(currentPage);
+          setCurrentStoryPosition(currentPage);
         }
       }
     } else {
