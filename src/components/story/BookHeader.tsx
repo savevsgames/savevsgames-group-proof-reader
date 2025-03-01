@@ -50,12 +50,14 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
 
   const goToPreviousPage = () => {
     if (currentPage > 1) {
+      console.log("Going to previous page", currentPage - 1);
       onPageChange(currentPage - 1);
     }
   };
 
   const goToNextPage = () => {
     if (currentPage < totalPages) {
+      console.log("Going to next page", currentPage + 1);
       onPageChange(currentPage + 1);
     }
   };
@@ -79,6 +81,7 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
           variant="ghost"
           onClick={handleBackToLibraryClick}
           className="text-[#3A2618] hover:bg-[#3A2618]/10 mb-3 sm:mb-0"
+          type="button"
         >
           <ArrowLeft className="h-5 w-5 mr-2" />
           Back to Library
@@ -104,6 +107,7 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
               onClick={goToPreviousPage}
               disabled={currentPage <= 1}
               className="h-8 w-8 p-0 flex items-center justify-center"
+              type="button"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -122,7 +126,7 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsEditing(true)}
-                  className="px-2 py-1 min-w-[80px] text-center hover:bg-[#3A2618]/10 rounded"
+                  className="px-2 py-1 min-w-[80px] text-center hover:bg-[#3A2618]/10 rounded cursor-pointer"
                 >
                   <span className="font-medium">{currentPage}</span> of {totalPages}
                 </button>
@@ -135,6 +139,7 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
               onClick={goToNextPage}
               disabled={currentPage >= totalPages}
               className="h-8 w-8 p-0 flex items-center justify-center"
+              type="button"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
