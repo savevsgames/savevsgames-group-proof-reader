@@ -109,7 +109,7 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
               onStoryDataChange(data);
               onUnsavedChanges(true);
             }}
-            currentNode={currentNode}
+            // Remove the currentNode prop since it's not in the LlmIntegration interface
           />
         </TabsContent>
       </Card>
