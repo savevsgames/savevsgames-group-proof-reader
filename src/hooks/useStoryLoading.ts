@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Story } from 'inkjs';
 import { useToast } from '@/hooks/use-toast';
@@ -10,7 +11,7 @@ import {
   extractAllNodesFromInkJSON, 
   extractCustomStoryFromInkJSON
 } from '@/lib/storyMapping';
-import { generateAndLogNodeMappings, type NodeMappings } from '@/lib/storyEditorUtils';
+import { generateComprehensiveNodeMapping, NodeMappings } from '@/lib/storyNodeMapping';
 
 interface UseStoryLoadingResult {
   story: Story | null;
@@ -94,29 +95,25 @@ export const useStoryLoading = (storyId: string | undefined): UseStoryLoadingRes
           
           try {
             console.log("Analyzing story structure...");
-            const { nodeMappings: mappings, totalPages: calculatedPages } = 
-              generateAndLogNodeMappings(customStoryData);
+            // Use our new comprehensive mapping function
+            const { nodeToPage, pageToNode, totalPages: calculatedPages } = 
+              generateComprehensiveNodeMapping(storyData);
             
             console.log("Story structure analysis successful:", 
-              { totalPages: calculatedPages, mappingCount: Object.keys(mappings.nodeToPage).length });
+              { totalPages: calculatedPages, mappingCount: Object.keys(nodeToPage).length });
             
-            const nodeCount = Object.keys(customStoryData).filter(key => 
-              key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
-            ).length;
+            // Set the mappings in our expected format
+            setNodeMappings({
+              nodeToPage,
+              pageToNode
+            });
             
-            const mappedNodeCount = Object.keys(mappings.nodeToPage).length;
-            
-            if (mappedNodeCount < nodeCount * 0.7) { // If we mapped less than 70% of nodes, log a warning
-              console.warn(`Mapping only covered ${mappedNodeCount} of ${nodeCount} nodes (${
-                Math.round(mappedNodeCount/nodeCount*100)}%)`);
-            }
-            
-            setNodeMappings(mappings);
             setTotalPages(calculatedPages);
             setCustomStory(customStoryData);
           } catch (analysisErr) {
             console.error("Error in story structure analysis:", analysisErr);
             
+            // Fall back to simple extraction
             const allNodes = extractAllNodesFromInkJSON(storyData);
             console.log("Extracted", allNodes.length, "nodes from story");
             
@@ -153,13 +150,18 @@ export const useStoryLoading = (storyId: string | undefined): UseStoryLoadingRes
         
         try {
           console.log("Analyzing custom story structure for node mappings...");
-          const { nodeMappings: mappings, totalPages: calculatedPages } = 
-            generateAndLogNodeMappings(storyData);
+          // Use our new comprehensive mapping function
+          const { nodeToPage, pageToNode, totalPages: calculatedPages } = 
+            generateComprehensiveNodeMapping(storyData);
           
-          setNodeMappings(mappings);
+          setNodeMappings({
+            nodeToPage,
+            pageToNode
+          });
+          
           setTotalPages(calculatedPages);
           console.log("Node mapping successful:", 
-            { totalPages: calculatedPages, mappings });
+            { totalPages: calculatedPages, mappingNodes: Object.keys(nodeToPage).length });
           
           setIsLoading(false);
         } catch (err) {

@@ -50,7 +50,7 @@ const StoryEditorHeader: React.FC<StoryEditorHeaderProps> = ({
               <SelectTrigger className="w-[180px] bg-white border-[#3A2618] text-[#3A2618]">
                 <SelectValue placeholder={`Page ${currentPage} of ${totalPages}`} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-[300px] overflow-y-auto">
                 {pageNumbers.map((page) => (
                   <SelectItem key={page} value={page.toString()}>
                     Page {page} of {totalPages}

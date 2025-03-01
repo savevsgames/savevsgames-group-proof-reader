@@ -1,14 +1,11 @@
-
 import { CustomStory } from "@/lib/storyUtils";
 import { 
-  validateNodeMappings,
-  generateNodeMappings
-} from "@/lib/story/mappings";
+  NodeMappings,
+  generateComprehensiveNodeMapping,
+  validateNodeMappings
+} from "@/lib/storyNodeMapping";
 import { extractAllNodesFromInkJSON } from "@/lib/story/nodeExtraction";
 import { extractCustomStoryFromInkJSON } from "@/lib/story/conversion";
-
-// Import the NodeMappings interface instead of redefining it
-import { NodeMappings } from "@/lib/storyNodeMapping";
 
 // Generate node mappings and log information about the story structure - improved version
 export const generateAndLogNodeMappings = (storyData: CustomStory): {
@@ -39,29 +36,29 @@ export const generateAndLogNodeMappings = (storyData: CustomStory): {
     
     console.log(`[Editor Utils] Content nodes: ${contentNodes.length}`);
     
-    // Use our improved mapping generator
-    const { storyNodeToPageMap, pageToStoryNodeMap, totalPages } = generateNodeMappings(storyData);
+    // Use our improved comprehensive mapping generator
+    const { nodeToPage, pageToNode, totalPages } = generateComprehensiveNodeMapping(storyData);
     
     // Log mapping statistics
-    console.log(`[Editor Utils] Generated mapping for ${Object.keys(storyNodeToPageMap).length} nodes across ${totalPages} pages`);
+    console.log(`[Editor Utils] Generated mapping for ${Object.keys(nodeToPage).length} nodes across ${totalPages} pages`);
     
     // Validate the mappings
-    const isValid = validateNodeMappings(storyData, storyNodeToPageMap, pageToStoryNodeMap);
+    const isValid = validateNodeMappings(storyData, nodeToPage, pageToNode);
     
     if (isValid) {
       console.log("[Editor Utils] Node mapping validation successful");
       
       // Useful debugging information
       if (totalPages > 0) {
-        const firstPage = pageToStoryNodeMap[1];
-        const lastPage = pageToStoryNodeMap[totalPages];
+        const firstPage = pageToNode[1];
+        const lastPage = pageToNode[totalPages];
         console.log(`[Editor Utils] First page maps to '${firstPage}', last page to '${lastPage}'`);
       }
       
       return {
         nodeMappings: {
-          nodeToPage: storyNodeToPageMap,
-          pageToNode: pageToStoryNodeMap
+          nodeToPage: nodeToPage,
+          pageToNode: pageToNode
         },
         totalPages
       };
@@ -70,8 +67,8 @@ export const generateAndLogNodeMappings = (storyData: CustomStory): {
       
       return {
         nodeMappings: {
-          nodeToPage: storyNodeToPageMap,
-          pageToNode: pageToStoryNodeMap
+          nodeToPage: nodeToPage,
+          pageToNode: pageToNode
         },
         totalPages
       };
@@ -178,5 +175,3 @@ export const extractStoryContent = async (data: any): Promise<CustomStory | null
   console.warn("[Content Extraction] Could not extract story content from any source");
   return null;
 };
-
-// We're removing the re-export of NodeMappings to fix the conflict

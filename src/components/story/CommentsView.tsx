@@ -38,6 +38,14 @@ const CommentsView = ({
     deleteComment
   } = useComments(storyId, currentPage, onCommentsUpdate);
 
+  // Use both node and page for complete context
+  const commentPageData = {
+    node: currentNode,
+    page: currentPage
+  };
+
+  console.log(`[CommentsView] Showing comments for page ${currentPage}, node: ${currentNode}`);
+
   return (
     <div className="h-full flex flex-col">
       <h2 className="text-2xl font-serif mb-4 text-[#3A2618] flex-shrink-0">Reader Comments</h2>
