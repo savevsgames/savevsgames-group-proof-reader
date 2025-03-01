@@ -1,6 +1,6 @@
 
 import { StateCreator } from 'zustand';
-import { StoryStore } from './types';
+import { StoryStore } from '@/types/story-types.definitions';
 import { supabase } from '@/lib/supabase';
 
 // Slice for editor-specific state and actions

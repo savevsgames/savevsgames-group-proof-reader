@@ -9,7 +9,7 @@ import {
 } from '@/types/story-types.definitions';
 
 // Re-export all the types for backward compatibility
-export {
+export type {
   CustomStory,
   StoryState,
   StoryActions,

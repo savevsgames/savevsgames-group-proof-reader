@@ -1,6 +1,6 @@
 
 import { StateCreator } from 'zustand';
-import { StoryStore } from './types';
+import { StoryStore } from '@/types/story-types.definitions';
 
 // Slice for UI-related state and actions
 export const createUiSlice: StateCreator<
