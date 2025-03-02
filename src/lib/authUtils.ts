@@ -1,7 +1,6 @@
-
 import { supabase } from './supabase';
 import { toast } from '@/hooks/use-toast';
-import { User } from './supabase';
+import { User } from '@supabase/supabase-js';
 
 // Log helper function
 const logAuth = (action: string, details?: any) => {
