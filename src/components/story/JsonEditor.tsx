@@ -1,5 +1,6 @@
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import MonacoEditor, { EditorDidMount } from '@monaco-editor/react';
+import MonacoEditor from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
 import { CustomStory, NodeMappings } from '@/types';
 
@@ -30,7 +31,8 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
     }
   }, [storyData]);
 
-  const handleEditorDidMount: EditorDidMount = (editor, monaco) => {
+  // Handle editor mount
+  const handleEditorDidMount = (editor: monaco.editor.IStandaloneCodeEditor) => {
     editorRef.current = editor;
     
     // Subscribe to cursor change events
@@ -76,10 +78,20 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
     const jsonStr = editorRef.current.getValue();
     
     try {
+      // For fragments, adjust the node name to account for zero-based indexing
+      let nodeToHighlight = currentNode;
+      if (currentNode.startsWith('fragment_') && currentPage) {
+        // This makes sure we highlight fragment_0 when on page 1
+        const fragmentNumber = parseInt(currentNode.replace('fragment_', ''));
+        if (!isNaN(fragmentNumber)) {
+          nodeToHighlight = `fragment_${fragmentNumber}`;
+        }
+      }
+      
       // Find the position of the current node in the JSON
-      const nodePos = findNodePositionInJson(jsonStr, currentNode);
+      const nodePos = findNodePositionInJson(jsonStr, nodeToHighlight);
       if (!nodePos) {
-        console.log(`[JsonEditor] Node "${currentNode}" not found in editor content`);
+        console.log(`[JsonEditor] Node "${nodeToHighlight}" not found in editor content`);
         return;
       }
       
@@ -106,11 +118,11 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
       // Scroll to the highlighted position
       editorRef.current.revealLineInCenter(nodePos.startLineNumber);
       
-      console.log(`[JsonEditor] Highlighted node "${currentNode}" at line ${nodePos.startLineNumber}`);
+      console.log(`[JsonEditor] Highlighted node "${nodeToHighlight}" at line ${nodePos.startLineNumber}`);
     } catch (error) {
       console.error("[JsonEditor] Error highlighting node:", error);
     }
-  }, [currentNode]);
+  }, [currentNode, currentPage]);
 
   useEffect(() => {
     // Remove previous decorations
