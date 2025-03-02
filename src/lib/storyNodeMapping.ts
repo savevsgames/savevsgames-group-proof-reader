@@ -1,4 +1,3 @@
-
 import { CustomStory, NodeMappings, StoryNode } from '@/types';
 
 /**
@@ -291,3 +290,6 @@ export const generateComprehensiveNodeMapping = (storyData: CustomStory): {
   
   return result;
 };
+
+// Make sure to explicitly export the NodeMappings interface
+export type { NodeMappings };
