@@ -1,4 +1,3 @@
-
 import { CustomStory } from '@/types';
 import { parseInkNode } from './inkParser';
 
@@ -230,7 +229,7 @@ function parseInkJsFormat(storyData: any): CustomStory {
 }
 
 /**
- * Extract content from a knot/stitch array
+ * Extract content from a knot/stitch array with improved choice handling
  */
 function extractContentFromArray(array: any[]): { text: string, choices: any[] } {
   let text = '';
@@ -247,46 +246,117 @@ function extractContentFromArray(array: any[]): { text: string, choices: any[] }
     
     // Handle nested arrays (common for choice structures)
     if (Array.isArray(element)) {
-      // Check if this might be a choice array
-      const choiceText = element.find(item => 
-        typeof item === 'string' && item.startsWith('^')
+      // First, check if this is a choice marker array (usually starts with *)
+      const isChoiceArray = element.some(item => 
+        typeof item === 'object' && item !== null && 
+        (item['*'] || item['+'] || item['-'])
       );
       
-      if (choiceText) {
-        // Look for target in the next elements
-        let target = '';
-        const divert = element.find(item => 
-          typeof item === 'object' && item !== null && item['^->']
+      if (isChoiceArray) {
+        // Process each choice in the array
+        element.forEach(choiceElement => {
+          if (typeof choiceElement === 'object' && choiceElement !== null) {
+            // Check for choice markers (* for basic choices, + for sticky)
+            if (choiceElement['*'] || choiceElement['+']) {
+              const marker = choiceElement['*'] ? '*' : '+';
+              const choiceContent = choiceElement[marker];
+              
+              if (Array.isArray(choiceContent)) {
+                // Extract choice text and target
+                const choiceText = choiceContent.find(item => 
+                  typeof item === 'string' && item.startsWith('^')
+                );
+                
+                const divert = choiceContent.find(item => 
+                  typeof item === 'object' && item !== null && item['^->']
+                );
+                
+                if (choiceText) {
+                  const target = divert ? divert['^->'] : '';
+                  choices.push({
+                    text: choiceText.substring(1).trim(),
+                    nextNode: target,
+                    type: marker === '*' ? 'basic' : 'sticky'
+                  });
+                }
+              }
+            }
+          }
+        });
+      } else {
+        // Check if this is a single choice structure
+        const choiceText = element.find(item => 
+          typeof item === 'string' && item.startsWith('^')
         );
         
-        if (divert) {
-          target = divert['^->'];
+        if (choiceText) {
+          // Look for target in the next elements
+          let target = '';
+          const divert = element.find(item => 
+            typeof item === 'object' && item !== null && item['^->']
+          );
+          
+          if (divert) {
+            target = divert['^->'];
+          }
+          
+          if (choiceText) {
+            choices.push({
+              text: choiceText.substring(1).trim(),
+              nextNode: target
+            });
+          }
+        } else {
+          // Recursively process nested content
+          const nestedContent = extractContentFromArray(element);
+          if (nestedContent.text) {
+            text += (text ? ' ' : '') + nestedContent.text;
+          }
+          
+          // Add any choices found in nested content
+          if (nestedContent.choices.length > 0) {
+            choices.push(...nestedContent.choices);
+          }
         }
-        
-        if (choiceText && target) {
-          choices.push({
-            text: choiceText.substring(1),
-            nextNode: target
-          });
-        }
-      } else {
-        // Recursively process nested content
-        const nestedContent = extractContentFromArray(element);
-        if (nestedContent.text) {
-          text += (text ? ' ' : '') + nestedContent.text;
-        }
-        choices.push(...nestedContent.choices);
       }
     }
     
-    // Handle divert objects
-    if (typeof element === 'object' && element !== null && element['^->']) {
-      const target = element['^->'];
-      if (target && target !== '<end>') {
-        choices.push({
-          text: 'Continue',
-          nextNode: target
-        });
+    // Handle special choice objects directly in the array
+    if (typeof element === 'object' && element !== null) {
+      // Check for choice markers
+      if (element['*'] || element['+']) {
+        const marker = element['*'] ? '*' : '+';
+        const choiceData = element[marker];
+        
+        if (Array.isArray(choiceData)) {
+          // Process choice content
+          const choiceText = choiceData.find(item => 
+            typeof item === 'string' && item.startsWith('^')
+          );
+          
+          const divert = choiceData.find(item => 
+            typeof item === 'object' && item !== null && item['^->']
+          );
+          
+          if (choiceText) {
+            choices.push({
+              text: choiceText.substring(1).trim(),
+              nextNode: divert ? divert['^->'] : '',
+              type: marker === '*' ? 'basic' : 'sticky'
+            });
+          }
+        }
+      }
+      
+      // Handle direct divert objects
+      if (element['^->']) {
+        const target = element['^->'];
+        if (target && target !== '<end>') {
+          choices.push({
+            text: 'Continue',
+            nextNode: target
+          });
+        }
       }
     }
   }
@@ -295,13 +365,14 @@ function extractContentFromArray(array: any[]): { text: string, choices: any[] }
 }
 
 /**
- * Extract story segments from Ink.js root array with improved text extraction
+ * Extract story segments from Ink.js root array with improved choice recognition
  */
-function extractStorySegmentsFromRoot(rootArray: any[]): Array<{text: string}> {
-  const segments: Array<{text: string}> = [];
+function extractStorySegmentsFromRoot(rootArray: any[]): Array<{text: string, choices: any[]}> {
+  const segments: Array<{text: string, choices: any[]}> = [];
   
   // Track the current segment being built
   let currentText = '';
+  let currentChoices: any[] = [];
   const paragraphBreakThreshold = 100; // Characters before we consider natural paragraph breaks
   
   // Process each element in the root array
@@ -310,81 +381,183 @@ function extractStorySegmentsFromRoot(rootArray: any[]): Array<{text: string}> {
     
     // Handle array elements (most Ink.js content is in nested arrays)
     if (Array.isArray(element)) {
-      // Extract any text elements (they start with ^)
-      for (let j = 0; j < element.length; j++) {
-        const item = element[j];
+      // First, check if this is a choice array
+      const isChoiceArray = element.some(item => 
+        typeof item === 'object' && item !== null && 
+        (item['*'] || item['+'] || item['-'])
+      );
+      
+      if (isChoiceArray) {
+        // Process choice array differently - create a segment with the current text
+        // and add the choices from this array
+        if (currentText) {
+          const choiceContent = extractChoicesFromArray(element);
+          segments.push({ 
+            text: currentText, 
+            choices: choiceContent.choices 
+          });
+          console.log(`[Ink Parsing] Created segment with ${choiceContent.choices.length} choices`);
+          currentText = '';
+          currentChoices = [];
+        }
+      } else {
+        // Extract text and any nested choices
+        const { text, choices } = extractContentFromArray(element);
         
-        if (typeof item === 'string' && item.startsWith('^')) {
-          // Extract the text without the ^ marker
-          const textContent = item.substring(1).trim();
+        if (text) {
+          currentText += (currentText ? ' ' : '') + text;
+        }
+        
+        if (choices.length > 0) {
+          currentChoices.push(...choices);
           
-          // Add to current text with a space
-          if (currentText) currentText += ' ';
-          currentText += textContent;
-          
-          // Check for natural segment breaks (like paragraph endings)
-          const hasSegmentBreak = textContent.endsWith('.') || 
-                                 textContent.endsWith('!') || 
-                                 textContent.endsWith('?');
-                                 
-          // Create a new segment if we have enough text and a natural break
-          // or if we're at the end of the current array
-          if (currentText.length > paragraphBreakThreshold && hasSegmentBreak) {
-            segments.push({ text: currentText });
-            console.log(`[Ink Parsing] Created segment at natural break: "${currentText.substring(0, 50)}..."`);
+          // If we have both text and choices, create a segment
+          if (currentText) {
+            segments.push({ 
+              text: currentText, 
+              choices: currentChoices 
+            });
+            console.log(`[Ink Parsing] Created segment with text and ${choices.length} choices`);
             currentText = '';
+            currentChoices = [];
           }
         }
       }
+    }
+    
+    // Check for direct choice objects at the top level
+    if (typeof element === 'object' && element !== null) {
+      if (element['*'] || element['+']) {
+        // If we have accumulated text, create a segment before processing the choice
+        if (currentText) {
+          segments.push({ 
+            text: currentText, 
+            choices: []
+          });
+          currentText = '';
+        }
+        
+        // Process the choice
+        const marker = element['*'] ? '*' : '+';
+        const choiceData = element[marker];
+        
+        if (Array.isArray(choiceData)) {
+          const choiceContent = extractChoicesFromArray([element]);
+          segments.push({ 
+            text: "What would you like to do?", // Default prompt text
+            choices: choiceContent.choices 
+          });
+          console.log(`[Ink Parsing] Created choice segment with ${choiceContent.choices.length} choices`);
+        }
+      }
       
-      // Check for flow control or choice markers at the end of an array section
-      const hasFlowControl = element.some(item => 
-        (typeof item === 'object' && item !== null && (
-          item['^->'] || // Divert
-          item['#'] || // Tag
-          item['VAR='] // Variable assignment
-        )) || 
-        (typeof item === 'string' && (
-          item === 'ev' || // Evaluation stack start
-          item === '/ev' || // Evaluation stack end
-          item === '->->' || // Tunnel return
-          item === '->-'     // Function return
-        ))
-      );
-      
-      // If we have flow control and accumulated text, create a segment
-      if (hasFlowControl && currentText) {
-        segments.push({ text: currentText });
-        console.log(`[Ink Parsing] Created segment at flow control: "${currentText.substring(0, 50)}..."`);
-        currentText = '';
+      // Check for direct divert objects
+      if (element['^->']) {
+        // If we have accumulated text, create a segment before the divert
+        if (currentText) {
+          segments.push({ 
+            text: currentText, 
+            choices: [{
+              text: 'Continue',
+              nextNode: element['^->']
+            }]
+          });
+          console.log(`[Ink Parsing] Created segment before divert: "${currentText.substring(0, 50)}..."`);
+          currentText = '';
+        }
       }
     }
     
-    // Check for direct divert objects at the top level
-    if (typeof element === 'object' && element !== null && element['^->']) {
-      // If we have accumulated text, create a segment before the divert
-      if (currentText) {
-        segments.push({ text: currentText });
-        console.log(`[Ink Parsing] Created segment before divert: "${currentText.substring(0, 50)}..."`);
-        currentText = '';
-      }
+    // Check for natural segment breaks
+    if (currentText.length > paragraphBreakThreshold && 
+        (currentText.endsWith('.') || currentText.endsWith('!') || currentText.endsWith('?'))) {
+      segments.push({ 
+        text: currentText, 
+        choices: currentChoices.length > 0 ? currentChoices : [{
+          text: 'Continue',
+          nextNode: 'fragment_' + (segments.length + 1)
+        }]
+      });
+      console.log(`[Ink Parsing] Created segment at natural break: "${currentText.substring(0, 50)}..."`);
+      currentText = '';
+      currentChoices = [];
     }
   }
   
   // Add any remaining text as a final segment
   if (currentText) {
-    segments.push({ text: currentText });
+    segments.push({ 
+      text: currentText, 
+      choices: currentChoices
+    });
     console.log(`[Ink Parsing] Created final segment from remaining text: "${currentText.substring(0, 50)}..."`);
   }
   
   // Ensure we have at least one segment
   if (segments.length === 0) {
-    segments.push({ text: "Story content could not be parsed correctly." });
+    segments.push({ 
+      text: "Story content could not be parsed correctly.", 
+      choices: []
+    });
     console.log("[Ink Parsing] No segments found, created default segment");
+  }
+  
+  // Connect segments that don't have explicit choices
+  for (let i = 0; i < segments.length; i++) {
+    if (segments[i].choices.length === 0 && i < segments.length - 1) {
+      segments[i].choices = [{
+        text: 'Continue',
+        nextNode: 'fragment_' + (i + 1)
+      }];
+    }
   }
   
   console.log(`[Ink Parsing] Extracted ${segments.length} total story segments`);
   return segments;
+}
+
+/**
+ * Helper function to extract choices from a choice array
+ */
+function extractChoicesFromArray(choiceArray: any[]): { choices: any[] } {
+  const choices: any[] = [];
+  
+  choiceArray.forEach(element => {
+    if (typeof element === 'object' && element !== null) {
+      // Check for choice markers
+      if (element['*'] || element['+']) {
+        const marker = element['*'] ? '*' : '+';
+        const choiceData = element[marker];
+        
+        if (Array.isArray(choiceData)) {
+          choiceData.forEach(choiceItem => {
+            if (Array.isArray(choiceItem)) {
+              // Find text and target in the choice item
+              const choiceText = choiceItem.find(item => 
+                typeof item === 'string' && item.startsWith('^')
+              );
+              
+              const divert = choiceItem.find(item => 
+                typeof item === 'object' && item !== null && item['^->']
+              );
+              
+              if (choiceText) {
+                choices.push({
+                  text: choiceText.substring(1).trim(),
+                  nextNode: divert ? divert['^->'] : '',
+                  type: marker === '*' ? 'basic' : 'sticky'
+                });
+                
+                console.log(`[Ink Parsing] Extracted choice: "${choiceText.substring(1).trim()}" -> ${divert ? divert['^->'] : '(no target)'}`);
+              }
+            }
+          });
+        }
+      }
+    }
+  });
+  
+  return { choices };
 }
 
 // Function to extract valid story node names
