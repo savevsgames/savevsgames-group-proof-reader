@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { memo } from 'react';
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 
@@ -9,7 +9,7 @@ interface ImageCompletedProps {
   loading: boolean;
 }
 
-export const ImageCompleted: React.FC<ImageCompletedProps> = ({ 
+export const ImageCompleted: React.FC<ImageCompletedProps> = memo(({ 
   imageUrl, 
   onRegenerate, 
   loading 
@@ -35,4 +35,7 @@ export const ImageCompleted: React.FC<ImageCompletedProps> = ({
       </div>
     </div>
   );
-};
+});
+
+// Add display name for better debugging
+ImageCompleted.displayName = 'ImageCompleted';

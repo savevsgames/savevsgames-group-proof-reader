@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { memo } from 'react';
 import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
 import { ImageData } from './imageUtils';
@@ -11,7 +11,7 @@ interface ImageErrorProps {
   loading: boolean;
 }
 
-export const ImageError: React.FC<ImageErrorProps> = ({ 
+export const ImageError: React.FC<ImageErrorProps> = memo(({ 
   imageData, 
   prompt, 
   onRetry, 
@@ -57,4 +57,7 @@ export const ImageError: React.FC<ImageErrorProps> = ({
       </div>
     </div>
   );
-};
+});
+
+// Add display name for better debugging
+ImageError.displayName = 'ImageError';

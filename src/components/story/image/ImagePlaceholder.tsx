@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { memo } from 'react';
 import { Button } from "@/components/ui/button";
 import { ImageIcon } from "lucide-react";
 
@@ -9,7 +9,7 @@ interface ImagePlaceholderProps {
   loading: boolean;
 }
 
-export const ImagePlaceholder: React.FC<ImagePlaceholderProps> = ({ 
+export const ImagePlaceholder: React.FC<ImagePlaceholderProps> = memo(({ 
   prompt, 
   onGenerate, 
   loading 
@@ -29,4 +29,7 @@ export const ImagePlaceholder: React.FC<ImagePlaceholderProps> = ({
       </div>
     </div>
   );
-};
+});
+
+// Add display name for better debugging
+ImagePlaceholder.displayName = 'ImagePlaceholder';

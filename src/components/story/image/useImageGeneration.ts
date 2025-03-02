@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ImageData, fetchImageData, generateNewImage } from './imageUtils';
 import { useToast } from "@/hooks/use-toast";
 
@@ -20,38 +20,48 @@ export const useImageGeneration = ({
   const [imageData, setImageData] = useState<ImageData | null>(null);
   const [pollingCount, setPollingCount] = useState(0);
   const [shouldFetchImage, setShouldFetchImage] = useState(false);
+  const requestInProgress = useRef(false);
   const { toast } = useToast();
 
   const MAX_POLLING_ATTEMPTS = 30; // 30 attempts * 2 seconds = 60 seconds max
   const POLLING_INTERVAL = 2000; // 2 seconds
 
-  // Poll for image status updates
+  // Poll for image status updates with improved debounce and error handling
   useEffect(() => {
     // Only poll if we have an image that's in a non-final state
-    if (imageData && (imageData.status === 'generating' || imageData.status === 'uploading')) {
-      // If we've exceeded max polling attempts, mark as error
-      if (pollingCount >= MAX_POLLING_ATTEMPTS) {
-        setImageData(prev => prev ? { 
-          ...prev, 
-          status: 'error',
-          error_message: 'Image generation timed out after 60 seconds' 
-        } : null);
-        
-        toast({
-          title: "Image generation timed out",
-          description: "The image generation process took too long. Please try again.",
-          variant: "destructive"
-        });
-        
-        return;
-      }
+    if (!imageData || !(['generating', 'uploading'].includes(imageData.status))) {
+      return;
+    }
+    
+    // If we've exceeded max polling attempts, mark as error
+    if (pollingCount >= MAX_POLLING_ATTEMPTS) {
+      setImageData(prev => prev ? { 
+        ...prev, 
+        status: 'error',
+        error_message: 'Image generation timed out after 60 seconds' 
+      } : null);
       
-      // Set up polling interval
-      const pollTimer = setTimeout(async () => {
-        try {
-          const data = await fetchImageData(storyId, currentNode);
-          
-          if (data) {
+      toast({
+        title: "Image generation timed out",
+        description: "The image generation process took too long. Please try again.",
+        variant: "destructive"
+      });
+      
+      return;
+    }
+    
+    // Set up polling with a ref check to prevent overlapping requests
+    const pollTimer = setTimeout(async () => {
+      if (requestInProgress.current) return;
+      
+      try {
+        requestInProgress.current = true;
+        const data = await fetchImageData(storyId, currentNode);
+        requestInProgress.current = false;
+        
+        if (data) {
+          // Only update state if the status has changed to prevent unnecessary renders
+          if (JSON.stringify(data) !== JSON.stringify(imageData)) {
             setImageData(data);
             
             // Show toast when image is completed
@@ -71,24 +81,25 @@ export const useImageGeneration = ({
                 variant: "destructive"
               });
             }
-            
-            // Continue polling if still in progress
-            if (data.status === 'generating' || data.status === 'uploading') {
-              setPollingCount(prev => prev + 1);
-            }
           }
-        } catch (error) {
-          console.error('Error polling for image status:', error);
-          // Continue polling despite errors
-          setPollingCount(prev => prev + 1);
+          
+          // Continue polling if still in progress
+          if (data.status === 'generating' || data.status === 'uploading') {
+            setPollingCount(prev => prev + 1);
+          }
         }
-      }, POLLING_INTERVAL);
-      
-      return () => clearTimeout(pollTimer);
-    }
+      } catch (error) {
+        console.error('Error polling for image status:', error);
+        requestInProgress.current = false;
+        // Continue polling despite errors
+        setPollingCount(prev => prev + 1);
+      }
+    }, POLLING_INTERVAL);
+    
+    return () => clearTimeout(pollTimer);
   }, [imageData, pollingCount, storyId, currentNode, toast]);
   
-  // Reset state when node or page changes
+  // Reset state when node or page changes with improved dependency tracking
   useEffect(() => {
     if (!storyId || !currentNode) return;
     
@@ -97,15 +108,19 @@ export const useImageGeneration = ({
     setShouldFetchImage(false);
     setImageData(null);
     setPollingCount(0);
+    requestInProgress.current = false;
   }, [storyId, currentNode]);
 
-  // Fetch existing image if shouldFetchImage is true
+  // Fetch existing image if shouldFetchImage is true with improved request tracking
   useEffect(() => {
+    if (!shouldFetchImage || requestInProgress.current) return;
+    
     const checkExistingImage = async () => {
-      if (!shouldFetchImage) return;
-      
       try {
+        requestInProgress.current = true;
         const data = await fetchImageData(storyId, currentNode);
+        requestInProgress.current = false;
+        
         if (data) {
           setImageData(data);
           
@@ -116,13 +131,14 @@ export const useImageGeneration = ({
         }
       } catch (error) {
         console.error('Error checking existing image:', error);
-        // If we can't fetch existing image data, it's okay to continue
+        requestInProgress.current = false;
       }
     };
     
     checkExistingImage();
   }, [shouldFetchImage, storyId, currentNode]);
 
+  // Improved image generation function with better error handling and debounce
   const generateImage = async () => {
     if (!imagePrompt) {
       toast({
@@ -133,9 +149,16 @@ export const useImageGeneration = ({
       return;
     }
 
+    // Prevent multiple simultaneous requests
+    if (loading || requestInProgress.current) {
+      console.log('Image generation already in progress, skipping request');
+      return;
+    }
+
     setLoading(true);
     setPollingCount(0);
     setShouldFetchImage(true);
+    requestInProgress.current = true;
     
     try {
       const newImageData = await generateNewImage(storyId, currentNode, currentPage, imagePrompt);
@@ -176,6 +199,7 @@ export const useImageGeneration = ({
       });
     } finally {
       setLoading(false);
+      requestInProgress.current = false;
     }
   };
 

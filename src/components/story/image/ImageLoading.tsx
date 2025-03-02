@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { memo } from 'react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkles } from "lucide-react";
 import { ImageData } from './imageUtils';
@@ -8,7 +8,7 @@ interface ImageLoadingProps {
   imageData: ImageData;
 }
 
-export const ImageLoading: React.FC<ImageLoadingProps> = ({ imageData }) => {
+export const ImageLoading: React.FC<ImageLoadingProps> = memo(({ imageData }) => {
   const getStatusMessage = () => {
     switch (imageData.status) {
       case 'generating':
@@ -51,4 +51,7 @@ export const ImageLoading: React.FC<ImageLoadingProps> = ({ imageData }) => {
       </p>
     </div>
   );
-};
+});
+
+// Add display name for better debugging
+ImageLoading.displayName = 'ImageLoading';

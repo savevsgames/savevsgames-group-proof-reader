@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { extractImagePrompt } from './image/imageUtils';
 import { useImageGeneration } from './image/useImageGeneration';
 import { ImagePlaceholder } from './image/ImagePlaceholder';
@@ -14,14 +14,14 @@ interface StoryImageProps {
   text: string;
 }
 
-export const StoryImage: React.FC<StoryImageProps> = ({ 
+export const StoryImage: React.FC<StoryImageProps> = memo(({ 
   storyId, 
   currentNode, 
   currentPage,
   text 
 }) => {
-  // Extract image prompt from text
-  const imagePrompt = extractImagePrompt(text);
+  // Extract image prompt from text - memoized to prevent recalculation
+  const imagePrompt = useMemo(() => extractImagePrompt(text), [text]);
   
   // Use custom hook for image generation logic
   const { loading, imageData, generateImage } = useImageGeneration({
@@ -63,4 +63,7 @@ export const StoryImage: React.FC<StoryImageProps> = ({
       </div>
     </div>
   );
-};
+});
+
+// Add display name for better debugging
+StoryImage.displayName = 'StoryImage';

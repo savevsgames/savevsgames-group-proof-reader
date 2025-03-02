@@ -5,7 +5,6 @@ import { StoryEngine } from "@/components/StoryEngine";
 import Header from "@/components/Header";
 import { useToast } from "@/hooks/use-toast";
 import { useStoryStore } from "@/stores/storyState";
-import { shallow } from "zustand/shallow";
 
 const StoryPage = () => {
   const { id } = useParams();
@@ -15,22 +14,13 @@ const StoryPage = () => {
   // Track initialization status with a ref to prevent multiple initializations
   const initializationAttempted = useRef(false);
   
-  // Group selectors to minimize re-renders using proper typing
-  const {
-    storyId,
-    loading,
-    error,
-    title,
-    totalPages
-  } = useStoryStore((state) => ({
-    storyId: state.storyId,
-    loading: state.loading,
-    error: state.error,
-    title: state.title,
-    totalPages: state.totalPages
-  }));
+  // Select only what we need from the store with proper typing
+  const storyId = useStoryStore(state => state.storyId);
+  const loading = useStoryStore(state => state.loading);
+  const error = useStoryStore(state => state.error);
+  const totalPages = useStoryStore(state => state.totalPages);
   
-  // Actions selector - separate from state to avoid re-renders
+  // Get the initialize function from the store
   const initializeStory = useStoryStore(state => state.initializeStory);
   
   // Memoize the initialization to prevent multiple calls
@@ -42,7 +32,7 @@ const StoryPage = () => {
     await initializeStory(storyId);
   }, [initializeStory]);
   
-  // Initialize story only once on mount or when ID changes
+  // Use a more controlled useEffect to prevent infinite loops
   useEffect(() => {
     console.log("[StoryPage] Component mounted or ID changed:", id);
     

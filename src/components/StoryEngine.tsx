@@ -12,7 +12,7 @@ import {
 export const StoryEngine: React.FC<StoryEngineProps> = memo(({ storyId }) => {
   const { user } = useAuth();
   
-  // Use individual selectors to properly type and prevent errors
+  // Use individual selectors with proper typing to prevent errors
   const loading = useStoryStore(state => state.loading);
   const error = useStoryStore(state => state.error);
   
@@ -52,20 +52,19 @@ export const StoryEngine: React.FC<StoryEngineProps> = memo(({ storyId }) => {
     }
   }, [storyId, currentStoryPosition, fetchComments]);
 
-  // Initialize comments when loading a new story position
-  // Add proper dependency array to prevent infinite loops
+  // Add a debounce mechanism for comment fetching to prevent rapid render cycles
   useEffect(() => {
-    if (storyId && currentStoryPosition > 0) {
-      // Debounce comment fetching to prevent rapid consecutive calls
-      const timeoutId = setTimeout(() => {
-        fetchComments(storyId, currentStoryPosition);
-      }, 300);
-      
-      return () => clearTimeout(timeoutId);
-    }
+    if (!storyId || currentStoryPosition <= 0) return;
+
+    // Use debounce to prevent rapid consecutive calls
+    const timeoutId = setTimeout(() => {
+      fetchComments(storyId, currentStoryPosition);
+    }, 300);
+    
+    return () => clearTimeout(timeoutId);
   }, [storyId, currentStoryPosition, fetchComments]);
   
-  // Handle adding comment to LLM context - memoize to prevent recreation
+  // Memoize this callback to prevent recreation
   const handleAddToLlmContext = useCallback((commentType: string, commentText: string, username: string) => {
     console.log(`Adding comment to LLM context: ${commentType}`, { text: commentText, username });
     // Implementation can be added when needed
