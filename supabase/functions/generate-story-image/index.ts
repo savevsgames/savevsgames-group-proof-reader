@@ -1,378 +1,348 @@
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7'
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-
+// Define CORS headers for browser requests
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Create Supabase client
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-// Validate OpenAI image generation parameters
-function validateAndFixImageSettings(settings) {
-  const fixedSettings = { ...settings };
+// Function to download image from URL
+async function downloadImage(url: string): Promise<Uint8Array> {
+  console.log(`Downloading image from: ${url}`);
+  const response = await fetch(url);
   
-  // Valid quality values for DALL-E 3 are 'standard' or 'hd'
-  if (fixedSettings.quality_settings?.quality === 'high') {
-    console.log('Converting invalid quality value "high" to "hd"');
-    fixedSettings.quality_settings.quality = 'hd';
+  if (!response.ok) {
+    throw new Error(`Failed to download image: ${response.status} ${response.statusText}`);
   }
   
-  // Ensure quality is one of the valid values
-  if (fixedSettings.quality_settings?.quality && 
-      !['standard', 'hd'].includes(fixedSettings.quality_settings.quality)) {
-    console.log(`Invalid quality value "${fixedSettings.quality_settings.quality}", defaulting to "standard"`);
-    fixedSettings.quality_settings.quality = 'standard';
-  }
-  
-  // Valid style values are 'vivid' or 'natural'
-  if (fixedSettings.quality_settings?.style && 
-      !['vivid', 'natural'].includes(fixedSettings.quality_settings.style)) {
-    console.log(`Invalid style value "${fixedSettings.quality_settings.style}", defaulting to "vivid"`);
-    fixedSettings.quality_settings.style = 'vivid';
-  }
-  
-  // Valid size values are '1024x1024', '1792x1024', or '1024x1792'
-  const validSizes = ['1024x1024', '1792x1024', '1024x1792'];
-  if (fixedSettings.quality_settings?.size && 
-      !validSizes.includes(fixedSettings.quality_settings.size)) {
-    console.log(`Invalid size value "${fixedSettings.quality_settings.size}", defaulting to "1024x1024"`);
-    fixedSettings.quality_settings.size = '1024x1024';
-  }
-  
-  return fixedSettings;
+  const arrayBuffer = await response.arrayBuffer();
+  return new Uint8Array(arrayBuffer);
 }
 
-serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    console.log('Handling CORS preflight request');
-    return new Response('ok', { headers: corsHeaders });
-  }
+// Define valid image quality parameters
+const validQualityOptions = ['standard', 'hd'];
+const validStyleOptions = ['vivid', 'natural']; 
+const validSizeOptions = ['1024x1024', '1024x1792', '1792x1024'];
 
+// Define default settings
+const DEFAULT_SETTINGS = {
+  quality: 'hd',
+  style: 'vivid',
+  size: '1024x1024'
+};
+
+// Main function to generate image
+async function generateStoryImage(
+  storyId: string,
+  nodeId: string,
+  pageNumber: number,
+  prompt: string
+) {
+  console.log(`Generating image for story ${storyId}, node ${nodeId}, page ${pageNumber}`);
+  console.log(`Prompt: ${prompt}`);
+  
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+  const openaiKey = Deno.env.get('OPENAI_API_KEY') || '';
+  
+  // Initialize Supabase client with service role key for admin privileges
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  
+  // Generate a unique request ID
+  const requestId = crypto.randomUUID();
+  
   try {
-    // Validate OpenAI API key
-    if (!OPENAI_API_KEY) {
-      console.error('OPENAI_API_KEY is not set in environment variables');
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'OpenAI API key is not configured',
-          details: 'Missing API key configuration'
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
-        }
-      );
-    }
-
-    // Parse request body
-    const { storyId, nodeId, pageNumber, prompt } = await req.json();
-    console.log('Image generation request received:', { 
-      storyId, 
-      nodeId, 
-      pageNumber, 
-      promptLength: prompt?.length 
-    });
-
-    // Validate required parameters
-    if (!storyId || !nodeId || !pageNumber || !prompt) {
-      console.error('Missing required parameters:', { storyId, nodeId, pageNumber, promptExists: !!prompt });
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Missing required parameters',
-          details: 'storyId, nodeId, pageNumber, prompt are all required'
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
-        }
-      );
-    }
-
-    // Check if image already exists
-    console.log('Checking for existing image');
-    const { data: existingImage, error: fetchError } = await supabase
+    // Check if an image already exists for this node
+    const { data: existingImage } = await supabase
       .from('story_images')
       .select('*')
       .eq('book_id', storyId)
       .eq('story_node', nodeId)
       .maybeSingle();
-
-    if (fetchError && fetchError.code !== 'PGRST116') {
-      console.error('Database error when checking for existing image:', fetchError);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Database error',
-          details: fetchError.message,
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
-        }
-      );
+    
+    if (existingImage?.status === 'completed' && existingImage?.image_url) {
+      console.log(`Image already exists for node ${nodeId}, returning existing image`);
+      return { success: true, image: existingImage };
     }
-
-    // Get image style settings
-    console.log('Fetching image style settings');
-    const { data: settings, error: settingsError } = await supabase
+    
+    // Get image quality settings from database
+    const { data: settingsData } = await supabase
       .from('book_llm_settings')
       .select('image_generation_settings')
       .eq('book_id', storyId)
       .maybeSingle();
-
-    if (settingsError) {
-      console.warn('Could not fetch image settings:', settingsError);
-    }
-
-    // Default settings if none found
-    let imageSettings = settings?.image_generation_settings || {
-      base_style: "High-detail pixel art in a fantasy style, rendered as if an oil painting was converted to pixel art. Each pixel should be distinct and carefully placed, maintaining the richness of oil painting textures while achieving a retro-pixel aesthetic.",
-      quality_settings: {
-        size: "1024x1024",
-        quality: "standard",
-        style: "vivid"
-      }
-    };
     
-    // Validate and fix any invalid parameters
-    imageSettings = validateAndFixImageSettings(imageSettings);
-
-    // Create enhanced prompt with style guidelines
-    const enhancedPrompt = `Style: ${imageSettings.base_style}
-Scene: ${prompt}
-Additional details: Maintain consistent pixel density and color palette. Ensure fantasy elements are prominent while keeping the pixel art aesthetic clear and defined.`;
-
-    console.log('Enhanced prompt created:', enhancedPrompt.substring(0, 100) + '...');
-
-    // Define quality settings with validation
-    const imageSize = imageSettings.quality_settings?.size || "1024x1024";
-    const imageQuality = imageSettings.quality_settings?.quality || "standard";
-    const imageStyle = imageSettings.quality_settings?.style || "vivid";
-
-    console.log('Using image quality settings:', { imageSize, imageQuality, imageStyle });
-
-    // Calculate attempt count
-    let attemptCount = 1;
-    if (existingImage) {
-      attemptCount = (existingImage.attempt_count || 1) + 1;
-      console.log('Incrementing attempt count to:', attemptCount);
+    // Prepare image generation settings with validation
+    let quality = DEFAULT_SETTINGS.quality;
+    let style = DEFAULT_SETTINGS.style;
+    let size = DEFAULT_SETTINGS.size;
+    let baseStyle = '';
+    
+    if (settingsData?.image_generation_settings) {
+      const settings = settingsData.image_generation_settings;
+      
+      // Validate quality parameter
+      if (settings.quality_settings?.quality && 
+          validQualityOptions.includes(settings.quality_settings.quality)) {
+        quality = settings.quality_settings.quality;
+      }
+      
+      // Validate style parameter
+      if (settings.quality_settings?.style && 
+          validStyleOptions.includes(settings.quality_settings.style)) {
+        style = settings.quality_settings.style;
+      }
+      
+      // Validate size parameter
+      if (settings.quality_settings?.size && 
+          validSizeOptions.includes(settings.quality_settings.size)) {
+        size = settings.quality_settings.size;
+      }
+      
+      // Get base style
+      baseStyle = settings.base_style || '';
     }
-
-    // Create or update the image record with 'generating' status
-    console.log('Updating database with generating status');
-    const { data: imageData, error: updateError } = await supabase
+    
+    console.log(`Using image settings: quality=${quality}, style=${style}, size=${size}`);
+    
+    // Update or create a story_image record with pending status
+    const { data: imageRecord, error: recordError } = await supabase
       .from('story_images')
       .upsert({
         book_id: storyId,
         story_node: nodeId,
         page_number: pageNumber,
-        image_prompt: prompt,
-        enhanced_prompt: enhancedPrompt,
         status: 'generating',
-        attempt_count: attemptCount,
+        image_prompt: prompt,
+        request_id: requestId,
+        attempt_count: existingImage ? (existingImage.attempt_count || 0) + 1 : 1,
+        created_at: existingImage ? existingImage.created_at : new Date().toISOString(),
         updated_at: new Date().toISOString()
       }, {
         onConflict: 'book_id,story_node'
       })
       .select()
       .single();
-
-    if (updateError) {
-      console.error('Database error when updating image status:', updateError);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Database error',
-          details: updateError.message,
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
-        }
-      );
+    
+    if (recordError) {
+      console.error('Error creating image record:', recordError);
+      throw new Error(`Failed to create image record: ${recordError.message}`);
     }
-
-    // Log OpenAI request parameters before API call
-    console.log('Calling OpenAI API with parameters:', {
-      model: "dall-e-3",
-      promptPreview: enhancedPrompt.substring(0, 50) + '...',
-      size: imageSize,
-      quality: imageQuality,
-      style: imageStyle
-    });
+    
+    // Enhance the prompt with the base style if available
+    let enhancedPrompt = prompt;
+    if (baseStyle) {
+      enhancedPrompt = `${prompt}. ${baseStyle}`;
+    }
+    console.log(`Enhanced prompt: ${enhancedPrompt}`);
+    
+    // Update the record with the enhanced prompt
+    await supabase
+      .from('story_images')
+      .update({
+        enhanced_prompt: enhancedPrompt,
+        status: 'generating'
+      })
+      .eq('id', imageRecord.id);
     
     // Call OpenAI API to generate image
-    const openAIResponse = await fetch('https://api.openai.com/v1/images/generations', {
+    console.log('Calling OpenAI API to generate image');
+    const openaiResponse = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`
+        'Authorization': `Bearer ${openaiKey}`
       },
       body: JSON.stringify({
         model: "dall-e-3",
         prompt: enhancedPrompt,
         n: 1,
-        size: imageSize,
-        quality: imageQuality,
-        style: imageStyle
+        quality: quality,
+        style: style,
+        size: size
       })
     });
-
-    // Check for OpenAI API errors
-    if (!openAIResponse.ok) {
-      const errorText = await openAIResponse.text();
-      console.error(`OpenAI API Error (${openAIResponse.status}):`, errorText);
+    
+    if (!openaiResponse.ok) {
+      const errorData = await openaiResponse.json();
+      console.error('OpenAI API error:', errorData);
       
       // Update the record with error status
       await supabase
         .from('story_images')
         .update({
           status: 'error',
-          error_message: `OpenAI API Error (${openAIResponse.status}): ${errorText}`,
+          error_message: `OpenAI API error: ${JSON.stringify(errorData)}`,
           updated_at: new Date().toISOString()
         })
-        .eq('id', imageData.id);
+        .eq('id', imageRecord.id);
       
-      // Get the updated record with error information
-      const { data: errorImage } = await supabase
-        .from('story_images')
-        .select('*')
-        .eq('id', imageData.id)
-        .single();
-        
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: `OpenAI API Error: ${openAIResponse.status}`,
-          details: errorText,
-          image: errorImage
-        }),
-        { 
-          status: 422, // Using 422 to distinguish from server errors
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+      throw new Error(`OpenAI API error: ${JSON.stringify(errorData)}`);
     }
-
-    // Parse successful response
-    const result = await openAIResponse.json();
-    console.log('OpenAI response received:', {
-      resultKeys: Object.keys(result),
-      hasData: !!result.data?.length,
-      created: result.created
-    });
-
-    // Extract image URL and request ID from response
-    const imageUrl = result.data?.[0]?.url;
-    const requestId = result.created?.toString();
-
-    if (!imageUrl) {
-      console.error('No image URL in OpenAI response');
+    
+    const openaiData = await openaiResponse.json();
+    console.log('OpenAI API response:', JSON.stringify(openaiData));
+    
+    if (!openaiData.data || !openaiData.data[0] || !openaiData.data[0].url) {
+      throw new Error('No image URL in OpenAI response');
+    }
+    
+    const temporaryImageUrl = openaiData.data[0].url;
+    console.log(`Temporary OpenAI image URL: ${temporaryImageUrl}`);
+    
+    // Update status to uploading
+    await supabase
+      .from('story_images')
+      .update({
+        status: 'uploading',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', imageRecord.id);
+    
+    // Download image from OpenAI URL
+    const imageData = await downloadImage(temporaryImageUrl);
+    
+    // Upload image to Supabase Storage bucket
+    const fileName = `story_${storyId}_node_${nodeId}_${requestId}.png`;
+    const storagePath = `story_images/${fileName}`;
+    
+    console.log(`Uploading image to Supabase Storage: ${storagePath}`);
+    const { data: storageData, error: storageError } = await supabase
+      .storage
+      .from('images')
+      .upload(storagePath, imageData, {
+        contentType: 'image/png',
+        upsert: true
+      });
+    
+    if (storageError) {
+      console.error('Error uploading to storage:', storageError);
       
-      // Update record with error
+      // Update the record with error status
       await supabase
         .from('story_images')
         .update({
           status: 'error',
-          error_message: 'No image URL returned from OpenAI',
+          error_message: `Storage error: ${storageError.message}`,
           updated_at: new Date().toISOString()
         })
-        .eq('id', imageData.id);
-        
-      // Get updated record
-      const { data: errorImage } = await supabase
-        .from('story_images')
-        .select('*')
-        .eq('id', imageData.id)
-        .single();
-        
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'No image URL in response',
-          details: 'OpenAI API returned success but no image URL was found',
-          image: errorImage
-        }),
-        { 
-          status: 422,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+        .eq('id', imageRecord.id);
+      
+      throw new Error(`Failed to upload image to storage: ${storageError.message}`);
     }
-
-    // Update the record with completed status and image URL
-    console.log('Updating database with completed status and image URL');
-    const { error: finalUpdateError } = await supabase
+    
+    // Get public URL for the stored image
+    const { data: publicUrlData } = supabase
+      .storage
+      .from('images')
+      .getPublicUrl(storagePath);
+    
+    const permanentImageUrl = publicUrlData.publicUrl;
+    console.log(`Permanent Storage URL: ${permanentImageUrl}`);
+    
+    // Update the story_images record with completed status and permanent URL
+    const { data: updatedRecord, error: updateError } = await supabase
       .from('story_images')
       .update({
-        image_url: imageUrl,
         status: 'completed',
-        request_id: requestId,
+        image_url: permanentImageUrl,
         updated_at: new Date().toISOString()
       })
-      .eq('id', imageData.id);
+      .eq('id', imageRecord.id)
+      .select()
+      .single();
+    
+    if (updateError) {
+      console.error('Error updating image record:', updateError);
+      throw new Error(`Failed to update image record: ${updateError.message}`);
+    }
+    
+    console.log('Image generation and storage completed successfully');
+    return { success: true, image: updatedRecord };
+  } catch (error) {
+    console.error('Error in generateStoryImage:', error);
+    
+    // Update the record with error status
+    await supabase
+      .from('story_images')
+      .update({
+        status: 'error',
+        error_message: error.message,
+        updated_at: new Date().toISOString()
+      })
+      .eq('book_id', storyId)
+      .eq('story_node', nodeId);
+    
+    return { 
+      success: false, 
+      error: error.message,
+      details: error.toString()
+    };
+  }
+}
 
-    if (finalUpdateError) {
-      console.error('Database error when saving the completed image:', finalUpdateError);
+// Main server handler
+serve(async (req) => {
+  // Handle CORS
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+  
+  try {
+    // Log request info
+    console.log(`Request received: ${req.method} ${req.url}`);
+    
+    // Only accept POST requests
+    if (req.method !== 'POST') {
       return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Database error',
-          details: finalUpdateError.message,
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
-        }
+        JSON.stringify({ error: 'Method not allowed' }), 
+        { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Get the final updated record
-    const { data: finalImage } = await supabase
-      .from('story_images')
-      .select('*')
-      .eq('id', imageData.id)
-      .single();
-
-    console.log('Successfully completed image generation for:', {
-      imageId: finalImage?.id,
-      storyId,
-      nodeId
-    });
-
-    // Return success
+    
+    // Parse the request body
+    const requestData = await req.json();
+    console.log(`Request data: ${JSON.stringify(requestData)}`);
+    
+    // Extract parameters
+    const { storyId, nodeId, pageNumber, prompt } = requestData;
+    
+    // Validate required parameters
+    if (!storyId || !nodeId || !prompt) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required parameters' }), 
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Generate and store the image
+    const result = await generateStoryImage(
+      storyId, 
+      nodeId, 
+      pageNumber || 1, 
+      prompt
+    );
+    
+    // Return the result
     return new Response(
-      JSON.stringify({
-        success: true,
-        image: finalImage
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
+      JSON.stringify(result),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    // Handle any unexpected errors
-    console.error('Unhandled exception in image generation:', error);
+    console.error('Unhandled error in server:', error);
+    
+    // Return error response
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || 'Unknown server error',
-        details: error.toString()
+      JSON.stringify({ 
+        success: false, 
+        error: 'Server error', 
+        details: error.message 
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
   }
