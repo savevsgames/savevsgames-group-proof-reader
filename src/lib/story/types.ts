@@ -25,6 +25,7 @@ export interface InkNodeContent {
 export interface InkChoice {
   text: string;
   nextNode: string;
+  type?: 'basic' | 'sticky' | 'gather';
 }
 
 // Context object to track state during parsing
@@ -33,6 +34,9 @@ export interface ParsingContext {
   inChoice: boolean;
   currentChoice: InkChoice | null;
   choiceStack: any[];
+  choiceIndex?: number;
+  choiceType?: 'basic' | 'sticky' | 'gather';
+  textBuffer: string;
 }
 
 // New types for enhanced Ink format support
@@ -54,4 +58,15 @@ export interface InkDivert {
   isExternal?: boolean;
   isTunnel?: boolean;
   isFunction?: boolean;
+}
+
+// Choice-specific Ink types
+export interface InkChoiceMarker {
+  marker: '*' | '+' | '-';
+  level: number;
+}
+
+export interface InkChoicePoint {
+  choice: InkChoice;
+  content: any[];
 }

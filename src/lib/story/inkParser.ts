@@ -1,6 +1,5 @@
-
 import { InkSymbols } from './constants';
-import { InkNodeContent, InkChoice, ParsingContext } from './types';
+import { InkNodeContent, InkChoice, ParsingContext, InkChoicePoint } from './types';
 
 // Token parser interface - used for processing different Ink symbols
 interface TokenParser {
@@ -8,7 +7,7 @@ interface TokenParser {
   process: (token: any, context: ParsingContext) => void;
 }
 
-// Extended collection of token parsers for different Ink syntax elements
+// Enhanced collection of token parsers for different Ink syntax elements
 export const tokenParsers: TokenParser[] = [
   // Text parser - handles basic story text prefixed with ^
   {
@@ -16,7 +15,17 @@ export const tokenParsers: TokenParser[] = [
     process: (token, context) => {
       const text = token.substring(1).trim(); // Remove the ^ prefix
       if (text) {
-        context.currentNode.text += (context.currentNode.text ? ' ' : '') + text;
+        // If we're in a choice, add text to the choice
+        if (context.inChoice && context.currentChoice) {
+          context.currentChoice.text = text;
+        } else {
+          // Otherwise add to the node text, respecting the buffer
+          if (context.textBuffer) {
+            context.currentNode.text += (context.currentNode.text ? ' ' : '') + context.textBuffer;
+            context.textBuffer = '';
+          }
+          context.currentNode.text += (context.currentNode.text ? ' ' : '') + text;
+        }
       }
     }
   },
@@ -55,6 +64,33 @@ export const tokenParsers: TokenParser[] = [
     }
   },
   
+  // Choice start parser - specifically handles * choice markers
+  {
+    matches: (token) => typeof token === 'string' && (
+      token === InkSymbols.CHOICE_BASIC || 
+      token === InkSymbols.CHOICE_STICKY ||
+      token === InkSymbols.CHOICE_GATHER
+    ),
+    process: (token, context) => {
+      // Start a new choice
+      const choiceType = token === InkSymbols.CHOICE_BASIC ? 'basic' : 
+                         token === InkSymbols.CHOICE_STICKY ? 'sticky' : 'gather';
+      
+      context.inChoice = true;
+      context.choiceType = choiceType;
+      context.currentChoice = { 
+        text: '', 
+        nextNode: '',
+        type: choiceType
+      };
+      
+      // If we're starting a new choice and have one being processed, add it first
+      if (context.currentChoice && context.currentChoice.text) {
+        context.currentNode.choices.push({...context.currentChoice});
+      }
+    }
+  },
+  
   // Choice parser for complex choice structures
   {
     matches: (token) => typeof token === 'object' && Array.isArray(token) && token.length >= 2 
@@ -63,6 +99,55 @@ export const tokenParsers: TokenParser[] = [
       // Start of a potential choice sequence
       context.inChoice = true;
       context.choiceStack.push(token);
+    }
+  },
+  
+  // Improved choice content parser - better handles choice text extraction
+  {
+    matches: (token) => typeof token === 'object' && token !== null && token['*'] !== undefined,
+    process: (token, context) => {
+      const choiceContent = token['*'];
+      if (Array.isArray(choiceContent)) {
+        // This is a choice point with content
+        context.inChoice = true;
+        
+        // Process each choice option
+        for (let i = 0; i < choiceContent.length; i++) {
+          const choiceOption = choiceContent[i];
+          
+          if (Array.isArray(choiceOption)) {
+            // Create a new choice
+            context.currentChoice = { 
+              text: '', 
+              nextNode: ''
+            };
+            
+            // Process the choice option array
+            for (let j = 0; j < choiceOption.length; j++) {
+              const element = choiceOption[j];
+              
+              // Extract text (prefixed with ^)
+              if (typeof element === 'string' && element.startsWith(InkSymbols.TEXT)) {
+                context.currentChoice.text = element.substring(1);
+              }
+              
+              // Extract target (divert object)
+              if (typeof element === 'object' && element !== null && element[InkSymbols.NAVIGATION]) {
+                context.currentChoice.nextNode = element[InkSymbols.NAVIGATION];
+              }
+            }
+            
+            // Add the processed choice if it has text
+            if (context.currentChoice.text) {
+              context.currentNode.choices.push({...context.currentChoice});
+            }
+          }
+        }
+        
+        // Reset choice state
+        context.inChoice = false;
+        context.currentChoice = null;
+      }
     }
   },
   
@@ -143,12 +228,13 @@ export const parseInkNode = (storyData: any, nodeName: string): InkNodeContent =
     return nodeContent;
   }
   
-  // Initialize parsing context
+  // Initialize parsing context with improved tracking
   const context: ParsingContext = {
     currentNode: nodeContent,
     inChoice: false,
     currentChoice: null,
-    choiceStack: []
+    choiceStack: [],
+    textBuffer: ''
   };
   
   const nodeData = storyData[nodeName];
@@ -208,28 +294,132 @@ export const processArrayElements = (elements: any[], context: ParsingContext) =
       processArrayElements(element, context);
     }
     
-    // Handle special case for choice structures
+    // Special handling for choice objects - this is critical for parsing Ink choice structures
     if (!parsed && typeof element === 'object' && element !== null) {
-      // Look for choice indicators
+      // Look for choice indicators in object keys
       const keys = Object.keys(element);
-      for (const key of keys) {
-        if (key !== 'InkSymbols.NAVIGATION' && key !== '#f') {
-          // This might be a choice branch
-          context.currentChoice = { text: key, nextNode: '' };
+      
+      // Check for special choice format where the key itself is a choice marker
+      const choiceMarkers = ['*', '+', '-'];
+      const choiceKeys = keys.filter(key => choiceMarkers.includes(key));
+      
+      if (choiceKeys.length > 0) {
+        // This is a choice container
+        choiceKeys.forEach(marker => {
+          const choiceContent = element[marker];
           
-          // Process the choice content
-          if (typeof element[key] === 'object' && element[key] !== null) {
-            if (Array.isArray(element[key])) {
-              // Set context to process this choice
+          if (Array.isArray(choiceContent)) {
+            // Process each choice in the array
+            for (let i = 0; i < choiceContent.length; i++) {
+              const choice = choiceContent[i];
+              
+              // Start a new choice
               context.inChoice = true;
-              processArrayElements(element[key], context);
-              context.inChoice = false;
+              context.currentChoice = { 
+                text: '', 
+                nextNode: '',
+                type: marker === '*' ? 'basic' : marker === '+' ? 'sticky' : 'gather'
+              };
+              
+              // If choice is an array, process it
+              if (Array.isArray(choice)) {
+                let choiceText = '';
+                let targetNode = '';
+                
+                // Extract choice text and target
+                for (let j = 0; j < choice.length; j++) {
+                  const item = choice[j];
+                  
+                  // Handle text items
+                  if (typeof item === 'string' && item.startsWith(InkSymbols.TEXT)) {
+                    choiceText = item.substring(1);
+                  }
+                  
+                  // Handle diverts
+                  if (typeof item === 'object' && item !== null && item[InkSymbols.NAVIGATION]) {
+                    targetNode = item[InkSymbols.NAVIGATION];
+                  }
+                }
+                
+                // Create and add the choice
+                if (choiceText) {
+                  context.currentChoice.text = choiceText;
+                  if (targetNode) {
+                    context.currentChoice.nextNode = targetNode;
+                  }
+                  
+                  // Add the choice to the node
+                  context.currentNode.choices.push({...context.currentChoice});
+                }
+              }
             }
+            
+            // Reset choice state
+            context.inChoice = false;
+            context.currentChoice = null;
           }
-          
-          // Add the choice if it has both text and nextNode
-          if (context.currentChoice.text && context.currentChoice.nextNode) {
-            context.currentNode.choices.push({ ...context.currentChoice });
+        });
+        
+        parsed = true;
+      }
+      
+      // Handle standard object keys for choice content
+      if (!parsed) {
+        for (const key of keys) {
+          if (key !== 'InkSymbols.NAVIGATION' && key !== '#f') {
+            // This might be a choice branch or divert
+            
+            // Direct text content with divert
+            if (key.startsWith(InkSymbols.TEXT)) {
+              const textContent = key.substring(1).trim();
+              
+              if (textContent) {
+                // If element[key] is a divert or another structured object
+                if (typeof element[key] === 'object' && element[key] !== null) {
+                  // Check if it contains a divert
+                  if (element[key][InkSymbols.NAVIGATION]) {
+                    // This is both text and a divert - create a choice
+                    context.currentNode.choices.push({
+                      text: textContent,
+                      nextNode: element[key][InkSymbols.NAVIGATION]
+                    });
+                  } else {
+                    // Regular text with metadata
+                    if (context.currentNode.text) context.currentNode.text += ' ';
+                    context.currentNode.text += textContent;
+                  }
+                } else {
+                  // Just text
+                  if (context.currentNode.text) context.currentNode.text += ' ';
+                  context.currentNode.text += textContent;
+                }
+              }
+            }
+            // Other structured content - could be a nested choice or divert
+            else if (key !== InkSymbols.NAVIGATION && 
+                    key !== '#' && 
+                    key !== 'VAR=' && 
+                    key !== 'temp=' &&
+                    !choiceMarkers.includes(key)) {
+              
+              // Process as potential choice text
+              context.currentChoice = { text: key, nextNode: '' };
+              
+              // Process the choice content
+              if (typeof element[key] === 'object' && element[key] !== null) {
+                if (Array.isArray(element[key])) {
+                  // Set context to process this choice
+                  context.inChoice = true;
+                  processArrayElements(element[key], context);
+                  context.inChoice = false;
+                }
+              }
+              
+              // Add the choice if it has both text and nextNode
+              if (context.currentChoice.text && context.currentChoice.nextNode) {
+                context.currentNode.choices.push({ ...context.currentChoice });
+              }
+            }
           }
         }
       }

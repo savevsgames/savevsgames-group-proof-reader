@@ -9,5 +9,9 @@ export const InkSymbols = {
   STRING_END: '/str',
   END: 'end',
   DONE: 'done',
-  NEW_LINE: '\n'
+  NEW_LINE: '\n',
+  GLUE: '<>',
+  CHOICE_BASIC: '*',
+  CHOICE_STICKY: '+',
+  CHOICE_GATHER: '-'
 };

@@ -69,7 +69,7 @@ export const convertJSONToInk = (storyData: CustomStory): string => {
       processedNodes.add(nodeKey);
       
       // Add a knot declaration for non-root nodes
-      if (nodeKey !== 'root') {
+      if (nodeKey !== 'root' && nodeKey !== 'start') {
         inkContent += `=== ${nodeKey} ===\n`;
       }
       
