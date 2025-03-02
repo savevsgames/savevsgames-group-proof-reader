@@ -1,8 +1,9 @@
 
 import { StateCreator } from 'zustand';
 import { StoryStore } from '@/types/story-types.definitions';
+import { shallow } from 'zustand/shallow';
 
-// Slice for navigation-related state and actions
+// Slice for navigation-related state and actions with improved update logic
 export const createNavigationSlice: StateCreator<
   StoryStore,
   [["zustand/devtools", never], ["zustand/persist", unknown]],
@@ -31,69 +32,96 @@ export const createNavigationSlice: StateCreator<
     pageToNode: {}
   },
   
-  // Setters
+  // Setters with improved validation and state comparison
   setCurrentPage: (page) => {
-    // Guard against invalid values and unnecessary updates
-    if (!page || typeof page !== 'number' || page < 1 || get().currentPage === page) return;
+    // Validate input more thoroughly
+    if (
+      !page || 
+      typeof page !== 'number' || 
+      page < 1 || 
+      page > get().totalPages || 
+      page === get().currentPage
+    ) {
+      return;
+    }
+    
+    // Single update to avoid cascading renders
     set({ currentPage: page });
   },
   
   setCurrentNode: (node) => {
-    // Guard against invalid values and unnecessary updates
+    // Handle validation and reference equality check
     if (!node || typeof node !== 'string' || get().currentNode === node) return;
     set({ currentNode: node });
   },
   
   setCurrentText: (text) => {
-    // Guard against unnecessary updates
+    // Skip update if text hasn't changed
     if (get().currentText === text) return;
     set({ currentText: text });
   },
   
   setCurrentChoices: (choices) => {
-    // Guard against unnecessary updates
-    if (JSON.stringify(get().currentChoices) === JSON.stringify(choices)) return;
+    // Deep comparison to prevent unnecessary updates
+    const currentChoices = get().currentChoices;
+    if (shallow(currentChoices, choices)) return;
+    
     set({ currentChoices: choices });
   },
   
   setCanContinue: (canContinue) => {
-    // Guard against unnecessary updates
     if (get().canContinue === canContinue) return;
     set({ canContinue });
   },
   
   setCurrentStoryPosition: (position) => {
-    // Guard against invalid values and unnecessary updates
     if (!position || typeof position !== 'number' || position < 1 || get().currentStoryPosition === position) return;
     set({ currentStoryPosition: position });
   },
   
-  // Node mapping actions
+  // Node mapping actions with added validation
   updateNodeMappings: () => {
     const { storyData } = get();
     if (!storyData) return;
     
     console.log("[StoryStore] Updating node mappings");
-    const { nodeMappings, totalPages } = generateAndLogNodeMappings(storyData);
     
-    // Guard against unnecessary updates
-    const currentNodeMappingsKeys = Object.keys(get().nodeMappings.nodeToPage || {}).length;
-    const newNodeMappingsKeys = Object.keys(nodeMappings.nodeToPage).length;
-    const currentTotalPages = get().totalPages;
+    // Use a debounced approach to prevent rapid updates
+    const requestId = Date.now();
+    (get() as any)._lastNodeMappingRequestId = requestId;
     
-    // Only update if there's a meaningful change
-    if (currentNodeMappingsKeys !== newNodeMappingsKeys || currentTotalPages !== totalPages) {
-      console.log(`[StoryStore] Generated ${newNodeMappingsKeys} node mappings over ${totalPages} pages`);
-      set({ nodeMappings, totalPages });
-    }
+    setTimeout(() => {
+      // Only process if this is still the latest request
+      if ((get() as any)._lastNodeMappingRequestId !== requestId) return;
+      
+      const { nodeMappings, totalPages } = generateAndLogNodeMappings(get().storyData!);
+      
+      // Compare current values before updating
+      const currentNodeMappingsKeys = Object.keys(get().nodeMappings.nodeToPage || {}).length;
+      const newNodeMappingsKeys = Object.keys(nodeMappings.nodeToPage).length;
+      const currentTotalPages = get().totalPages;
+      
+      // Only update if there's a meaningful change
+      if (currentNodeMappingsKeys !== newNodeMappingsKeys || currentTotalPages !== totalPages) {
+        console.log(`[StoryStore] Generated ${newNodeMappingsKeys} node mappings over ${totalPages} pages`);
+        set({ nodeMappings, totalPages });
+      } else {
+        console.log("[StoryStore] Node mappings unchanged, skipping update");
+      }
+    }, 250);
   },
   
-  // Navigation
+  // Navigation with improved validation
   navigateToNode: (nodeName) => {
     const { storyData, currentNode, nodeMappings } = get();
     
-    // Guard against invalid values and unnecessary updates
-    if (!storyData || !nodeName || !storyData[nodeName] || currentNode === nodeName) {
+    // Enhanced validation
+    if (
+      !storyData || 
+      !nodeName || 
+      !storyData[nodeName] || 
+      currentNode === nodeName
+    ) {
       console.error(`[StoryStore] Node "${nodeName}" not found in story data or already on this node`);
       return;
     }
@@ -101,7 +129,7 @@ export const createNavigationSlice: StateCreator<
     // Add current node to history
     get().addToHistory(currentNode);
     
-    // Set the new node and update content
+    // Set the new node and update content in a single batch update
     const nodeData = storyData[nodeName];
     const targetPage = nodeMappings.nodeToPage[nodeName] || 1;
     
@@ -115,12 +143,15 @@ export const createNavigationSlice: StateCreator<
     });
   },
   
-  // History management
+  // History management with improved validation
   addToHistory: (node) => {
     const { storyHistory } = get();
     
-    // Guard against duplicates and invalid values
-    if (!node || (storyHistory.length > 0 && storyHistory[storyHistory.length - 1] === node)) {
+    // Enhanced validation
+    if (
+      !node || 
+      (storyHistory.length > 0 && storyHistory[storyHistory.length - 1] === node)
+    ) {
       return;
     }
     
@@ -138,13 +169,13 @@ export const createNavigationSlice: StateCreator<
   goBack: () => {
     const { storyHistory, storyData } = get();
     
-    // Guard against invalid state
+    // Enhanced validation
     if (storyHistory.length === 0 || !storyData) return;
     
     const newHistory = [...storyHistory];
     const prevNode = newHistory.pop() as string;
     
-    // Guard against invalid node
+    // Enhanced validation for previous node
     if (!prevNode || !storyData[prevNode]) {
       console.error(`[StoryStore] Previous node "${prevNode}" not found in story data`);
       set({
@@ -180,13 +211,18 @@ export const createNavigationSlice: StateCreator<
       storyId
     } = get();
     
-    // Guard against invalid values and unnecessary updates
-    if (!storyId || 
-        !newPage || 
-        typeof newPage !== 'number' || 
-        newPage === currentPage || 
-        newPage < 1 || 
-        newPage > totalPages) {
+    // Enhanced validation
+    if (
+      !storyId || 
+      !newPage || 
+      typeof newPage !== 'number' || 
+      newPage === currentPage || 
+      newPage < 1 || 
+      newPage > totalPages ||
+      !nodeMappings ||
+      !nodeMappings.pageToNode ||
+      !storyData
+    ) {
       console.log(`[StoryStore] Invalid page navigation: current=${currentPage}, target=${newPage}, max=${totalPages}`);
       return;
     }
@@ -196,8 +232,8 @@ export const createNavigationSlice: StateCreator<
     // Get the target node for this page
     const targetNode = nodeMappings.pageToNode[newPage];
     
-    // Guard against invalid mapping
-    if (!targetNode || !storyData || !storyData[targetNode]) {
+    // Enhanced validation for target node
+    if (!targetNode || !storyData[targetNode]) {
       console.error(`[StoryStore] No valid node mapping found for page ${newPage}`);
       return;
     }
@@ -208,7 +244,7 @@ export const createNavigationSlice: StateCreator<
     // Extract node data
     const nodeData = storyData[targetNode];
     
-    // Important: Batch update to reduce re-renders
+    // Batch update to reduce re-renders
     set({
       currentNode: targetNode,
       currentText: nodeData.text,
@@ -221,8 +257,13 @@ export const createNavigationSlice: StateCreator<
   handleNodeChange: async (nodeName) => {
     const { storyData, currentNode, nodeMappings } = get();
     
-    // Guard against invalid values and unnecessary updates
-    if (!storyData || !nodeName || !storyData[nodeName] || currentNode === nodeName) {
+    // Enhanced validation
+    if (
+      !storyData || 
+      !nodeName || 
+      !storyData[nodeName] || 
+      currentNode === nodeName
+    ) {
       console.error(`[StoryStore] Node "${nodeName}" not found in story data or already on this node`);
       return;
     }
@@ -249,7 +290,7 @@ export const createNavigationSlice: StateCreator<
   handleContinue: async () => {
     const { currentChoices } = get();
     
-    // Guard against invalid state
+    // Enhanced validation
     if (!currentChoices || currentChoices.length !== 1) return;
     
     // For single choice (continue), use the first choice
@@ -264,18 +305,20 @@ export const createNavigationSlice: StateCreator<
       nodeMappings
     } = get();
     
-    // Guard against invalid values
-    if (!storyData || 
-        !currentChoices || 
-        typeof index !== 'number' || 
-        index < 0 || 
-        index >= currentChoices.length) {
+    // Enhanced validation
+    if (
+      !storyData || 
+      !currentChoices || 
+      typeof index !== 'number' || 
+      index < 0 || 
+      index >= currentChoices.length
+    ) {
       return;
     }
     
     const choice = currentChoices[index];
     
-    // Guard against invalid choice
+    // Enhanced validation for choice
     if (!choice || !choice.nextNode || !storyData[choice.nextNode]) {
       console.error("[StoryStore] Invalid choice or nextNode not found in story data");
       return;
@@ -301,7 +344,7 @@ export const createNavigationSlice: StateCreator<
   handleRestart: async () => {
     const { storyData } = get();
     
-    // Guard against invalid state
+    // Enhanced validation
     if (!storyData) return;
     
     console.log("[StoryStore] Restarting story");
@@ -309,7 +352,7 @@ export const createNavigationSlice: StateCreator<
     // Find start node
     const startNode = storyData.start ? 'start' : 'root';
     
-    // Guard against invalid start node
+    // Enhanced validation for start node
     if (!storyData[startNode]) {
       console.error(`[StoryStore] Start node "${startNode}" not found`);
       return;

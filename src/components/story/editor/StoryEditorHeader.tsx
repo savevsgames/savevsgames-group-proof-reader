@@ -1,13 +1,8 @@
 
-import React from "react";
-import { AlertTriangle, BookOpen, Code } from "lucide-react";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
+import React, { memo, useCallback } from "react";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight, Save } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface StoryEditorHeaderProps {
   title: string;
@@ -15,71 +10,94 @@ interface StoryEditorHeaderProps {
   totalPages: number;
   hasUnsavedChanges: boolean;
   isLoading: boolean;
-  onPageChange: (newPage: number) => void;
+  onPageChange: (page: number) => void;
+  onSave?: () => void;
 }
 
-const StoryEditorHeader: React.FC<StoryEditorHeaderProps> = ({
+const StoryEditorHeader: React.FC<StoryEditorHeaderProps> = memo(({
   title,
   currentPage,
   totalPages,
   hasUnsavedChanges,
   isLoading,
-  onPageChange
+  onPageChange,
+  onSave
 }) => {
-  console.log("[StoryEditorHeader] Rendering with:", { currentPage, totalPages });
+  // Prevent unnecessary calculations on every render
+  const isFirstPage = currentPage <= 1;
+  const isLastPage = currentPage >= totalPages;
   
-  // Generate available page numbers
-  const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1);
-
+  // Memoize the handlers to prevent recreation on every render
+  const handlePrevious = useCallback(() => {
+    if (!isFirstPage) {
+      onPageChange(currentPage - 1);
+    }
+  }, [currentPage, isFirstPage, onPageChange]);
+  
+  const handleNext = useCallback(() => {
+    if (!isLastPage) {
+      onPageChange(currentPage + 1);
+    }
+  }, [currentPage, isLastPage, onPageChange]);
+  
   return (
-    <div className="mb-6">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-3xl font-serif font-bold text-[#3A2618]">Edit Story</h1>
+    <div className="flex items-center justify-between mb-6">
+      <div className="flex items-baseline space-x-4">
+        <h1 className="text-2xl font-bold text-gray-800">{title}</h1>
         
-        {!isLoading && (
-          <div className="flex items-center space-x-2">
-            <BookOpen className="h-5 w-5 text-[#3A2618]" />
-            <Select 
-              value={currentPage.toString()} 
-              onValueChange={(value) => {
-                const page = parseInt(value);
-                console.log(`[StoryEditorHeader] Page selection changed to ${page}`);
-                onPageChange(page);
-              }}
-            >
-              <SelectTrigger className="w-[180px] bg-white border-[#3A2618] text-[#3A2618]">
-                <SelectValue placeholder={`Page ${currentPage} of ${totalPages}`} />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px] overflow-y-auto">
-                {pageNumbers.map((page) => (
-                  <SelectItem key={page} value={page.toString()}>
-                    Page {page} of {totalPages}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            <div className="ml-4 text-gray-500 text-sm flex items-center">
-              <Code className="h-4 w-4 mr-1" />
-              <span>Total Pages: {totalPages}</span>
-            </div>
-          </div>
+        {hasUnsavedChanges && !isLoading && (
+          <Badge 
+            variant="outline" 
+            className="bg-amber-50 text-amber-700 border-amber-200"
+          >
+            Unsaved Changes
+          </Badge>
         )}
       </div>
-
-      {title && (
-        <h2 className="text-xl text-[#5A3A28] mt-2">{title}</h2>
-      )}
       
-      {/* Unsaved changes indicator */}
-      {hasUnsavedChanges && (
-        <div className="mt-2 flex items-center text-amber-600">
-          <AlertTriangle className="h-4 w-4 mr-1" />
-          <span className="text-sm">You have unsaved changes</span>
+      <div className="flex items-center space-x-2">
+        <div className="flex items-center mr-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePrevious}
+            disabled={isFirstPage || isLoading}
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Previous
+          </Button>
+          
+          <span className="mx-4 text-sm text-gray-500">
+            Page {currentPage} of {totalPages || 1}
+          </span>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleNext}
+            disabled={isLastPage || isLoading}
+          >
+            Next
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
         </div>
-      )}
+        
+        {onSave && (
+          <Button
+            onClick={onSave}
+            disabled={!hasUnsavedChanges || isLoading}
+            className="bg-[#F97316] hover:bg-[#E86305]"
+          >
+            {isLoading ? "Saving..." : "Save"}
+            <Save className="h-4 w-4 ml-2" />
+          </Button>
+        )}
+      </div>
     </div>
   );
-};
+});
+
+// Add display name for better debugging
+StoryEditorHeader.displayName = 'StoryEditorHeader';
 
 export default StoryEditorHeader;
