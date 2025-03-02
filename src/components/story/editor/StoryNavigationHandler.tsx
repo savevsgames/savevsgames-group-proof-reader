@@ -22,13 +22,19 @@ const StoryNavigationHandler: React.FC<StoryNavigationHandlerProps> = ({ childre
   } = useStoryStore();
   
   const handlePageChange = useCallback((page: number) => {
-    return throttledAction('pageChange', () => storeHandlePageChange(page), {
+    return throttledAction('pageChange', () => {
+      console.log("[StoryNavigationHandler] Page change request:", page);
+      return storeHandlePageChange(page);
+    }, {
       errorMessage: 'Failed to change page'
     })();
   }, [storeHandlePageChange, throttledAction]);
   
   const handleNodeChange = useCallback((nodeName: string) => {
-    return throttledAction('nodeChange', () => storeHandleNodeChange(nodeName), {
+    return throttledAction('nodeChange', () => {
+      console.log("[StoryNavigationHandler] Node change request:", nodeName);
+      return storeHandleNodeChange(nodeName);
+    }, {
       errorMessage: 'Failed to change node'
     })();
   }, [storeHandleNodeChange, throttledAction]);

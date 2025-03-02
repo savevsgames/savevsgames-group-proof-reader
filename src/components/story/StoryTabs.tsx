@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
@@ -12,7 +13,7 @@ import { useAuth } from "@/context/AuthContext";
 import { generateNodeMappings } from "@/lib/story/mappings";
 import { CustomStory, NodeMappings, TabType } from "@/types";
 import { useStoryStore } from "@/stores/storyState";
-import { BookOpen, ChevronLeft, ChevronRight, Edit } from "lucide-react";
+import { Edit } from "lucide-react";
 import { shallow } from "zustand/shallow";
 
 interface StoryTabsProps {
@@ -102,32 +103,6 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
     mappedNodes: Object.keys(mappings.nodeToPage).length
   });
 
-  const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      const prevPage = currentPage - 1;
-      const prevNodeName = mappings.pageToNode[prevPage];
-      
-      console.log(`[StoryTabs] Navigating to previous page ${prevPage}, node: ${prevNodeName}`);
-      
-      if (prevNodeName && onNodeChange) {
-        onNodeChange(prevNodeName);
-      }
-    }
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      const nextPage = currentPage + 1;
-      const nextNodeName = mappings.pageToNode[nextPage];
-      
-      console.log(`[StoryTabs] Navigating to next page ${nextPage}, node: ${nextNodeName}`);
-      
-      if (nextNodeName && onNodeChange) {
-        onNodeChange(nextNodeName);
-      }
-    }
-  };
-
   const handleAddToLlmContext = (commentType: string, commentText: string, username: string) => {
     // This is now properly typed to match the updated components
   };
@@ -156,37 +131,6 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
           )}
         </TabsTrigger>
         <TabsTrigger value="llm">LLM Integration</TabsTrigger>
-        
-        <div className="ml-auto flex items-center space-x-2">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={handlePreviousPage}
-            disabled={currentPage <= 1}
-            type="button"
-            className="p-1 h-8 w-8"
-            aria-label="Previous page"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          
-          <div className="flex items-center text-sm text-gray-500">
-            <BookOpen className="h-4 w-4 mr-1 text-gray-400" />
-            <span>Page {currentPage}/{totalPages || 1}</span>
-          </div>
-          
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={handleNextPage}
-            disabled={currentPage >= totalPages}
-            type="button"
-            className="p-1 h-8 w-8"
-            aria-label="Next page"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
       </TabsList>
 
       <Card className="p-4">

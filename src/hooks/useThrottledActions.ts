@@ -36,11 +36,11 @@ export const useThrottledActions = () => {
         lastActionTimestamp.current[actionKey] && 
         now - lastActionTimestamp.current[actionKey] < delay
       ) {
-        console.log(`[Throttle] Throttling action "${actionKey}"`);
+        console.log(`[Throttle] Throttling action "${actionKey}" - too soon since last action`);
         return undefined;
       }
       
-      // Update timestamp
+      // Update timestamp immediately to prevent double-clicks
       lastActionTimestamp.current[actionKey] = now;
       
       try {
