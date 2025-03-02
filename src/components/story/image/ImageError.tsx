@@ -3,6 +3,7 @@ import React, { memo } from 'react';
 import { Button } from "@/components/ui/button";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { ImageData } from './imageUtils';
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface ImageErrorProps {
   imageData: ImageData;
@@ -44,6 +45,9 @@ export const ImageError: React.FC<ImageErrorProps> = memo(({
       if (imageData.error_message.includes('rate limit')) {
         return "Rate limit exceeded. Please wait a minute and try again.";
       }
+      if (imageData.error_message.includes('API key')) {
+        return "The OpenAI API key is missing or invalid. Please check your API configuration.";
+      }
       return imageData.error_message.replace('OpenAI API error: ', '');
     }
     
@@ -65,31 +69,36 @@ export const ImageError: React.FC<ImageErrorProps> = memo(({
 
   // Show enhanced prompt if available
   const displayPrompt = imageData.enhanced_prompt || prompt;
+  const errorMessage = getErrorMessage();
 
   return (
-    <div className="border-2 border-dashed border-red-300 bg-red-50 rounded-lg p-8 text-center flex flex-col items-center space-y-4">
-      <AlertCircle className="h-12 w-12 text-red-400" />
-      <div className="max-w-md">
-        <p className="text-sm text-red-500 flex items-center justify-center mb-2">
-          <AlertCircle className="h-4 w-4 mr-2 text-red-500" />
-          Error: {getErrorMessage()}
-        </p>
-        {getAttemptsInfo()}
-        <p className="text-sm text-gray-500 mb-4 break-words">
-          <span className="font-semibold">Original prompt:</span> "{prompt}"
-        </p>
-        <Button
-          onClick={onRetry}
-          disabled={loading}
-          className="bg-[#F97316] hover:bg-[#E86305] flex items-center gap-2"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          {loading ? 'Trying again...' : 'Try Again'}
-        </Button>
-        
-        <p className="text-xs text-gray-400 mt-4">
-          If the issue persists, try a different, simpler image description.
-        </p>
+    <div className="space-y-4">
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Image Generation Failed</AlertTitle>
+        <AlertDescription>{errorMessage}</AlertDescription>
+      </Alert>
+
+      <div className="border-2 border-dashed border-red-300 bg-red-50 rounded-lg p-6 text-center flex flex-col items-center space-y-4">
+        <AlertCircle className="h-10 w-10 text-red-400" />
+        <div className="max-w-md">
+          {getAttemptsInfo()}
+          <p className="text-sm text-gray-500 mb-4 break-words">
+            <span className="font-semibold">Original prompt:</span> "{prompt}"
+          </p>
+          <Button
+            onClick={onRetry}
+            disabled={loading}
+            className="bg-[#F97316] hover:bg-[#E86305] flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Trying again...' : 'Try Again'}
+          </Button>
+          
+          <p className="text-xs text-gray-400 mt-4">
+            If the issue persists, try a different, simpler image description.
+          </p>
+        </div>
       </div>
     </div>
   );

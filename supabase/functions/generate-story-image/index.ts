@@ -15,8 +15,19 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Verify OpenAI API key is set
+    if (!openaiApiKey) {
+      console.error('OPENAI_API_KEY is not set in environment variables');
+      throw new Error('OpenAI API key is not configured in the edge function');
+    }
+
     const { storyId, nodeId, pageNumber, prompt } = await req.json();
-    console.log('Image generation requested for:', { storyId, nodeId, pageNumber, prompt });
+    console.log('Image generation requested for:', { 
+      storyId, 
+      nodeId, 
+      pageNumber, 
+      promptLength: prompt?.length 
+    });
 
     if (!storyId || !nodeId || !pageNumber || !prompt) {
       throw new Error('Missing required parameters: storyId, nodeId, pageNumber, prompt are all required');
@@ -31,8 +42,13 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error('Database error when checking for existing image:', fetchError);
       throw new Error(`Database error when checking for existing image: ${fetchError.message}`);
     }
+
+    console.log('Existing image check:', existingImage ? 
+      `Found image with status: ${existingImage.status}` : 
+      'No existing image found');
 
     // Get image style settings from book_llm_settings
     const { data: settings, error: settingsError } = await supabase
@@ -42,8 +58,12 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (settingsError) {
-      console.error('Could not fetch image settings, using defaults:', settingsError);
+      console.error('Could not fetch image settings:', settingsError);
     }
+
+    console.log('Image settings retrieved:', settings ? 
+      'Found settings' : 
+      'No settings found, will use defaults');
 
     // Default settings if none found
     const imageSettings = settings?.image_generation_settings || {
@@ -60,12 +80,14 @@ Deno.serve(async (req) => {
 Scene: ${prompt}
 Additional details: Maintain consistent pixel density and color palette. Ensure fantasy elements are prominent while keeping the pixel art aesthetic clear and defined.`;
 
-    console.log('Enhanced prompt:', enhancedPrompt);
+    console.log('Enhanced prompt created:', enhancedPrompt.substring(0, 100) + '...');
 
     // Define quality settings
     const imageSize = imageSettings.quality_settings?.size || "1024x1024";
     const imageQuality = imageSettings.quality_settings?.quality || "standard";
     const imageStyle = imageSettings.quality_settings?.style || "vivid";
+
+    console.log('Using image quality settings:', { imageSize, imageQuality, imageStyle });
 
     let imageData = null;
     let imageUrl = null;
@@ -75,6 +97,7 @@ Additional details: Maintain consistent pixel density and color palette. Ensure 
 
     if (existingImage) {
       attemptCount = (existingImage.attempt_count || 1) + 1;
+      console.log('Incrementing attempt count to:', attemptCount);
     }
 
     // Create or update the image record with 'generating' status
@@ -96,14 +119,23 @@ Additional details: Maintain consistent pixel density and color palette. Ensure 
       .single();
 
     if (updateError) {
+      console.error('Database error when updating image status:', updateError);
       throw new Error(`Database error when updating image status: ${updateError.message}`);
     }
 
+    console.log('Updated image record with generating status:', updatedImage?.id);
     imageData = updatedImage;
 
     try {
       // Call OpenAI API to generate image
-      console.log('Calling OpenAI to generate image...');
+      console.log('Calling OpenAI to generate image with request payload:', {
+        model: "dall-e-3",
+        prompt: enhancedPrompt.substring(0, 50) + '...',
+        size: imageSize,
+        quality: imageQuality,
+        style: imageStyle
+      });
+      
       const response = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: {
@@ -120,12 +152,33 @@ Additional details: Maintain consistent pixel density and color palette. Ensure 
         })
       });
 
-      const result = await response.json();
-      console.log('OpenAI response received:', result);
+      console.log('OpenAI API response status:', response.status);
+      
+      // Check response status and headers for debugging
+      const responseHeaders = Object.fromEntries(response.headers.entries());
+      console.log('OpenAI API response headers:', responseHeaders);
 
+      // Handle non-200 responses with better error details
       if (!response.ok) {
-        throw new Error(`OpenAI API error: ${result.error?.message || JSON.stringify(result)}`);
+        const errorBody = await response.text();
+        console.error('OpenAI API error response:', errorBody);
+        
+        try {
+          // Try to parse as JSON for structured error
+          const errorData = JSON.parse(errorBody);
+          throw new Error(`OpenAI API error: ${errorData.error?.message || JSON.stringify(errorData)}`);
+        } catch (parseError) {
+          // Handle case where response is not valid JSON
+          throw new Error(`OpenAI API error: Status ${response.status} - ${errorBody || 'No response body'}`);
+        }
       }
+
+      const result = await response.json();
+      console.log('OpenAI response received:', {
+        resultKeys: Object.keys(result),
+        hasData: !!result.data?.length,
+        created: result.created
+      });
 
       // Extract image URL and request ID from response
       imageUrl = result.data?.[0]?.url;
@@ -134,6 +187,8 @@ Additional details: Maintain consistent pixel density and color palette. Ensure 
       if (!imageUrl) {
         throw new Error('No image URL returned from OpenAI');
       }
+
+      console.log('Image URL received:', imageUrl.substring(0, 30) + '...');
 
       // Update the record with completed status and image URL
       const { error: finalUpdateError } = await supabase
@@ -147,6 +202,7 @@ Additional details: Maintain consistent pixel density and color palette. Ensure 
         .eq('id', imageData.id);
 
       if (finalUpdateError) {
+        console.error('Database error when saving the completed image:', finalUpdateError);
         throw new Error(`Database error when saving the completed image: ${finalUpdateError.message}`);
       }
 
@@ -156,6 +212,12 @@ Additional details: Maintain consistent pixel density and color palette. Ensure 
         .select('*')
         .eq('id', imageData.id)
         .single();
+
+      console.log('Successfully completed image generation for:', {
+        imageId: finalImage?.id,
+        storyId,
+        nodeId
+      });
 
       // Return success
       return new Response(
@@ -198,6 +260,7 @@ Additional details: Maintain consistent pixel density and color palette. Ensure 
         JSON.stringify({
           success: false,
           error: errorMessage,
+          details: imageGenError.toString(),
           image: errorImage
         }),
         {
@@ -212,7 +275,8 @@ Additional details: Maintain consistent pixel density and color palette. Ensure 
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message
+        error: error.message,
+        details: error.toString()
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
