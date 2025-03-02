@@ -8,11 +8,12 @@ import InkView from "./InkView";
 import LlmIntegration from "./LlmIntegration";
 import CommentsView from "./CommentsView";
 import ReaderView from "./ReaderView";
+import TextEditorView from "./TextEditorView";
 import { useAuth } from "@/context/AuthContext";
 import { generateNodeMappings } from "@/lib/story/mappings";
 import { CustomStory, NodeMappings, TabType } from "@/types";
 import { useStoryStore } from "@/stores/storyState";
-import { BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, Edit } from "lucide-react";
 import { shallow } from "zustand/shallow";
 
 interface StoryTabsProps {
@@ -144,6 +145,10 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
         <TabsTrigger value="json">JSON View</TabsTrigger>
         <TabsTrigger value="ink">Ink View</TabsTrigger>
         <TabsTrigger value="reader">Reader</TabsTrigger>
+        <TabsTrigger value="text-editor">
+          <Edit className="h-4 w-4 mr-1" />
+          Text Editor
+        </TabsTrigger>
         <TabsTrigger value="comments" className="relative">
           Comments
           {commentCount > 0 && (
@@ -214,6 +219,18 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
             currentNode={currentNode}
             onNodeChange={handleNodeSelection}
             nodeMappings={mappings}
+          />
+        </TabsContent>
+        
+        <TabsContent value="text-editor" className="mt-0">
+          <TextEditorView
+            storyData={storyData}
+            currentNode={currentNode}
+            onStoryDataChange={(data) => {
+              console.log("[StoryTabs] Story data changed in Text Editor");
+              onStoryDataChange(data);
+              onUnsavedChanges(true);
+            }}
           />
         </TabsContent>
 

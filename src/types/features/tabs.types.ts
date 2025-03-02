@@ -8,7 +8,7 @@
 /**
  * Define tab types for StoryTabs component
  */
-export type TabType = "json" | "ink" | "reader" | "comments" | "llm";
+export type TabType = "json" | "ink" | "reader" | "comments" | "llm" | "text-editor";
 
 /**
  * Tab configuration for StoryTabs
