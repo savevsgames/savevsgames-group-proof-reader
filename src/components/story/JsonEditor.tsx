@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
@@ -87,6 +88,12 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
         }
       }
       
+      // Safely check if nodeMappings exists before trying to access its properties
+      if (!nodeMappings || !nodeMappings.nodeToPage) {
+        console.log(`[JsonEditor] Node mappings not available yet for node "${nodeToHighlight}"`);
+        return;
+      }
+      
       // Find the position of the current node in the JSON
       const nodePos = findNodePositionInJson(jsonStr, nodeToHighlight);
       if (!nodePos) {
@@ -121,7 +128,7 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
     } catch (error) {
       console.error("[JsonEditor] Error highlighting node:", error);
     }
-  }, [currentNode, currentPage]);
+  }, [currentNode, currentPage, nodeMappings]);
 
   useEffect(() => {
     // Remove previous decorations
