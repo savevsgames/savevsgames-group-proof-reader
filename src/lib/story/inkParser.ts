@@ -1,3 +1,4 @@
+
 import { InkSymbols } from './constants';
 import { InkNodeContent, InkChoice, ParsingContext } from './types';
 
@@ -7,7 +8,7 @@ interface TokenParser {
   process: (token: any, context: ParsingContext) => void;
 }
 
-// Collection of token parsers for different Ink syntax elements
+// Extended collection of token parsers for different Ink syntax elements
 export const tokenParsers: TokenParser[] = [
   // Text parser - handles basic story text prefixed with ^
   {
@@ -79,6 +80,50 @@ export const tokenParsers: TokenParser[] = [
         }
       }
     }
+  },
+  
+  // NEW: Tag parser - handles metadata tags
+  {
+    matches: (token) => typeof token === 'object' && token !== null && token['#'] !== undefined,
+    process: (token, context) => {
+      // Store tags in the metadata
+      if (!context.currentNode.metadata) {
+        context.currentNode.metadata = {};
+      }
+      if (!context.currentNode.metadata.tags) {
+        context.currentNode.metadata.tags = [];
+      }
+      context.currentNode.metadata.tags.push(token['#']);
+    }
+  },
+  
+  // NEW: Variable assignment parser
+  {
+    matches: (token) => typeof token === 'object' && token !== null && token['VAR='] !== undefined,
+    process: (token, context) => {
+      // Store variable assignments in metadata
+      if (!context.currentNode.metadata) {
+        context.currentNode.metadata = {};
+      }
+      if (!context.currentNode.metadata.variables) {
+        context.currentNode.metadata.variables = {};
+      }
+      
+      const varName = Object.keys(token['VAR='])[0];
+      const varValue = token['VAR='][varName];
+      
+      context.currentNode.metadata.variables[varName] = varValue;
+    }
+  },
+  
+  // NEW: Glue parser - handles text flow control
+  {
+    matches: (token) => token === InkSymbols.GLUE,
+    process: (token, context) => {
+      // Mark that the next text should be glued without whitespace
+      context.currentNode.metadata = context.currentNode.metadata || {};
+      context.currentNode.metadata.hasGlue = true;
+    }
   }
 ];
 
@@ -118,6 +163,18 @@ export const parseInkNode = (storyData: any, nodeName: string): InkNodeContent =
     if (Array.isArray(nodeData.content)) {
       processArrayElements(nodeData.content, context);
     }
+    
+    // Handle Ink's complex object structure with direct text and choices
+    if (typeof nodeData.text === 'string') {
+      nodeContent.text = nodeData.text;
+    }
+    
+    if (Array.isArray(nodeData.choices)) {
+      nodeContent.choices = nodeData.choices.map(choice => ({
+        text: typeof choice.text === 'string' ? choice.text : 'Continue',
+        nextNode: choice.nextNode || ''
+      }));
+    }
   }
   
   // If we have a direct link to next node but no choices yet,
@@ -132,7 +189,7 @@ export const parseInkNode = (storyData: any, nodeName: string): InkNodeContent =
   return nodeContent;
 };
 
-// Helper function to process array elements with parsers
+// Enhanced helper function to process array elements with parsers
 export const processArrayElements = (elements: any[], context: ParsingContext) => {
   for (const element of elements) {
     // Try each parser in sequence
@@ -146,12 +203,12 @@ export const processArrayElements = (elements: any[], context: ParsingContext) =
       }
     }
     
-    // If element is an array, recursively process it
+    // Handle nested arrays (common in Ink format)
     if (!parsed && Array.isArray(element)) {
       processArrayElements(element, context);
     }
     
-    // If element has a special structure for choices
+    // Handle special case for choice structures
     if (!parsed && typeof element === 'object' && element !== null) {
       // Look for choice indicators
       const keys = Object.keys(element);

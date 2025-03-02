@@ -13,7 +13,7 @@ export type {
   CustomStory
 };
 
-// Interface for parsed Ink node content
+// Enhanced interface for parsed Ink node content
 export interface InkNodeContent {
   text: string;
   choices: InkChoice[];
@@ -33,4 +33,25 @@ export interface ParsingContext {
   inChoice: boolean;
   currentChoice: InkChoice | null;
   choiceStack: any[];
+}
+
+// New types for enhanced Ink format support
+export interface InkGlue {
+  glue: boolean;
+}
+
+export interface InkTag {
+  tag: string;
+}
+
+export interface InkVariable {
+  name: string;
+  value: any;
+}
+
+export interface InkDivert {
+  target: string;
+  isExternal?: boolean;
+  isTunnel?: boolean;
+  isFunction?: boolean;
 }

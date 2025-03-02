@@ -1,10 +1,33 @@
+
 import { Story } from 'inkjs';
 import { CustomStory } from './types';
 import { parseFullInkStory } from './nodeExtraction';
 
-// Helper function to extract a custom story format from ink JSON
+// Enhanced helper function to extract a custom story format from ink JSON
 export const extractCustomStoryFromInkJSON = (inkJSON: any): CustomStory => {
   try {
+    console.log("[Conversion] Starting extraction from Ink JSON");
+    
+    // Validate the input
+    if (!inkJSON) {
+      console.error("[Conversion] Invalid Ink JSON provided");
+      return {
+        root: {
+          text: "Failed to parse story: Invalid input.",
+          choices: []
+        }
+      };
+    }
+    
+    // Check if this looks like Ink format
+    const isInkFormat = inkJSON && (
+      inkJSON.inkVersion || 
+      (Array.isArray(inkJSON.root) && inkJSON.root.length > 0)
+    );
+    
+    console.log(`[Conversion] Source appears to be ${isInkFormat ? 'Ink format' : 'custom format'}`);
+    
+    // Use our enhanced parser with better format detection
     return parseFullInkStory(inkJSON);
   } catch (e) {
     console.error("Error extracting custom story from Ink JSON:", e);
@@ -17,7 +40,7 @@ export const extractCustomStoryFromInkJSON = (inkJSON: any): CustomStory => {
   }
 };
 
-// Convert JSON story format to Ink format
+// Enhanced function to convert JSON story format to Ink format
 export const convertJSONToInk = (storyData: CustomStory): string => {
   try {
     if (!storyData) {
@@ -92,10 +115,31 @@ export const convertJSONToInk = (storyData: CustomStory): string => {
       }
     };
     
-    // Start with the root node
-    processNode('root');
+    // First, detect if we have a root or start node
+    const startNodeName = storyData.start ? 'start' : 'root';
     
-    // Process any remaining nodes that weren't reached through the root
+    // Start with the identified start node
+    if (storyData[startNodeName]) {
+      processNode(startNodeName);
+    } else {
+      // If no clear start node, try to find a viable starting point
+      const validNodes = Object.keys(storyData).filter(key => 
+        key !== 'inkVersion' && 
+        key !== 'listDefs' && 
+        typeof storyData[key] === 'object' && 
+        !Array.isArray(storyData[key]) &&
+        (storyData[key].text !== undefined || storyData[key].choices !== undefined)
+      );
+      
+      if (validNodes.length > 0) {
+        // Use the first valid node as the start
+        processNode(validNodes[0]);
+      } else {
+        inkContent += "// Warning: No valid story nodes found\n\n";
+      }
+    }
+    
+    // Process any remaining nodes that weren't reached through the start node
     Object.keys(storyData).forEach(nodeKey => {
       // Skip metadata nodes
       if (nodeKey === 'inkVersion' || nodeKey === 'listDefs') return;

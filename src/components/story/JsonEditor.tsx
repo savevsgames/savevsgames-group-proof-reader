@@ -31,29 +31,34 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
     }
   }, [storyData]);
 
-  // Handle editor mount
+  // Handle editor mount with improved error handling
   const handleEditorDidMount = (editor: monaco.editor.IStandaloneCodeEditor) => {
     editorRef.current = editor;
     
     // Subscribe to cursor change events
     editor.onDidChangeCursorPosition((e) => {
-      // Get the current position
-      const position = e.position;
-      
-      // Get the current line content
-      const lineContent = editor.getModel()?.getLineContent(position.lineNumber);
-      
-      if (lineContent) {
-        // Extract the node name from the line
-        const match = lineContent.match(/"(\w+)":\s*\{/);
-        if (match && match[1]) {
-          const nodeName = match[1];
-          
-          // Call the onNodeSelect function
-          if (onNodeSelect) {
-            onNodeSelect(nodeName);
+      try {
+        // Get the current position
+        const position = e.position;
+        
+        // Get the current line content
+        const lineContent = editor.getModel()?.getLineContent(position.lineNumber);
+        
+        if (lineContent) {
+          // Extract the node name from the line with improved regex
+          // This handles both standard JSON nodes and Ink format keys
+          const match = lineContent.match(/"(\w+)":\s*(\{|\[)/);
+          if (match && match[1]) {
+            const nodeName = match[1];
+            
+            // Call the onNodeSelect function
+            if (onNodeSelect) {
+              onNodeSelect(nodeName);
+            }
           }
         }
+      } catch (error) {
+        console.error("[JsonEditor] Error handling cursor position:", error);
       }
     });
   };
@@ -70,7 +75,7 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
     }
   };
   
-  // Highlight the current node in the JSON editor
+  // Highlight the current node in the JSON editor with improved detection
   const highlightCurrentNode = useCallback(() => {
     if (!editorRef.current || !currentNode) return;
     
@@ -146,9 +151,20 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
     readOnly: false,
     cursorStyle: 'line',
     automaticLayout: true,
+    wordWrap: 'on',
+    scrollBeyondLastLine: false,
+    minimap: { enabled: true },
+    folding: true,
+    lineNumbers: 'on',
+    renderLineHighlight: 'all',
+    scrollbar: {
+      vertical: 'visible',
+      horizontalScrollbarSize: 10,
+      verticalScrollbarSize: 10
+    }
   };
 
-  // Find node position in the JSON string
+  // Enhanced node position finding that works with both simple and complex formats
   const findNodePositionInJson = (jsonStr: string, nodeName: string): monaco.IRange | null => {
     try {
       // Create a valid nodeName pattern for fragments
@@ -198,6 +214,52 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
             endLineNumber: endLineNumber + 1,
             endColumn: endColumn + 1
           };
+        }
+      }
+      
+      // Try different search for array-based nodes (Ink format)
+      if (!isFragment) {
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          
+          // Look for Ink format node definitions like: "nodeName": [
+          if (line.startsWith(`"${nodeName}":`)) {
+            const nodeStartIndex = line.indexOf(`"${nodeName}":`);
+            
+            // For array nodes, we need to track brackets instead of braces
+            let endLineNumber = i;
+            let endColumn = line.length;
+            
+            // Check if this is an array node
+            const isArrayNode = line.includes('[');
+            
+            if (isArrayNode) {
+              // Count open and close brackets
+              let bracketCount = line.split('[').length - line.split(']').length;
+              let j = i;
+              
+              while (bracketCount > 0 && j < lines.length) {
+                j++;
+                if (j >= lines.length) break;
+                
+                bracketCount += lines[j].split('[').length;
+                bracketCount -= lines[j].split(']').length;
+                
+                if (bracketCount <= 0) {
+                  endLineNumber = j;
+                  endColumn = lines[j].indexOf(']') + 1;
+                  break;
+                }
+              }
+            }
+            
+            return {
+              startLineNumber: i + 1,
+              startColumn: nodeStartIndex + 1,
+              endLineNumber: endLineNumber + 1,
+              endColumn: endColumn + 1
+            };
+          }
         }
       }
       

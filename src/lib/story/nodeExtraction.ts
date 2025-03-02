@@ -100,8 +100,9 @@ export const parseFullInkStory = (storyData: any): CustomStory => {
 };
 
 /**
- * Parse an Ink.js format story into our CustomStory format
- * This handles the specific structure of Ink.js JSON
+ * Enhanced parser for Ink.js format story into our CustomStory format
+ * This handles the specific structure of Ink.js JSON with better support
+ * for complex nested structures and flow control
  */
 function parseInkJsFormat(storyData: any): CustomStory {
   console.log("[Ink Parsing] Starting Ink.js format parsing");
@@ -109,6 +110,15 @@ function parseInkJsFormat(storyData: any): CustomStory {
   const customStory: CustomStory = {};
   
   try {
+    // Process metadata fields first
+    if (storyData.inkVersion) {
+      customStory.inkVersion = storyData.inkVersion;
+    }
+    
+    if (storyData.listDefs) {
+      customStory.listDefs = storyData.listDefs;
+    }
+    
     // Process the root array to extract text content
     if (Array.isArray(storyData.root)) {
       console.log("[Ink Parsing] Processing root array with", storyData.root.length, "elements");
@@ -124,7 +134,7 @@ function parseInkJsFormat(storyData: any): CustomStory {
         }
       };
       
-      // Extract story segments for better pagination
+      // Extract story segments with enhanced recognition of structure
       const storySegments = extractStorySegmentsFromRoot(storyData.root);
       console.log(`[Ink Parsing] Extracted ${storySegments.length} segments from root array`);
       
@@ -155,15 +165,58 @@ function parseInkJsFormat(storyData: any): CustomStory {
         customStory['start'] = customStory['fragment_0'];
         console.log("[Ink Parsing] Set first segment as the start node");
       }
-    } else {
-      console.warn("[Ink Parsing] No valid root array found");
     }
+    
+    // Process non-root nodes (knots and stitches)
+    const knots = Object.keys(storyData).filter(key => 
+      key !== 'inkVersion' && 
+      key !== 'listDefs' && 
+      key !== 'root' &&
+      key !== '#f' && // Metadata container in some Ink versions
+      typeof storyData[key] === 'object'
+    );
+    
+    console.log(`[Ink Parsing] Processing ${knots.length} knots and stitches`);
+    
+    // Process each knot/stitch to extract content
+    knots.forEach(knotName => {
+      const knotData = storyData[knotName];
+      
+      // Skip if not a valid container
+      if (!knotData || typeof knotData !== 'object') return;
+      
+      console.log(`[Ink Parsing] Processing knot: ${knotName}`);
+      
+      // Extract content from the knot
+      const knotContent = Array.isArray(knotData) 
+        ? extractContentFromArray(knotData)
+        : { text: '', choices: [] };
+      
+      // Create the node with extracted content
+      customStory[knotName] = {
+        text: knotContent.text,
+        choices: knotContent.choices,
+        isEnding: knotContent.choices.length === 0
+      };
+      
+      console.log(`[Ink Parsing] Created node for knot ${knotName}:`, {
+        textLength: knotContent.text.length,
+        choicesCount: knotContent.choices.length
+      });
+    });
+    
   } catch (error) {
     console.error("[Ink Parsing] Error parsing Ink.js format:", error);
   }
   
   // Ensure we have at least one node
-  if (Object.keys(customStory).length === 0) {
+  if (Object.keys(customStory).length === 0 || 
+      !Object.keys(customStory).some(key => 
+        key !== 'inkVersion' && 
+        key !== 'listDefs' && 
+        customStory[key] && 
+        typeof customStory[key] === 'object'
+      )) {
     customStory['fragment_0'] = {
       text: "Story content could not be parsed correctly.",
       choices: [],
@@ -174,6 +227,71 @@ function parseInkJsFormat(storyData: any): CustomStory {
   
   console.log(`[Ink Parsing] Completed with ${Object.keys(customStory).length} total nodes`);
   return customStory;
+}
+
+/**
+ * Extract content from a knot/stitch array
+ */
+function extractContentFromArray(array: any[]): { text: string, choices: any[] } {
+  let text = '';
+  const choices: any[] = [];
+  
+  // Process array elements
+  for (let i = 0; i < array.length; i++) {
+    const element = array[i];
+    
+    // Handle text elements
+    if (typeof element === 'string' && element.startsWith('^')) {
+      text += (text ? ' ' : '') + element.substring(1);
+    }
+    
+    // Handle nested arrays (common for choice structures)
+    if (Array.isArray(element)) {
+      // Check if this might be a choice array
+      const choiceText = element.find(item => 
+        typeof item === 'string' && item.startsWith('^')
+      );
+      
+      if (choiceText) {
+        // Look for target in the next elements
+        let target = '';
+        const divert = element.find(item => 
+          typeof item === 'object' && item !== null && item['^->']
+        );
+        
+        if (divert) {
+          target = divert['^->'];
+        }
+        
+        if (choiceText && target) {
+          choices.push({
+            text: choiceText.substring(1),
+            nextNode: target
+          });
+        }
+      } else {
+        // Recursively process nested content
+        const nestedContent = extractContentFromArray(element);
+        if (nestedContent.text) {
+          text += (text ? ' ' : '') + nestedContent.text;
+        }
+        choices.push(...nestedContent.choices);
+      }
+    }
+    
+    // Handle divert objects
+    if (typeof element === 'object' && element !== null && element['^->']) {
+      const target = element['^->'];
+      if (target && target !== '<end>') {
+        choices.push({
+          text: 'Continue',
+          nextNode: target
+        });
+      }
+    }
+  }
+  
+  return { text, choices };
 }
 
 /**
@@ -221,14 +339,33 @@ function extractStorySegmentsFromRoot(rootArray: any[]): Array<{text: string}> {
       
       // Check for flow control or choice markers at the end of an array section
       const hasFlowControl = element.some(item => 
-        (typeof item === 'object' && item !== null && item['^->']) || 
-        (typeof item === 'string' && item === 'ev')
+        (typeof item === 'object' && item !== null && (
+          item['^->'] || // Divert
+          item['#'] || // Tag
+          item['VAR='] // Variable assignment
+        )) || 
+        (typeof item === 'string' && (
+          item === 'ev' || // Evaluation stack start
+          item === '/ev' || // Evaluation stack end
+          item === '->->' || // Tunnel return
+          item === '->-'     // Function return
+        ))
       );
       
       // If we have flow control and accumulated text, create a segment
       if (hasFlowControl && currentText) {
         segments.push({ text: currentText });
         console.log(`[Ink Parsing] Created segment at flow control: "${currentText.substring(0, 50)}..."`);
+        currentText = '';
+      }
+    }
+    
+    // Check for direct divert objects at the top level
+    if (typeof element === 'object' && element !== null && element['^->']) {
+      // If we have accumulated text, create a segment before the divert
+      if (currentText) {
+        segments.push({ text: currentText });
+        console.log(`[Ink Parsing] Created segment before divert: "${currentText.substring(0, 50)}..."`);
         currentText = '';
       }
     }
