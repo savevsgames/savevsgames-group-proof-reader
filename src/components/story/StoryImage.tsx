@@ -23,7 +23,7 @@ export const StoryImage: React.FC<StoryImageProps> = memo(({
   // Extract image prompt from text - memoized to prevent recalculation
   const imagePrompt = useMemo(() => {
     const prompt = extractImagePrompt(text);
-    // console.log('Extracted image prompt:', prompt ? `"${prompt}"` : 'none');
+    console.log('Extracted image prompt:', prompt ? `"${prompt}"` : 'none');
     return prompt;
   }, [text]);
   
@@ -44,14 +44,14 @@ export const StoryImage: React.FC<StoryImageProps> = memo(({
   };
   
   // Debug image state if needed
-  // console.log('StoryImage current state:', { 
-  //   storyId, 
-  //   currentNode, 
-  //   currentPage, 
-  //   promptLength: imagePrompt?.length,
-  //   imageState: imageData?.status || 'no data',
-  //   hasEnhancedPrompt: !!imageData?.enhanced_prompt
-  // });
+  console.log('StoryImage current state:', { 
+    storyId, 
+    currentNode, 
+    currentPage, 
+    promptLength: imagePrompt?.length,
+    imageState: imageData?.status || 'no data',
+    hasEnhancedPrompt: !!imageData?.enhanced_prompt
+  });
 
   return (
     <div className="my-6 w-full flex flex-col items-center">

@@ -19,7 +19,7 @@ export const useImageGeneration = ({
   const [loading, setLoading] = useState(false);
   const [imageData, setImageData] = useState<ImageData | null>(null);
   const [pollingCount, setPollingCount] = useState(0);
-  const [shouldFetchImage, setShouldFetchImage] = useState(true); // Changed to true to fetch on load
+  const [shouldFetchImage, setShouldFetchImage] = useState(true);
   const requestInProgress = useRef(false);
   const { toast } = useToast();
 
@@ -117,11 +117,12 @@ export const useImageGeneration = ({
     const checkExistingImage = async () => {
       try {
         requestInProgress.current = true;
+        console.log(`Fetching image data for story ${storyId}, node ${currentNode}`);
         const data = await fetchImageData(storyId, currentNode);
         requestInProgress.current = false;
         
         if (data) {
-          // console.log('Found existing image data:', data);
+          console.log('Found existing image data:', data);
           setImageData(data);
           
           // If status is generating or uploading, start polling
@@ -129,6 +130,7 @@ export const useImageGeneration = ({
             setPollingCount(0); // Reset polling count
           }
         } else {
+          console.log('No existing image found for this node');
           // No image found, auto-generate if we have a prompt
           if (imagePrompt) {
             // Wait briefly to ensure we're not causing race conditions
@@ -161,23 +163,22 @@ export const useImageGeneration = ({
 
     // Prevent multiple simultaneous requests
     if (loading || requestInProgress.current) {
-      // console.log('Image generation already in progress, skipping request');
+      console.log('Image generation already in progress, skipping request');
       return;
     }
 
     setLoading(true);
     setPollingCount(0);
-    setShouldFetchImage(true);
     requestInProgress.current = true;
     
     try {
-      // console.log('Attempting to generate image with params:', { 
-      //   storyId, 
-      //   nodeId: currentNode, 
-      //   pageNumber: currentPage, 
-      //   prompt: imagePrompt,
-      //   forceRegenerate 
-      // });
+      console.log('Generating image with params:', { 
+        storyId, 
+        nodeId: currentNode, 
+        pageNumber: currentPage, 
+        prompt: imagePrompt,
+        forceRegenerate 
+      });
       
       const newImageData = await generateNewImage(
         storyId, 
@@ -188,7 +189,7 @@ export const useImageGeneration = ({
       );
       
       if (newImageData) {
-        // console.log('Image generation successful, received data:', newImageData);
+        console.log('Image generation response:', newImageData);
         setImageData(newImageData);
         
         // Show toast if not already generating
