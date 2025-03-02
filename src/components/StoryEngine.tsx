@@ -13,35 +13,24 @@ import { shallow } from "zustand/shallow";
 export const StoryEngine: React.FC<StoryEngineProps> = memo(({ storyId }) => {
   const { user } = useAuth();
   
-  // Use individual selectors with proper memoization and shallow comparison
-  // Group related state to reduce re-renders
-  const { loading, error } = useStoryStore(state => ({
-    loading: state.loading,
-    error: state.error,
-  }), shallow);
+  // Use individual selectors with proper typing and selector patterns
+  const loading = useStoryStore(state => state.loading);
+  const error = useStoryStore(state => state.error);
   
-  const { bookTitle, totalPages } = useStoryStore(state => ({ 
-    bookTitle: state.title,
-    totalPages: state.totalPages 
-  }), shallow);
+  const bookTitle = useStoryStore(state => state.title);
+  const totalPages = useStoryStore(state => state.totalPages);
   
-  const { currentPage, canGoBack, currentNode } = useStoryStore(state => ({ 
-    currentPage: state.currentPage,
-    canGoBack: state.canGoBack,
-    currentNode: state.currentNode
-  }), shallow);
+  const currentPage = useStoryStore(state => state.currentPage);
+  const canGoBack = useStoryStore(state => state.canGoBack);
+  const currentNode = useStoryStore(state => state.currentNode);
   
-  const { currentText, currentChoices, canContinue, currentStoryPosition } = useStoryStore(state => ({
-    currentText: state.currentText,
-    currentChoices: state.currentChoices,
-    canContinue: state.canContinue,
-    currentStoryPosition: state.currentStoryPosition
-  }), shallow);
+  const currentText = useStoryStore(state => state.currentText);
+  const currentChoices = useStoryStore(state => state.currentChoices);
+  const canContinue = useStoryStore(state => state.canContinue);
+  const currentStoryPosition = useStoryStore(state => state.currentStoryPosition);
   
-  const { comments, commentCount } = useStoryStore(state => ({
-    comments: state.comments,
-    commentCount: state.commentCount
-  }), shallow);
+  const comments = useStoryStore(state => state.comments);
+  const commentCount = useStoryStore(state => state.commentCount);
   
   // Get action functions - these don't need to be part of dependency arrays
   const {
