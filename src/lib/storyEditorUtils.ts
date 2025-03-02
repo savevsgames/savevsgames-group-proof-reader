@@ -192,13 +192,11 @@ export const generateAndLogNodeMappings = (storyData: CustomStory): {
 export const saveStoryToDatabase = async (
   storyId: string,
   storyData: CustomStory,
-  title: string,
-  totalPages: number
+  title: string
 ): Promise<boolean> => {
   console.log("[Story Editor] Saving story to database:", { 
     storyId, 
     title, 
-    totalPages,
     dataSize: JSON.stringify(storyData).length
   });
   
@@ -207,16 +205,11 @@ export const saveStoryToDatabase = async (
     const format = detectStoryFormat(storyData);
     console.log("[Story Editor] Story format being saved:", format);
     
-    // Make sure we have a reasonable page count to save
-    const pagesToSave = totalPages > 0 ? totalPages : countStoryNodes(storyData);
-    console.log(`[Story Editor] Using page count for save: ${pagesToSave}`);
-    
     const { error } = await supabase
       .from("books")
       .update({
         story_content: storyData,
         title,
-        total_pages: pagesToSave,
         updated_at: new Date().toISOString()
       })
       .eq("id", storyId);
@@ -233,27 +226,3 @@ export const saveStoryToDatabase = async (
     return false;
   }
 };
-
-// Helper function to count story nodes
-function countStoryNodes(storyData: any): number {
-  if (!storyData) return 0;
-  
-  // Skip metadata keys
-  const skipKeys = ['inkVersion', 'listDefs', '#f'];
-  
-  // Count all keys that represent actual story nodes
-  const nodeCount = Object.keys(storyData).filter(key => {
-    if (skipKeys.includes(key)) return false;
-    
-    const node = storyData[key];
-    return (
-      node && 
-      typeof node === 'object' && 
-      !Array.isArray(node) && 
-      (typeof node.text === 'string' || Array.isArray(node.choices))
-    );
-  }).length;
-  
-  // Fallback to a minimum count of 1
-  return Math.max(nodeCount, 1);
-}

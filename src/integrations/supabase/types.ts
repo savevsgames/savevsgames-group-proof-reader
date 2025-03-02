@@ -98,7 +98,6 @@ export type Database = {
           story_url: string | null
           subtitle: string | null
           title: string
-          total_pages: number
           updated_at: string | null
         }
         Insert: {
@@ -110,7 +109,6 @@ export type Database = {
           story_url?: string | null
           subtitle?: string | null
           title: string
-          total_pages: number
           updated_at?: string | null
         }
         Update: {
@@ -122,7 +120,6 @@ export type Database = {
           story_url?: string | null
           subtitle?: string | null
           title?: string
-          total_pages?: number
           updated_at?: string | null
         }
         Relationships: []

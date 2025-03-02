@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { extractStoryContent, generateAndLogNodeMappings } from '@/lib/storyEditorUtils';
 import { CustomStory } from '@/types';
 import { shallow } from 'zustand/shallow';
+import { determineStartNode } from '@/lib/storyNodeMapping';
 
 // Slice for core story data management
 export const createStorySlice: StateCreator<
@@ -74,7 +75,6 @@ export const createStorySlice: StateCreator<
           title: data.title,
           hasStoryUrl: !!data.story_url,
           hasStoryContent: !!data.story_content,
-          dbTotalPages: data.total_pages || 0
         });
         
         // Store the title from the database
@@ -93,7 +93,6 @@ export const createStorySlice: StateCreator<
             hasRoot: !!storyContent.root,
             isInkFormat: !!storyContent.inkVersion,
             contentSize: JSON.stringify(storyContent).length,
-            dbTotalPages: data.total_pages
           });
           
           // First, analyze and count only actual story nodes
@@ -140,43 +139,10 @@ export const createStorySlice: StateCreator<
               generatedTotalPages: totalPages
             });
             
-            // Comprehensive calculation strategy for total pages
-            // 1. Prefer computed page count from node flow mapping
-            // 2. Otherwise use the raw node count
-            // 3. Fallback to database value if available
-            // 4. Last resort: use 1 page as minimum
-            
-            const mappedPages = totalPages;
-            const rawNodeCount = storyNodeKeys.length;
-            const dbPageCount = data.total_pages || 0;
-            
-            let finalPageCount = 1; // Default minimum
-            
-            // Decision tree for page count
-            if (mappedPages > 0) {
-              finalPageCount = mappedPages;
-              console.log(`[StoryStore] Using mapped flow-based page count: ${finalPageCount}`);
-            } else if (rawNodeCount > 0) {
-              finalPageCount = rawNodeCount;
-              console.log(`[StoryStore] Using raw node count as page count: ${finalPageCount}`);
-            } else if (dbPageCount > 0) {
-              finalPageCount = dbPageCount;
-              console.log(`[StoryStore] Using database page count: ${finalPageCount}`);
-            } else {
-              console.log(`[StoryStore] Using default minimum page count: ${finalPageCount}`);
-            }
-            
-            console.log("[StoryStore] Final page count decision:", {
-              mappedPages,
-              rawNodeCount,
-              dbPageCount,
-              finalDecision: finalPageCount
-            });
-            
             // Set mappings and page count in a single update to avoid multiple renders
             set({ 
               nodeMappings, 
-              totalPages: finalPageCount
+              totalPages: totalPages
             });
             
             // Initialize story content with the appropriate start node
@@ -320,73 +286,14 @@ export const createStorySlice: StateCreator<
       console.log("[StoryStore] Regenerating node mappings with story flow tracking");
       const { nodeMappings, totalPages } = generateAndLogNodeMappings(data);
       
-      // Determine final page count based on multiple sources
-      const mappedPages = totalPages;
-      const rawNodeCount = storyNodeKeys.length;
-      
-      // Decision tree for page count
-      let finalPageCount = 1; // Default minimum
-      
-      if (mappedPages > 0) {
-        finalPageCount = mappedPages;
-        console.log(`[StoryStore] Using mapped flow-based page count: ${finalPageCount}`);
-      } else if (rawNodeCount > 0) {
-        finalPageCount = rawNodeCount;
-        console.log(`[StoryStore] Using raw node count as page count: ${finalPageCount}`);
-      } else {
-        console.log(`[StoryStore] Using default minimum page count: ${finalPageCount}`);
-      }
-      
-      console.log("[StoryStore] Updated page count decision:", {
-        mappedPages,
-        rawNodeCount,
-        finalDecision: finalPageCount
-      });
+      // Use flow-based page mapping as the single source of truth
+      console.log(`[StoryStore] Using mapped flow-based page count: ${totalPages}`);
       
       // Update node mappings and page count
       set({ 
         nodeMappings, 
-        totalPages: finalPageCount 
+        totalPages: totalPages 
       });
     }, 300); // Debounce time
   },
 });
-
-// Helper function to determine the story's start node
-function determineStartNode(storyData: any): string {
-  // No data case
-  if (!storyData) return 'root';
-  
-  // Check for explicit start node
-  if (storyData.start && typeof storyData.start === 'object' && 
-      (typeof storyData.start.text === 'string' || storyData.start.text === '')) {
-    return 'start';
-  }
-  
-  // Check for root node
-  if (storyData.root && typeof storyData.root === 'object' && 
-      (typeof storyData.root.text === 'string' || storyData.root.text === '')) {
-    return 'root';
-  }
-  
-  // Ink.js special format case
-  if (storyData.inkVersion && Array.isArray(storyData.root)) {
-    // For Ink.js, we'll use a special fragment naming convention
-    return 'fragment_0';
-  }
-  
-  // Last resort: find first valid content node
-  for (const key of Object.keys(storyData)) {
-    // Skip metadata keys
-    if (['inkVersion', 'listDefs', '#f'].includes(key)) continue;
-    
-    const node = storyData[key];
-    if (node && typeof node === 'object' && !Array.isArray(node) &&
-        (typeof node.text === 'string' || Array.isArray(node.choices))) {
-      return key;
-    }
-  }
-  
-  // Nothing found - fallback to 'root'
-  return 'root';
-}

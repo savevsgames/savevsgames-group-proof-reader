@@ -1,7 +1,7 @@
 
 import { StateCreator } from 'zustand';
 import { StoryStore } from '@/types';
-import { supabase } from '@/lib/supabase';
+import { saveStoryToDatabase } from '@/lib/storyEditorUtils';
 
 // Slice for editor-specific state and actions
 export const createEditorSlice: StateCreator<
@@ -12,7 +12,7 @@ export const createEditorSlice: StateCreator<
 > = (set, get) => ({
   // Editor actions
   handleSave: async () => {
-    const { storyId, storyData, hasUnsavedChanges, setSaving, setHasUnsavedChanges, setError } = get();
+    const { storyId, storyData, title, hasUnsavedChanges, setSaving, setHasUnsavedChanges, setError } = get();
     
     if (!storyId || !storyData || !hasUnsavedChanges) {
       console.log("[StoryStore] No story to save or no changes");
@@ -23,16 +23,12 @@ export const createEditorSlice: StateCreator<
     setSaving(true);
     
     try {
-      const storyContent = JSON.stringify(storyData);
+      // Use the updated saveStoryToDatabase function without totalPages
+      const saveSuccess = await saveStoryToDatabase(storyId, storyData, title);
       
-      const { error } = await supabase
-        .from("books")
-        .update({ story_content: storyContent })
-        .eq("id", storyId);
-        
-      if (error) {
-        console.error("[StoryStore] Error saving story:", error);
-        setError(`Failed to save: ${error.message}`);
+      if (!saveSuccess) {
+        console.error("[StoryStore] Error saving story");
+        setError(`Failed to save story`);
         return;
       }
       
