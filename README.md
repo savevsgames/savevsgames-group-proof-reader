@@ -40,25 +40,60 @@ interface CustomStory {
 #### Ink Format Support
 
 The system parses and supports the Ink narrative format with features including:
-- Choice-based navigation (`*`, `+` for sticky choices)
-- Conditional content
-- Variables and state tracking
-- Content tagging
+- Choice-based navigation (`*` for basic choices, `+` for sticky choices that remain available)
+- Conditional content with logic branching
+- Variables and state tracking through the Ink runtime
+- Content tagging with `#tag` syntax
+- Nested choice structures and gathering points
+
+The Ink parser converts from Ink's JSON runtime format to our custom story structure, maintaining the narrative flow while adapting it to our application's architecture.
 
 #### Story Navigation
 
 Navigation through story nodes is handled by:
-- `useNavigation` hook - Core navigation logic
-- `StoryNavigationHandler` - Manages node selection and page transitions
-- Node-to-page mapping system for pagination
+- `useNavigation` hook - Core navigation logic for traversing the story graph
+- `navigationSlice.ts` - State management for navigation actions
+- `StoryNavigationHandler` - UI component for node selection and page transitions
+- Node-to-page mapping system for pagination and linear reading experience
+
+The navigation system supports:
+- Moving forward through choices
+- Going back to previous nodes
+- Jumping directly to specific pages
+- Tracking reading history
+
+#### Story Rendering and Reading Experience
+
+The reading experience is implemented through several interrelated components:
+- `StoryPage.tsx` - Container for the reading experience
+- `BookLayout.tsx` - Overall layout with visual book styling
+- `StoryDisplay.tsx` - Renders text and choice UI
+- `StoryText.tsx` - Handles text formatting and image integration
+- `StoryChoices.tsx` - Displays interactive choice buttons
 
 #### Editing Features
 
 The editor supports multiple views of the same story:
+
+- **Text Editor View**: Simple text editing for non-technical users
+  - Direct editing of node text
+  - Minimal interface for content creators
+  - Support for basic formatting with newlines
+
 - **JSON View**: Direct editing of the underlying story structure
+  - Full control over story nodes and connections
+  - Ability to modify choices, add metadata
+  - Monaco code editor with syntax highlighting
+
 - **Ink View**: Visualization of the story in Ink format
-- **Text Editor**: WYSIWYG editing for non-technical users
+  - Syntax highlighting for Ink markup
+  - Read-only reference for understanding story structure
+  - Toggle between compiled and source views
+
 - **Reader View**: Preview the story from a reader's perspective
+  - Test narrative flow and choices
+  - Verify page breaks and content rendering
+  - Simulate reader experience
 
 #### Commenting System
 
@@ -66,23 +101,112 @@ Integrated commenting allows readers and editors to:
 - Add comments on specific pages/nodes
 - Categorize comments (editorial, continuity, etc.)
 - Track and respond to feedback
+- Filter and sort comments by type
+- Use feedback to improve story content
+
+### Editing Page Architecture
+
+The story editing page (`StoryEditPage.tsx`) orchestrates the editing experience with these key components:
+
+1. **Editor Header**:
+   - Page navigation controls
+   - Save functionality
+   - Story title display
+   - Editing status indicators
+   
+2. **Editor Content Area**:
+   - Tab-based interface for switching between views
+   - Content editors for different formats
+   - Live preview of changes
+
+3. **State Management**:
+   - Tracks unsaved changes
+   - Manages current node and page
+   - Handles story data persistence
+
+4. **Data Flow**:
+   - Loads story from database
+   - Parses and normalizes different formats
+   - Maps nodes to pages for navigation
+   - Saves changes back to storage
+
+### Reading/Proofreading Page Architecture
+
+The story reading page (`StoryPage.tsx`) provides an immersive reading experience:
+
+1. **Book Layout**:
+   - Two-page spread design
+   - Left side for story content
+   - Right side for comments and annotations
+   
+2. **Story Display**:
+   - Renders formatted text
+   - Presents choices to readers
+   - Supports images and rich media
+
+3. **Navigation Controls**:
+   - Page turning
+   - Choice selection
+   - History navigation (back button)
+   - Restart functionality
+
+4. **Commenting Interface**:
+   - Add comments on specific passages
+   - View others' feedback
+   - Categorize and filter comments
 
 ### Technical Implementation
 
 #### Parsers and Converters
 
-- `inkParser.ts`: Converts Ink JSON format to our custom story format
+- `inkParser.ts`: Converts Ink JSON runtime format to our custom story format
+  - Extracts text, choices, and metadata
+  - Maps divert targets to node identifiers
+  - Handles special Ink constructs like glue and tags
+
 - `nodeExtraction.ts`: Extracts node content from complex Ink structures
+  - Processes arrays and objects into coherent text
+  - Reconstructs choice structures
+  - Maintains narrative flow
+
 - `constants.ts`: Defines Ink syntax symbols
+  - Choice markers (* and +)
+  - Navigation symbols (->)
+  - Evaluation markers
+  - Special characters
+
 - `conversion.ts`: Bidirectional conversion between formats
+  - JSON to Ink conversion
+  - Ink to JSON conversion
+  - Format normalization
 
 #### Type System
 
-The type system in `types.ts` provides interfaces for:
-- Basic story structures
-- Enhanced Ink format features
+The type system provides interfaces for:
+- Basic story structures (nodes, choices)
+- Enhanced Ink format features (tags, glue, diverts)
 - Parsing context tracking
 - Node-to-page mappings
+- UI component props
+
+#### State Management
+
+The application uses Zustand for state management with several slices:
+- `storySlice.ts`: Core story data management
+- `navigationSlice.ts`: Navigation state and actions
+- `commentsSlice.ts`: Comment functionality
+- `editorSlice.ts`: Editor-specific state
+- `uiSlice.ts`: UI-related state
+
+#### Data Flow
+
+1. Story data is loaded from Supabase storage or database
+2. Format-specific parsers process the data into our common format
+3. Node mappings are generated to support pagination
+4. State is maintained in the Zustand store
+5. UI components react to state changes
+6. User actions trigger navigation or edits
+7. Changes are persisted back to storage
 
 ## How can I edit this code?
 
@@ -132,15 +256,18 @@ npm run dev
 
 ## What technologies are used for this project?
 
-This project is built with .
+This project is built with:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-- inkjs (for interactive fiction)
-- Supabase (for backend and storage)
+- Vite - Fast build tool and development server
+- TypeScript - Strongly typed JavaScript
+- React - UI component library
+- shadcn-ui - Accessible component system
+- Tailwind CSS - Utility-first CSS framework
+- inkjs - Interactive fiction runtime for Ink stories
+- Supabase - Backend services for storage and authentication
+- Zustand - Lightweight state management
+- React Router - Client-side routing
+- Monaco Editor - Code editing component for JSON view
 
 ## How can I deploy this project?
 
