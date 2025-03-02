@@ -4,7 +4,7 @@ import { StoryDisplay } from './StoryDisplay';
 import { BookHeader } from './BookHeader';
 import { StoryChoice } from '@/lib/storyUtils';
 import { Comment } from '../comments/types';
-import { User } from '@/lib/supabase';
+import { User } from '@supabase/supabase-js';
 import CommentsView from './CommentsView';
 
 interface BookLayoutProps {

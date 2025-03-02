@@ -27,6 +27,7 @@ export * from './features/tabs.types';
 
 // External types for convenience
 export type { User } from '@supabase/supabase-js';
+export type { AppUser } from '@/lib/supabase';
 
 // Export selectors last to avoid conflicts
 export * from './store/selectors.types';

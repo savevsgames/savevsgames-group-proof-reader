@@ -2,7 +2,7 @@
 import React from 'react';
 import { Comment } from '../comments/types';
 import CommentItem from '../comments/CommentItem';
-import { User } from '@/lib/supabase';
+import { User } from '@supabase/supabase-js';
 
 interface CommentsListProps {
   comments: Comment[];
