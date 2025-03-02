@@ -1,7 +1,7 @@
 
 import { CustomStory, NodeMappings } from '@/types';
 import { supabase } from '@/lib/supabase';
-import { analyzeStoryStructure } from './storyNodeMapping';
+import { analyzeStoryStructure, getDebugNodes } from './storyNodeMapping';
 
 // Extract story content from database record with improved format detection
 export const extractStoryContent = async (data: any): Promise<CustomStory | null> => {
@@ -173,6 +173,12 @@ export const generateAndLogNodeMappings = (storyData: CustomStory): {
         .map(page => `Page ${page} -> ${pageToNode[page]}`);
       
       console.log(`[Story Editor] Sample of ${pagesToShow} page mappings:`, pageMappings);
+    }
+    
+    // Log the debug nodes created during mapping
+    const debugNodes = getDebugNodes();
+    if (debugNodes.length > 0) {
+      console.log(`[Story Editor] Created ${debugNodes.length} debug nodes during mapping`);
     }
     
     return {

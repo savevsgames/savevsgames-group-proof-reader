@@ -1,3 +1,4 @@
+
 import { CustomStory } from '@/types';
 import { parseInkNode } from './inkParser';
 
@@ -112,182 +113,141 @@ function parseInkJsFormat(storyData: any): CustomStory {
     if (Array.isArray(storyData.root)) {
       console.log("[Ink Parsing] Processing root array with", storyData.root.length, "elements");
       
-      // Extract story fragments from the root array
-      const storyFragments = extractInkStoryFragments(storyData);
-      console.log(`[Ink Parsing] Extracted ${storyFragments.length} story fragments`);
-      
-      // Convert fragments to our custom story format
-      storyFragments.forEach((fragment, index) => {
-        // We'll use fragment IDs as node keys
-        const nodeKey = fragment.id || `fragment_${index}`;
-        
-        // Process text for potential image descriptions
-        let text = fragment.text;
-        let images = [];
-        
-        // Extract image descriptions (marked with IMAGE: prefix)
-        if (text.includes('IMAGE:')) {
-          const imageMatch = text.match(/IMAGE:\s*\[(.*?)\]/);
-          if (imageMatch && imageMatch[1]) {
-            images.push({ description: imageMatch[1] });
-            // Optionally keep the image text in the content
-          }
+      // Track created nodes for debugging (limited to 100)
+      const createdNodes: Array<{id: string, text: string}> = [];
+      const logNode = (id: string, text: string) => {
+        if (createdNodes.length < 100) {
+          createdNodes.push({id, text});
+          console.log(`[Ink Parsing] Created node ${id}:`, {
+            textPreview: text.substring(0, 50) + (text.length > 50 ? '...' : '')
+          });
         }
+      };
+      
+      // Extract story segments for better pagination
+      const storySegments = extractStorySegmentsFromRoot(storyData.root);
+      console.log(`[Ink Parsing] Extracted ${storySegments.length} segments from root array`);
+      
+      // Create nodes from segments with proper flow connections
+      storySegments.forEach((segment, index) => {
+        const nodeKey = `fragment_${index}`;
         
-        // Create the story node
+        // Create node with next segment as a "Continue" choice if not the last one
+        const hasNextSegment = index < storySegments.length - 1;
+        const choices = hasNextSegment ? [{
+          text: "Continue",
+          nextNode: `fragment_${index + 1}`
+        }] : [];
+        
         customStory[nodeKey] = {
-          text: text,
-          choices: [], // Will be populated based on structure
-          images: images.length > 0 ? images : undefined,
-          isEnding: !fragment.hasChoices && index === storyFragments.length - 1
+          text: segment.text,
+          choices: choices,
+          isEnding: !hasNextSegment
         };
         
-        console.log(`[Ink Parsing] Created node ${nodeKey}`, {
-          textLength: text.length,
-          hasImages: images.length > 0,
-          isEnding: !fragment.hasChoices && index === storyFragments.length - 1
-        });
-        
-        // Link fragments linearly if not the last one
-        if (index < storyFragments.length - 1) {
-          const nextNodeKey = storyFragments[index + 1].id || `fragment_${index + 1}`;
-          customStory[nodeKey].choices = [{
-            text: "Continue",
-            nextNode: nextNodeKey
-          }];
-        }
+        logNode(nodeKey, segment.text);
       });
       
-      // If we have at least one fragment, set the first one as the start node
-      if (storyFragments.length > 0) {
-        const firstNodeKey = storyFragments[0].id || 'fragment_0';
-        customStory.start = customStory[firstNodeKey];
-        console.log(`[Ink Parsing] Set start node to ${firstNodeKey}`);
+      console.log(`[Ink Parsing] Created ${Object.keys(customStory).length} nodes from ${storySegments.length} segments`);
+      
+      // If we have at least one node, mark the first one as the start
+      if (storySegments.length > 0) {
+        customStory['start'] = customStory['fragment_0'];
+        console.log("[Ink Parsing] Set first segment as the start node");
       }
     } else {
-      console.warn("[Ink Parsing] No valid root array found in Ink story");
+      console.warn("[Ink Parsing] No valid root array found");
     }
   } catch (error) {
     console.error("[Ink Parsing] Error parsing Ink.js format:", error);
   }
   
-  console.log(`[Ink Parsing] Completed with ${Object.keys(customStory).length} nodes`);
+  // Ensure we have at least one node
+  if (Object.keys(customStory).length === 0) {
+    customStory['fragment_0'] = {
+      text: "Story content could not be parsed correctly.",
+      choices: [],
+      isEnding: true
+    };
+    console.log("[Ink Parsing] Created default node due to parsing failure");
+  }
+  
+  console.log(`[Ink Parsing] Completed with ${Object.keys(customStory).length} total nodes`);
   return customStory;
 }
 
 /**
- * Extract story fragments from an Ink.js format story
+ * Extract story segments from Ink.js root array with improved text extraction
  */
-function extractInkStoryFragments(storyData: any): Array<{id: string, text: string, hasChoices: boolean}> {
-  // Initialize with an empty array
-  const fragments: Array<{id: string, text: string, hasChoices: boolean}> = [];
+function extractStorySegmentsFromRoot(rootArray: any[]): Array<{text: string}> {
+  const segments: Array<{text: string}> = [];
   
-  try {
-    // The main story content in Ink.js format is in the root array
-    if (storyData && Array.isArray(storyData.root)) {
-      console.log("[Ink Extraction] Processing root array with", storyData.root.length, "elements");
-      
-      // Track text being built up
-      let currentText = '';
-      let fragmentCount = 0;
-      let hasChoices = false;
-      
-      // Process each element in the root array
-      storyData.root.forEach((element, index) => {
-        // Text elements start with ^
-        if (typeof element === 'string' && element.startsWith('^')) {
-          const text = element.substring(1).trim();
-          
-          // Check for natural fragment boundaries (like paragraph breaks, image markers, etc.)
-          const isNewFragment = text.includes('IMAGE:') || 
-                               (currentText.length > 0 && (text.startsWith('CHAPTER') || text.startsWith('Chapter')));
-          
-          if (isNewFragment && currentText.length > 0) {
-            // Save the current fragment
-            fragments.push({
-              id: `fragment_${fragmentCount}`,
-              text: currentText.trim(),
-              hasChoices
-            });
-            
-            // Reset for the next fragment
-            fragmentCount++;
-            currentText = '';
-            hasChoices = false;
-          }
-          
-          // Add this text
-          currentText += (currentText ? ' ' : '') + text;
-        }
-        // Choice arrays
-        else if (Array.isArray(element)) {
-          hasChoices = true;
-          
-          // End the current fragment if we have text
-          if (currentText.length > 0) {
-            fragments.push({
-              id: `fragment_${fragmentCount}`,
-              text: currentText.trim(),
-              hasChoices: true
-            });
-            
-            // Reset for the next fragment
-            fragmentCount++;
-            currentText = '';
-            hasChoices = false;
-          }
-        }
-        // End of the root array, save any remaining fragment
-        else if (index === storyData.root.length - 1 && currentText.length > 0) {
-          fragments.push({
-            id: `fragment_${fragmentCount}`,
-            text: currentText.trim(),
-            hasChoices
-          });
-        }
-      });
-      
-      // Handle named content sections
-      Object.keys(storyData).forEach(key => {
-        // Skip standard Ink.js properties
-        if (['inkVersion', 'listDefs', '#f', 'root'].includes(key)) {
-          return;
-        }
+  // Track the current segment being built
+  let currentText = '';
+  const paragraphBreakThreshold = 100; // Characters before we consider natural paragraph breaks
+  
+  // Process each element in the root array
+  for (let i = 0; i < rootArray.length; i++) {
+    const element = rootArray[i];
+    
+    // Handle array elements (most Ink.js content is in nested arrays)
+    if (Array.isArray(element)) {
+      // Extract any text elements (they start with ^)
+      for (let j = 0; j < element.length; j++) {
+        const item = element[j];
         
-        // If it's a section with content
-        if (Array.isArray(storyData[key])) {
-          let sectionText = '';
-          storyData[key].forEach(element => {
-            if (typeof element === 'string' && element.startsWith('^')) {
-              sectionText += (sectionText ? ' ' : '') + element.substring(1).trim();
-            }
-          });
+        if (typeof item === 'string' && item.startsWith('^')) {
+          // Extract the text without the ^ marker
+          const textContent = item.substring(1).trim();
           
-          if (sectionText.length > 0) {
-            fragments.push({
-              id: key,
-              text: sectionText.trim(),
-              hasChoices: false
-            });
+          // Add to current text with a space
+          if (currentText) currentText += ' ';
+          currentText += textContent;
+          
+          // Check for natural segment breaks (like paragraph endings)
+          const hasSegmentBreak = textContent.endsWith('.') || 
+                                 textContent.endsWith('!') || 
+                                 textContent.endsWith('?');
+                                 
+          // Create a new segment if we have enough text and a natural break
+          // or if we're at the end of the current array
+          if (currentText.length > paragraphBreakThreshold && hasSegmentBreak) {
+            segments.push({ text: currentText });
+            console.log(`[Ink Parsing] Created segment at natural break: "${currentText.substring(0, 50)}..."`);
+            currentText = '';
           }
         }
-      });
+      }
+      
+      // Check for flow control or choice markers at the end of an array section
+      const hasFlowControl = element.some(item => 
+        (typeof item === 'object' && item !== null && item['^->']) || 
+        (typeof item === 'string' && item === 'ev')
+      );
+      
+      // If we have flow control and accumulated text, create a segment
+      if (hasFlowControl && currentText) {
+        segments.push({ text: currentText });
+        console.log(`[Ink Parsing] Created segment at flow control: "${currentText.substring(0, 50)}..."`);
+        currentText = '';
+      }
     }
-  } catch (error) {
-    console.error("[Ink Extraction] Error extracting story fragments:", error);
   }
   
-  // If no fragments were found, create a default fragment to avoid empty stories
-  if (fragments.length === 0) {
-    fragments.push({
-      id: 'fragment_default',
-      text: 'Story content could not be parsed correctly.',
-      hasChoices: false
-    });
+  // Add any remaining text as a final segment
+  if (currentText) {
+    segments.push({ text: currentText });
+    console.log(`[Ink Parsing] Created final segment from remaining text: "${currentText.substring(0, 50)}..."`);
   }
   
-  console.log(`[Ink Extraction] Extracted ${fragments.length} total story fragments`);
-  return fragments;
+  // Ensure we have at least one segment
+  if (segments.length === 0) {
+    segments.push({ text: "Story content could not be parsed correctly." });
+    console.log("[Ink Parsing] No segments found, created default segment");
+  }
+  
+  console.log(`[Ink Parsing] Extracted ${segments.length} total story segments`);
+  return segments;
 }
 
 // Function to extract valid story node names
