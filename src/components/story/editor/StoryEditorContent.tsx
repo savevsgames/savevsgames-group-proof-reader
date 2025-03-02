@@ -1,11 +1,12 @@
 
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Save } from "lucide-react";
 import StoryTabs from "@/components/story/StoryTabs";
 import { CustomStory, StoryEditorContentProps } from "@/types";
 
-const StoryEditorContent: React.FC<StoryEditorContentProps> = ({
+// Memoize the component to prevent unnecessary re-renders
+const StoryEditorContent: React.FC<StoryEditorContentProps> = memo(({
   storyId,
   storyData,
   currentNode,
@@ -24,11 +25,27 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = ({
     if (!storyData || typeof storyData !== 'object') {
       console.error("[StoryEditorContent] Invalid story data:", storyData);
     }
+    
+    // Cleanup function to prevent memory leaks
+    return () => {
+      console.log("[StoryEditorContent] Unmounting");
+    };
   }, [storyData]);
   
-  // Safely handle data changes
+  // Add throttling to data change handling to prevent too many updates
+  const lastUpdateTimestamp = React.useRef(0);
+  
+  // Safely handle data changes with throttling
   const handleStoryDataChange = useCallback((data: CustomStory) => {
     try {
+      // Throttle updates to prevent excessive re-renders
+      const now = Date.now();
+      if (now - lastUpdateTimestamp.current < 200) {
+        console.log("[StoryEditorContent] Throttling rapid updates");
+        return;
+      }
+      
+      lastUpdateTimestamp.current = now;
       console.log("[StoryEditorContent] Story data changed");
       onStoryDataChange(data);
     } catch (err) {
@@ -45,6 +62,18 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = ({
       console.error("[StoryEditorContent] Error during save:", err);
     }
   }, [onSave]);
+  
+  // Guard against invalid data
+  if (!storyData) {
+    console.warn("[StoryEditorContent] No story data available for rendering");
+    return (
+      <div className="bg-white rounded-lg border border-[#E8DCC4] p-6 mb-6">
+        <div className="text-center py-8">
+          <p className="text-gray-500">Story data is not available or invalid</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="bg-white rounded-lg border border-[#E8DCC4] p-6 mb-6">
@@ -76,6 +105,9 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = ({
       )}
     </div>
   );
-};
+});
+
+// Add displayName for better debugging
+StoryEditorContent.displayName = 'StoryEditorContent';
 
 export default StoryEditorContent;

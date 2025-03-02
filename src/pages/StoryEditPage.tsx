@@ -1,5 +1,5 @@
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useMemo } from "react";
 import { useParams, useBeforeUnload } from "react-router-dom";
 import Header from "@/components/Header";
 import StoryEditorHeader from "@/components/story/editor/StoryEditorHeader";
@@ -12,6 +12,7 @@ import { useStoryStore } from "@/stores/storyState";
 import { selectHasUnsavedChanges, selectLoading, selectSaving, 
   selectCurrentNode, selectCurrentPage, selectTotalPages, 
   selectError, selectTitle, selectStoryData } from "@/stores/storyState/selectors";
+import { toast } from "sonner";
 
 const StoryEditPage = () => {
   const { id } = useParams();
@@ -48,19 +49,67 @@ const StoryEditPage = () => {
   
   // Use ref to track initialization
   const [isInitialized, setIsInitialized] = useState(false);
+  const initializationAttempts = React.useRef(0);
   
-  // Initialize story on component mount, with error handling
+  // Add a debounce guard for state updates
+  const lastUpdateTimestamp = React.useRef(0);
+  
+  // Initialize story on component mount, with error handling and prevention of multiple initialization
   useEffect(() => {
-    if (storyId && !isInitialized) {
-      console.log("[StoryEditPage] Initializing story:", storyId);
+    if (!storyId) {
+      console.error("[StoryEditPage] No story ID provided");
+      setLocalError("No story ID provided");
+      return;
+    }
+    
+    if (isInitialized) {
+      console.log("[StoryEditPage] Story already initialized, skipping");
+      return;
+    }
+    
+    // Prevent multiple initialization attempts close together
+    const now = Date.now();
+    if (now - lastUpdateTimestamp.current < 500) {
+      console.log("[StoryEditPage] Throttling initialization attempts");
+      return;
+    }
+    lastUpdateTimestamp.current = now;
+    
+    const attemptCount = initializationAttempts.current + 1;
+    initializationAttempts.current = attemptCount;
+    
+    // Limit maximum initialization attempts to prevent loops
+    if (attemptCount > 3) {
+      console.error("[StoryEditPage] Too many initialization attempts, stopping");
+      setLocalError("Failed to initialize story after multiple attempts");
+      return;
+    }
+    
+    console.log("[StoryEditPage] Initializing story:", storyId, "attempt:", attemptCount);
+    
+    try {
+      setIsInitialized(true);
       
-      try {
-        setIsInitialized(true);
-        initializeStory(storyId);
-      } catch (err: any) {
+      // Wrap in a try-catch to handle any initialization errors
+      const initPromise = initializeStory(storyId);
+      
+      // Show a toast while initializing
+      toast.loading("Loading story...", {
+        id: "story-init",
+        duration: 2000,
+      });
+      
+      initPromise.catch(err => {
         console.error("[StoryEditPage] Initialization error:", err);
         setLocalError(err?.message || "Failed to initialize story");
-      }
+        toast.error("Failed to load story", {
+          id: "story-init"
+        });
+      });
+    } catch (err: any) {
+      console.error("[StoryEditPage] Initialization error:", err);
+      setLocalError(err?.message || "Failed to initialize story");
+      toast.error("Failed to load story");
     }
     
     // Cleanup function
@@ -68,6 +117,7 @@ const StoryEditPage = () => {
       console.log("[StoryEditPage] Cleaning up");
       // Reset initialization on unmount
       setIsInitialized(false);
+      initializationAttempts.current = 0;
     };
   }, [storyId, initializeStory, isInitialized]);
 
@@ -91,49 +141,133 @@ const StoryEditPage = () => {
   const handleNavigate = useCallback((target: string) => {
     console.log("[StoryEditPage] Navigation request:", target);
     
-    if (target === 'back' && useStoryStore.getState().canGoBack) {
-      goBack();
-    } else if (target === 'restart') {
-      handleRestart();
+    // Prevent rapid consecutive navigations
+    const now = Date.now();
+    if (now - lastUpdateTimestamp.current < 300) {
+      console.log("[StoryEditPage] Throttling rapid navigation");
+      return;
+    }
+    lastUpdateTimestamp.current = now;
+    
+    try {
+      if (target === 'back' && useStoryStore.getState().canGoBack) {
+        goBack();
+      } else if (target === 'restart') {
+        handleRestart();
+      }
+    } catch (err: any) {
+      console.error("[StoryEditPage] Navigation error:", err);
+      setLocalError(err?.message || "Navigation failed");
+      toast.error("Navigation failed");
     }
   }, [goBack, handleRestart]);
   
   const handleStoryUpdate = useCallback((newData: any) => {
     console.log("[StoryEditPage] Story data update requested");
+    
+    // Prevent rapid consecutive updates
+    const now = Date.now();
+    if (now - lastUpdateTimestamp.current < 300) {
+      console.log("[StoryEditPage] Throttling rapid story updates");
+      return;
+    }
+    lastUpdateTimestamp.current = now;
+    
     try {
       handleStoryDataChange(newData);
     } catch (err: any) {
       console.error("[StoryEditPage] Story update error:", err);
       setLocalError(err?.message || "Failed to update story data");
+      toast.error("Failed to update story");
     }
   }, [handleStoryDataChange]);
   
   const handlePageChangeWithGuard = useCallback((page: number) => {
     console.log("[StoryEditPage] Page change requested:", page);
+    
+    // Validate page number
     if (isNaN(page) || page < 1) {
       console.warn("[StoryEditPage] Invalid page number:", page);
       return;
     }
+    
+    // Prevent rapid consecutive page changes
+    const now = Date.now();
+    if (now - lastUpdateTimestamp.current < 300) {
+      console.log("[StoryEditPage] Throttling rapid page changes");
+      return;
+    }
+    lastUpdateTimestamp.current = now;
     
     try {
       handlePageChange(page);
     } catch (err: any) {
       console.error("[StoryEditPage] Page change error:", err);
       setLocalError(err?.message || "Failed to change page");
+      toast.error("Failed to change page");
     }
   }, [handlePageChange]);
+  
+  // Handle saving with error handling and throttling
+  const handleSaveWithGuard = useCallback(() => {
+    console.log("[StoryEditPage] Save requested");
+    
+    // Prevent rapid consecutive saves
+    const now = Date.now();
+    if (now - lastUpdateTimestamp.current < 500) {
+      console.log("[StoryEditPage] Throttling rapid save requests");
+      return;
+    }
+    lastUpdateTimestamp.current = now;
+    
+    try {
+      toast.loading("Saving changes...", {
+        id: "story-save"
+      });
+      
+      const savePromise = handleSave();
+      
+      savePromise.then(() => {
+        toast.success("Story saved successfully", {
+          id: "story-save"
+        });
+      }).catch(err => {
+        console.error("[StoryEditPage] Save error:", err);
+        toast.error("Failed to save story", {
+          id: "story-save"
+        });
+      });
+    } catch (err: any) {
+      console.error("[StoryEditPage] Save error:", err);
+      setLocalError(err?.message || "Failed to save story");
+      toast.error("Failed to save story");
+    }
+  }, [handleSave]);
   
   // Handle showing error state
   const displayError = error || localError;
 
-  console.log("[StoryEditPage] Render state:", { 
-    storyId, 
-    currentPage, 
-    totalPages, 
-    loading, 
-    hasUnsavedChanges,
-    error: displayError
-  });
+  // Limit console logging to prevent flooding
+  const shouldLog = useMemo(() => {
+    const now = Date.now();
+    const shouldLog = now - (window as any)._lastPageLogTime > 1000;
+    if (shouldLog) {
+      (window as any)._lastPageLogTime = now;
+      return true;
+    }
+    return false;
+  }, []);
+
+  if (shouldLog) {
+    console.log("[StoryEditPage] Render state:", { 
+      storyId, 
+      currentPage, 
+      totalPages, 
+      loading, 
+      hasUnsavedChanges,
+      error: displayError
+    });
+  }
 
   return (
     <div className="bg-[#F5F1E8] min-h-screen">
@@ -148,7 +282,7 @@ const StoryEditPage = () => {
           hasUnsavedChanges={hasUnsavedChanges}
           isLoading={loading || saving}
           onPageChange={handlePageChangeWithGuard}
-          onSave={handleSave}
+          onSave={handleSaveWithGuard}
         />
         
         {/* Content area */}
@@ -166,9 +300,9 @@ const StoryEditPage = () => {
                 saving={saving}
                 hasUnsavedChanges={hasUnsavedChanges}
                 onStoryDataChange={handleStoryUpdate}
-                onUnsavedChanges={setIsLeaveDialogOpen}
+                onUnsavedChanges={setHasUnsavedChanges}
                 onNodeChange={handleNodeChange}
-                onSave={handleSave}
+                onSave={handleSaveWithGuard}
                 onNavigate={handleNavigate}
               />
             ) : (

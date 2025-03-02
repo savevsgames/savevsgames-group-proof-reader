@@ -14,6 +14,7 @@ interface StoryEditorHeaderProps {
   onSave?: () => void;
 }
 
+// Use memo to prevent unnecessary re-renders
 const StoryEditorHeader: React.FC<StoryEditorHeaderProps> = memo(({
   title,
   currentPage,
@@ -23,13 +24,29 @@ const StoryEditorHeader: React.FC<StoryEditorHeaderProps> = memo(({
   onPageChange,
   onSave
 }) => {
-  // Prevent unnecessary calculations on every render
-  const isFirstPage = useMemo(() => currentPage <= 1, [currentPage]);
-  const isLastPage = useMemo(() => currentPage >= (totalPages || 1), [currentPage, totalPages]);
+  // Prevent unnecessary calculations on every render with proper type safety
+  const isFirstPage = useMemo(() => {
+    return typeof currentPage === 'number' && currentPage <= 1;
+  }, [currentPage]);
   
-  // Memoize the handlers to prevent recreation on every render
+  const isLastPage = useMemo(() => {
+    const validTotalPages = typeof totalPages === 'number' && totalPages >= 1 ? totalPages : 1;
+    return typeof currentPage === 'number' && currentPage >= validTotalPages;
+  }, [currentPage, totalPages]);
+  
+  // Use a ref to track and prevent rapid consecutive calls
+  const lastActionTimestamp = React.useRef(0);
+  
+  // Memoize the handlers to prevent recreation on every render with rate limiting
   const handlePrevious = useCallback(() => {
     if (!isFirstPage && !isLoading) {
+      const now = Date.now();
+      if (now - lastActionTimestamp.current < 300) {
+        console.log('[StoryEditorHeader] Throttling rapid navigation clicks');
+        return;
+      }
+      
+      lastActionTimestamp.current = now;
       console.log('[StoryEditorHeader] Navigate to previous page', currentPage - 1);
       onPageChange(currentPage - 1);
     }
@@ -37,6 +54,13 @@ const StoryEditorHeader: React.FC<StoryEditorHeaderProps> = memo(({
   
   const handleNext = useCallback(() => {
     if (!isLastPage && !isLoading) {
+      const now = Date.now();
+      if (now - lastActionTimestamp.current < 300) {
+        console.log('[StoryEditorHeader] Throttling rapid navigation clicks');
+        return;
+      }
+      
+      lastActionTimestamp.current = now;
       console.log('[StoryEditorHeader] Navigate to next page', currentPage + 1);
       onPageChange(currentPage + 1);
     }
@@ -44,28 +68,52 @@ const StoryEditorHeader: React.FC<StoryEditorHeaderProps> = memo(({
   
   const handleSave = useCallback(() => {
     if (onSave && hasUnsavedChanges && !isLoading) {
+      const now = Date.now();
+      if (now - lastActionTimestamp.current < 300) {
+        console.log('[StoryEditorHeader] Throttling rapid save clicks');
+        return;
+      }
+      
+      lastActionTimestamp.current = now;
       console.log('[StoryEditorHeader] Triggering save');
       onSave();
     }
   }, [onSave, hasUnsavedChanges, isLoading]);
   
-  // Safeguard against invalid values
-  const displayCurrentPage = useMemo(() => 
-    isNaN(currentPage) || currentPage < 1 ? 1 : currentPage
-  , [currentPage]);
+  // Safeguard against invalid values with safe fallbacks
+  const displayCurrentPage = useMemo(() => {
+    return typeof currentPage === 'number' && !isNaN(currentPage) && currentPage >= 1 
+      ? currentPage 
+      : 1;
+  }, [currentPage]);
   
-  const displayTotalPages = useMemo(() => 
-    isNaN(totalPages) || totalPages < 1 ? 1 : totalPages
-  , [totalPages]);
+  const displayTotalPages = useMemo(() => {
+    return typeof totalPages === 'number' && !isNaN(totalPages) && totalPages >= 1
+      ? totalPages
+      : 1;
+  }, [totalPages]);
   
-  // Add debugging for props to help identify issues
-  console.log('[StoryEditorHeader] Rendering with:', { 
-    title, 
-    currentPage: displayCurrentPage, 
-    totalPages: displayTotalPages,
-    hasUnsavedChanges, 
-    isLoading 
-  });
+  // Limit logging frequency to debug
+  const shouldLog = useMemo(() => {
+    const now = Date.now();
+    const shouldLog = now - (window as any)._lastHeaderLogTime > 1000;
+    if (shouldLog) {
+      (window as any)._lastHeaderLogTime = now;
+      return true;
+    }
+    return false;
+  }, []);
+  
+  // Add debugging for props to help identify issues, but limit frequency
+  if (shouldLog) {
+    console.log('[StoryEditorHeader] Rendering with:', { 
+      title, 
+      currentPage: displayCurrentPage, 
+      totalPages: displayTotalPages,
+      hasUnsavedChanges, 
+      isLoading 
+    });
+  }
   
   return (
     <div className="flex items-center justify-between mb-6">
