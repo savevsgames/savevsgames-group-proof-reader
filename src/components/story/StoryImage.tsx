@@ -43,12 +43,12 @@ export const StoryImage: React.FC<StoryImageProps> = memo(({
     generateImage(true);
   };
   
-  // Log image state for debugging
+  // Debug image state if needed
   // console.log('StoryImage current state:', { 
   //   storyId, 
   //   currentNode, 
   //   currentPage, 
-  //   promptLength: imagePrompt.length,
+  //   promptLength: imagePrompt?.length,
   //   imageState: imageData?.status || 'no data',
   //   hasEnhancedPrompt: !!imageData?.enhanced_prompt
   // });

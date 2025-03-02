@@ -19,7 +19,7 @@ export const useImageGeneration = ({
   const [loading, setLoading] = useState(false);
   const [imageData, setImageData] = useState<ImageData | null>(null);
   const [pollingCount, setPollingCount] = useState(0);
-  const [shouldFetchImage, setShouldFetchImage] = useState(false);
+  const [shouldFetchImage, setShouldFetchImage] = useState(true); // Changed to true to fetch on load
   const requestInProgress = useRef(false);
   const { toast } = useToast();
 
@@ -103,9 +103,8 @@ export const useImageGeneration = ({
   useEffect(() => {
     if (!storyId || !currentNode) return;
     
-    // Important: we don't automatically fetch images on component mount anymore
-    // This prevents unwanted API calls and leaves image generation to user action
-    setShouldFetchImage(false);
+    // Reset all data when the node/page changes
+    setShouldFetchImage(true);
     setImageData(null);
     setPollingCount(0);
     requestInProgress.current = false;
@@ -113,7 +112,7 @@ export const useImageGeneration = ({
 
   // Fetch existing image if shouldFetchImage is true with improved request tracking
   useEffect(() => {
-    if (!shouldFetchImage || requestInProgress.current) return;
+    if (!shouldFetchImage || requestInProgress.current || !storyId || !currentNode) return;
     
     const checkExistingImage = async () => {
       try {
@@ -122,21 +121,32 @@ export const useImageGeneration = ({
         requestInProgress.current = false;
         
         if (data) {
+          // console.log('Found existing image data:', data);
           setImageData(data);
           
           // If status is generating or uploading, start polling
           if (data.status === 'generating' || data.status === 'uploading') {
             setPollingCount(0); // Reset polling count
           }
+        } else {
+          // No image found, auto-generate if we have a prompt
+          if (imagePrompt) {
+            // Wait briefly to ensure we're not causing race conditions
+            setTimeout(() => {
+              generateImage(false);
+            }, 100);
+          }
         }
       } catch (error) {
         console.error('Error checking existing image:', error);
         requestInProgress.current = false;
+      } finally {
+        setShouldFetchImage(false);
       }
     };
     
     checkExistingImage();
-  }, [shouldFetchImage, storyId, currentNode]);
+  }, [shouldFetchImage, storyId, currentNode, imagePrompt]);
 
   // Improved image generation function with better error handling and debounce
   const generateImage = async (forceRegenerate = false) => {
@@ -195,7 +205,6 @@ export const useImageGeneration = ({
     } catch (error: any) {
       console.error('Error in generateImage:', error);
       const errorDetails = error.message || "Unknown error";
-      // console.log('Full error details:', error);
       
       // Extract more details from the error if possible
       let errorMessage = "Image generation failed";
