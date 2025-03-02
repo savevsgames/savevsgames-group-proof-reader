@@ -1,5 +1,5 @@
 
-import React, { memo, useCallback } from "react";
+import React, { memo, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Save } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -24,26 +24,53 @@ const StoryEditorHeader: React.FC<StoryEditorHeaderProps> = memo(({
   onSave
 }) => {
   // Prevent unnecessary calculations on every render
-  const isFirstPage = currentPage <= 1;
-  const isLastPage = currentPage >= totalPages;
+  const isFirstPage = useMemo(() => currentPage <= 1, [currentPage]);
+  const isLastPage = useMemo(() => currentPage >= (totalPages || 1), [currentPage, totalPages]);
   
   // Memoize the handlers to prevent recreation on every render
   const handlePrevious = useCallback(() => {
-    if (!isFirstPage) {
+    if (!isFirstPage && !isLoading) {
+      console.log('[StoryEditorHeader] Navigate to previous page', currentPage - 1);
       onPageChange(currentPage - 1);
     }
-  }, [currentPage, isFirstPage, onPageChange]);
+  }, [currentPage, isFirstPage, onPageChange, isLoading]);
   
   const handleNext = useCallback(() => {
-    if (!isLastPage) {
+    if (!isLastPage && !isLoading) {
+      console.log('[StoryEditorHeader] Navigate to next page', currentPage + 1);
       onPageChange(currentPage + 1);
     }
-  }, [currentPage, isLastPage, onPageChange]);
+  }, [currentPage, isLastPage, onPageChange, isLoading]);
+  
+  const handleSave = useCallback(() => {
+    if (onSave && hasUnsavedChanges && !isLoading) {
+      console.log('[StoryEditorHeader] Triggering save');
+      onSave();
+    }
+  }, [onSave, hasUnsavedChanges, isLoading]);
+  
+  // Safeguard against invalid values
+  const displayCurrentPage = useMemo(() => 
+    isNaN(currentPage) || currentPage < 1 ? 1 : currentPage
+  , [currentPage]);
+  
+  const displayTotalPages = useMemo(() => 
+    isNaN(totalPages) || totalPages < 1 ? 1 : totalPages
+  , [totalPages]);
+  
+  // Add debugging for props to help identify issues
+  console.log('[StoryEditorHeader] Rendering with:', { 
+    title, 
+    currentPage: displayCurrentPage, 
+    totalPages: displayTotalPages,
+    hasUnsavedChanges, 
+    isLoading 
+  });
   
   return (
     <div className="flex items-center justify-between mb-6">
       <div className="flex items-baseline space-x-4">
-        <h1 className="text-2xl font-bold text-gray-800">{title}</h1>
+        <h1 className="text-2xl font-bold text-gray-800">{title || 'Untitled Story'}</h1>
         
         {hasUnsavedChanges && !isLoading && (
           <Badge 
@@ -62,13 +89,14 @@ const StoryEditorHeader: React.FC<StoryEditorHeaderProps> = memo(({
             size="sm"
             onClick={handlePrevious}
             disabled={isFirstPage || isLoading}
+            type="button"
           >
             <ChevronLeft className="h-4 w-4 mr-1" />
             Previous
           </Button>
           
           <span className="mx-4 text-sm text-gray-500">
-            Page {currentPage} of {totalPages || 1}
+            Page {displayCurrentPage} of {displayTotalPages}
           </span>
           
           <Button
@@ -76,6 +104,7 @@ const StoryEditorHeader: React.FC<StoryEditorHeaderProps> = memo(({
             size="sm"
             onClick={handleNext}
             disabled={isLastPage || isLoading}
+            type="button"
           >
             Next
             <ChevronRight className="h-4 w-4 ml-1" />
@@ -84,9 +113,10 @@ const StoryEditorHeader: React.FC<StoryEditorHeaderProps> = memo(({
         
         {onSave && (
           <Button
-            onClick={onSave}
+            onClick={handleSave}
             disabled={!hasUnsavedChanges || isLoading}
             className="bg-[#F97316] hover:bg-[#E86305]"
+            type="button"
           >
             {isLoading ? "Saving..." : "Save"}
             <Save className="h-4 w-4 ml-2" />
