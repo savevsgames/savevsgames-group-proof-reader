@@ -1,4 +1,3 @@
-
 import { CustomStory, NodeMappings, StoryNode } from '@/types';
 
 // Debug tracking array for node creation
@@ -187,7 +186,7 @@ function analyzeInkStoryStructure(storyData: CustomStory): {
   pageToNode: Record<number, string>;
   totalPages: number;
 } {
-  console.log("[InkMapper] Starting specialized Ink.js structure analysis");
+  console.log("[InkMapper] Starting specialized Ink.js structure analysis with detailed page extraction");
   
   const nodeToPage: Record<string, number> = {};
   const pageToNode: Record<number, string> = {};
@@ -200,9 +199,25 @@ function analyzeInkStoryStructure(storyData: CustomStory): {
     return { nodeToPage, pageToNode, totalPages: 0 };
   }
   
+  console.log("[InkMapper] Root array structure:", {
+    length: rootArray.length,
+    sample: rootArray.slice(0, 3).map(item => JSON.stringify(item).substring(0, 100))
+  });
+  
   // Create initial node structures with flow tracking
   const storySegments = extractStorySegmentsFromInk(rootArray);
   console.log(`[InkMapper] Extracted ${storySegments.length} story segments from Ink root`);
+  
+  // Debug: show first 3 segments in detail
+  const sampleSegments = storySegments.slice(0, 3);
+  console.log("[InkMapper] Sample segments (first 3):", 
+    sampleSegments.map(segment => ({
+      id: segment.id,
+      textPreview: segment.text.substring(0, 50) + (segment.text.length > 50 ? '...' : ''),
+      nextSegment: segment.nextSegment,
+      segmentType: segment.text.includes("?") ? "question" : "narrative"
+    }))
+  );
 
   // Convert segments to nodes and track them in custom story format
   const customStory: CustomStory = {};
@@ -213,11 +228,11 @@ function analyzeInkStoryStructure(storyData: CustomStory): {
     // Create the story node
     customStory[nodeKey] = {
       text: segment.text,
-      choices: segment.nextSegment ? [{
+      choices: segment.nextSegment !== null ? [{
         text: "Continue",
         nextNode: `fragment_${segment.nextSegment}`
       }] : [],
-      isEnding: !segment.nextSegment && index === storySegments.length - 1
+      isEnding: segment.nextSegment === null
     };
     
     // Log node creation for debugging
@@ -225,8 +240,8 @@ function analyzeInkStoryStructure(storyData: CustomStory): {
       id: nodeKey,
       type: "ink_segment",
       content: segment.text,
-      hasChoices: !!segment.nextSegment,
-      nextNodes: segment.nextSegment ? [`fragment_${segment.nextSegment}`] : []
+      hasChoices: segment.nextSegment !== null,
+      nextNodes: segment.nextSegment !== null ? [`fragment_${segment.nextSegment}`] : []
     });
 
     // Create the page mapping
@@ -234,7 +249,11 @@ function analyzeInkStoryStructure(storyData: CustomStory): {
     nodeToPage[nodeKey] = page;
     pageToNode[page] = nodeKey;
     
-    console.log(`[InkMapper] Mapped segment ${index} to page ${page} with node key ${nodeKey}`);
+    console.log(`[InkMapper] Mapped segment ${index} to page ${page} with node key ${nodeKey}`, {
+      textPreview: segment.text.substring(0, 50) + (segment.text.length > 50 ? '...' : ''),
+      hasNextPage: segment.nextSegment !== null,
+      nextPage: segment.nextSegment !== null ? segment.nextSegment + 1 : null
+    });
   });
   
   // Also inject the extracted story into the main object for use by the rest of the system
@@ -242,8 +261,14 @@ function analyzeInkStoryStructure(storyData: CustomStory): {
     storyData[key] = customStory[key];
   });
   
+  // Set the initial node as the start node
+  if (Object.keys(customStory).length > 0) {
+    storyData['start'] = customStory['fragment_0'];
+    console.log("[InkMapper] Set fragment_0 as the start node");
+  }
+  
   const totalPages = storySegments.length;
-  console.log(`[InkMapper] Completed mapping with ${totalPages} total pages from Ink.js structure`);
+  console.log(`[InkMapper] Completed mapping with ${totalPages} total pages`);
   
   return {
     nodeToPage,
@@ -253,14 +278,15 @@ function analyzeInkStoryStructure(storyData: CustomStory): {
 }
 
 /**
- * Extracts story segments from Ink.js root array
+ * Extracts story segments from Ink.js root array with improved text extraction
+ * and detailed logging for better page definition
  */
 function extractStorySegmentsFromInk(rootArray: any[]): Array<{
   id: number,
   text: string,
   nextSegment: number | null
 }> {
-  console.log("[InkMapper] Extracting story segments from Ink root array");
+  console.log("[InkMapper] Extracting story segments from Ink root array with improved page definitions");
   
   const segments: Array<{
     id: number,
@@ -271,41 +297,52 @@ function extractStorySegmentsFromInk(rootArray: any[]): Array<{
   let currentText = '';
   let segmentCount = 0;
   
+  console.log("[InkMapper] Root array length:", rootArray.length);
+  
   for (let i = 0; i < rootArray.length; i++) {
     const element = rootArray[i];
     
     // Array elements need special processing
     if (Array.isArray(element)) {
+      console.log(`[InkMapper] Processing element ${i}:`, {
+        type: 'array',
+        length: element.length,
+        sample: element.slice(0, 3)
+      });
+      
       // Check for text content (starts with ^)
       const textElements = element.filter(e => typeof e === 'string' && e.startsWith('^'));
       
       if (textElements.length > 0) {
+        console.log(`[InkMapper] Found ${textElements.length} text elements in array at position ${i}`);
+        
         // Accumulate text content
         textElements.forEach(text => {
-          currentText += (currentText ? ' ' : '') + text.substring(1);
+          const cleanText = text.substring(1).trim(); // Remove the ^ marker
+          console.log(`[InkMapper] Adding text: "${cleanText.substring(0, 30)}..."`);
+          currentText += (currentText ? ' ' : '') + cleanText;
         });
         
-        // Look for flow markers or choices
-        const flowMarkers = element.filter(e => typeof e === 'object' && e['->']);
-        
-        // Check if this is the end of a segment
-        const isSegmentEnd = flowMarkers.length > 0 || 
-                             i === rootArray.length - 1 || 
-                             (i < rootArray.length - 1 && Array.isArray(rootArray[i+1]) && 
-                             rootArray[i+1].some(e => typeof e === 'string' && e.startsWith('^')));
-        
-        if (isSegmentEnd && currentText.trim()) {
-          // Create a new segment
+        // In Ink.js, each array with text content is generally a separate "page" or segment
+        // We'll create a new segment whenever we've accumulated text content
+        if (currentText.trim()) {
           const segment = {
             id: segmentCount,
             text: currentText.trim(),
             nextSegment: segmentCount + 1 < rootArray.length ? segmentCount + 1 : null
           };
           
+          // Special case for ending segment
+          if (i === rootArray.length - 1) {
+            segment.nextSegment = null;
+          }
+          
           segments.push(segment);
           console.log(`[InkMapper] Created segment ${segmentCount}:`, {
             textPreview: segment.text.substring(0, 50) + (segment.text.length > 50 ? '...' : ''),
-            nextSegment: segment.nextSegment
+            nextSegment: segment.nextSegment,
+            // Add page definition info
+            pageDefinition: `Page ${segmentCount+1} with text content and ${segment.nextSegment !== null ? 'Continue option' : 'no further options (ending)'}`
           });
           
           // Reset for next segment
@@ -316,7 +353,7 @@ function extractStorySegmentsFromInk(rootArray: any[]): Array<{
       
       // Handle specific choice/flow blocks
       const hasChoiceMarkers = element.some(e => e === "ev" || e === "str" || e === "/str" || e === "/ev");
-      const hasFlowMarkers = element.some(e => typeof e === 'object' && e['->']);
+      const hasFlowMarkers = element.some(e => typeof e === 'object' && e['->'] || e === 'done');
       
       if (hasChoiceMarkers || hasFlowMarkers) {
         console.log(`[InkMapper] Found special element at position ${i}:`, {
@@ -325,7 +362,14 @@ function extractStorySegmentsFromInk(rootArray: any[]): Array<{
           sample: element.slice(0, 3)
         });
         
-        // Note: Further parsing of choices would go here in a more complete implementation
+        // Find any explicit flow markers
+        const flowMarkers = element.filter(e => typeof e === 'object' && e['->']);
+        if (flowMarkers.length > 0) {
+          console.log(`[InkMapper] Flow markers found:`, flowMarkers);
+          
+          // These could indicate branching paths - for simplicity in this implementation
+          // we're treating each segment linearly, but could be enhanced for branching
+        }
       }
     }
   }
@@ -337,7 +381,7 @@ function extractStorySegmentsFromInk(rootArray: any[]): Array<{
       text: currentText.trim(),
       nextSegment: null
     });
-    console.log(`[InkMapper] Created final segment ${segmentCount} from remaining text`);
+    console.log(`[InkMapper] Created final segment ${segmentCount} from remaining text with definition: Final page with no continuation`);
   }
   
   console.log(`[InkMapper] Extracted ${segments.length} total segments`);

@@ -50,6 +50,18 @@ export const extractStoryContent = async (data: any): Promise<CustomStory | null
         const format = detectStoryFormat(storyData);
         console.log("[Story Extraction] Fetched story format detection:", format);
         
+        // For Ink.js format, log additional structure information
+        if (format.isInkFormat) {
+          console.log("[Story Extraction] Ink.js format details:", {
+            rootArrayLength: Array.isArray(storyData.root) ? storyData.root.length : 'not an array',
+            inkVersion: storyData.inkVersion,
+            // Sample the first few elements of the root array for debugging
+            rootSample: Array.isArray(storyData.root) 
+              ? storyData.root.slice(0, 3).map(item => JSON.stringify(item).substring(0, 100)) 
+              : 'N/A'
+          });
+        }
+        
         return storyData;
       } catch (error) {
         console.error("[Story Extraction] Error fetching from URL:", error);
@@ -146,6 +158,20 @@ export const generateAndLogNodeMappings = (storyData: CustomStory): {
     const format = detectStoryFormat(storyData);
     console.log("[Story Editor] Story format for mapping:", format);
     
+    // If this is an Ink.js format story, log additional details about the root array
+    if (format.isInkFormat && Array.isArray(storyData.root)) {
+      console.log("[Story Editor] Ink.js root array details:", {
+        length: storyData.root.length,
+        // Log first 3 elements of root array to help visualize the structure
+        sample: storyData.root.slice(0, 3).map(item => {
+          if (Array.isArray(item)) {
+            return `Array(${item.length}): [${item.slice(0, 2).map(e => JSON.stringify(e).substring(0, 30) + '...').join(', ')}]`;
+          }
+          return JSON.stringify(item).substring(0, 30) + '...';
+        })
+      });
+    }
+    
     // Use the comprehensive analysis from storyNodeMapping
     const { nodeToPage, pageToNode, totalPages } = analyzeStoryStructure(storyData);
     
@@ -170,15 +196,37 @@ export const generateAndLogNodeMappings = (storyData: CustomStory): {
     if (totalPages > 0) {
       const pagesToShow = Math.min(10, totalPages);
       const pageMappings = Array.from({ length: pagesToShow }, (_, i) => i + 1)
-        .map(page => `Page ${page} -> ${pageToNode[page]}`);
+        .map(page => `Page ${page} -> ${pageToNode[page] || 'undefined'}`);
       
       console.log(`[Story Editor] Sample of ${pagesToShow} page mappings:`, pageMappings);
+      
+      // Specifically log the first 3 pages in detail
+      if (totalPages >= 3) {
+        console.log("[Story Editor] First 3 pages detail:");
+        for (let i = 1; i <= 3; i++) {
+          const nodeKey = pageToNode[i];
+          if (nodeKey && storyData[nodeKey]) {
+            const node = storyData[nodeKey];
+            console.log(`Page ${i} (${nodeKey}):`, {
+              textPreview: typeof node.text === 'string' ? 
+                (node.text.substring(0, 50) + (node.text.length > 50 ? '...' : '')) : 'No text',
+              hasChoices: Array.isArray(node.choices) && node.choices.length > 0,
+              choiceCount: Array.isArray(node.choices) ? node.choices.length : 0,
+              isEnding: !!node.isEnding
+            });
+          } else {
+            console.log(`Page ${i}: No node mapped or invalid node reference`);
+          }
+        }
+      }
     }
     
     // Log the debug nodes created during mapping
     const debugNodes = getDebugNodes();
     if (debugNodes.length > 0) {
       console.log(`[Story Editor] Created ${debugNodes.length} debug nodes during mapping`);
+      // Show the first 3 debug nodes in detail
+      console.log("[Story Editor] First 3 debug nodes:", debugNodes.slice(0, 3));
     }
     
     return {
