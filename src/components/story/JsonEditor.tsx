@@ -1,13 +1,8 @@
 
-import React, { useState, useEffect, useRef } from "react";
-import { CustomStory, NodeMappings } from "@/types";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Textarea } from "@/components/ui/textarea";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RefreshCw, AlertTriangle, Edit } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { analyzeStoryStructure } from "@/lib/storyNodeMapping";
+import { CheckCircle, Save } from "lucide-react";
+import { CustomStory, NodeMappings } from "@/types";
 
 interface JsonEditorProps {
   storyData: CustomStory;
@@ -18,389 +13,285 @@ interface JsonEditorProps {
   onNodeSelect?: (nodeName: string) => void;
 }
 
-interface NodeRange {
-  start: number;
-  end: number;
-  startLine: number;
-  endLine: number;
-  content: string;
-}
-
-const JsonEditor: React.FC<JsonEditorProps> = ({ 
-  storyData, 
+const JsonEditor: React.FC<JsonEditorProps> = ({
+  storyData,
   onChange,
-  currentNode = "root",
+  currentNode,
   currentPage,
   nodeMappings,
-  onNodeSelect
+  onNodeSelect,
 }) => {
-  const [jsonText, setJsonText] = useState<string>("");
+  const [jsonValue, setJsonValue] = useState<string>("");
+  const [isValid, setIsValid] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedNode, setSelectedNode] = useState<string>(currentNode);
-  const [nodeOptions, setNodeOptions] = useState<string[]>([]);
-  const [activeNodeRange, setActiveNodeRange] = useState<NodeRange | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [selectedNode, setSelectedNode] = useState<string | null>(currentNode || null);
+  
+  // Refs for the editor and highlight overlay
+  const editorRef = useRef<HTMLDivElement>(null);
   const highlightOverlayRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
+  
+  // Track if editor has been initialized to prevent unnecessary re-renders
+  const editorInitializedRef = useRef<boolean>(false);
+  const lastSnapshotRef = useRef<Range | null>(null);
 
-  // Effect for updating node options when story data changes
+  // Initialize editor with formatted JSON
   useEffect(() => {
-    if (storyData) {
-      const nodes = Object.keys(storyData).filter(key => 
-        key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
-      );
-      setNodeOptions(nodes);
-      if (!nodes.includes(selectedNode) && nodes.length > 0) {
-        setSelectedNode(nodes[0]);
-        if (onNodeSelect) {
-          onNodeSelect(nodes[0]);
-        }
-      }
+    if (!storyData || editorInitializedRef.current) return;
+    
+    try {
+      const formatted = JSON.stringify(storyData, null, 2);
+      setJsonValue(formatted);
+      editorInitializedRef.current = true;
+    } catch (err) {
+      console.error("Error initializing JSON editor:", err);
+      setError("Failed to initialize editor with story data");
     }
   }, [storyData]);
 
-  // Effect for updating text when story data changes
+  // Update node highlighting when currentNode or currentPage changes
   useEffect(() => {
-    if (storyData) {
-      try {
-        const formatted = JSON.stringify(storyData, null, 2);
-        setJsonText(formatted);
-        setError(null);
-      } catch (e) {
-        setError("Invalid JSON structure");
+    // First check if we should use the page mapping
+    if (currentPage && nodeMappings?.pageToNode) {
+      const nodeFromPage = nodeMappings.pageToNode[currentPage];
+      if (nodeFromPage) {
+        setSelectedNode(nodeFromPage);
+        highlightCurrentNode(nodeFromPage);
+        return;
       }
     }
-  }, [storyData]);
-
-  // Effect for highlighting based on current node
-  useEffect(() => {
-    if (currentNode && currentNode !== selectedNode) {
+    
+    // Fallback to direct node highlighting
+    if (currentNode) {
       setSelectedNode(currentNode);
       highlightCurrentNode(currentNode);
     }
-  }, [currentNode, jsonText]);
+  }, [currentNode, currentPage, nodeMappings]);
 
-  // New effect for highlighting based on page changes
-  useEffect(() => {
-    if (currentPage && nodeMappings?.pageToNode) {
-      const nodeForPage = nodeMappings.pageToNode[currentPage];
-      if (nodeForPage && nodeForPage !== selectedNode) {
-        console.log(`[JsonEditor] Highlighting node ${nodeForPage} for page ${currentPage}`);
-        setSelectedNode(nodeForPage);
-        highlightCurrentNode(nodeForPage);
-        if (onNodeSelect) {
-          onNodeSelect(nodeForPage);
-        }
-      }
+  // Handle JSON changes
+  const handleEditorChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = e.target.value;
+    setJsonValue(newValue);
+    
+    try {
+      const parsed = JSON.parse(newValue);
+      setIsValid(true);
+      setError(null);
+      onChange(parsed);
+    } catch (err: any) {
+      setIsValid(false);
+      setError(err.message || "Invalid JSON");
     }
-  }, [currentPage, nodeMappings, jsonText]);
+  };
 
-  // Calculate the range of a node in the JSON text
-  const findNodeRange = (text: string, nodeName: string): NodeRange | null => {
-    if (!text) return null;
-    
-    const nodePattern = new RegExp(`(["\'])${nodeName}\\1\\s*:\\s*\\{`, 'g');
-    const match = nodePattern.exec(text);
-    
-    if (!match || match.index === undefined) {
-      console.warn(`Node ${nodeName} not found in JSON text`);
+  // Helper to find the position of a node in the JSON text
+  const findNodePosition = (text: string, nodeName: string): { start: number, end: number } | null => {
+    try {
+      // Look for the node pattern: "nodeName": {
+      const nodePattern = new RegExp(`"${nodeName}"\\s*:\\s*\\{`, "g");
+      const match = nodePattern.exec(text);
+      
+      if (!match) return null;
+      
+      const start = match.index;
+      let openBraces = 1;
+      let position = match.index + match[0].length;
+      
+      // Find the matching closing brace
+      while (openBraces > 0 && position < text.length) {
+        if (text[position] === '{') openBraces++;
+        if (text[position] === '}') openBraces--;
+        position++;
+      }
+      
+      return { start, end: position };
+    } catch (err) {
+      console.error("Error finding node position:", err);
       return null;
     }
-    
-    const position = match.index;
-    const bracePos = text.indexOf('{', position);
-    if (bracePos === -1) return null;
-    
-    // Find closing brace by tracking brace count
-    let braceCount = 1;
-    let closingBracePos = bracePos + 1;
-    
-    while (braceCount > 0 && closingBracePos < text.length) {
-      if (text[closingBracePos] === '{') braceCount++;
-      if (text[closingBracePos] === '}') braceCount--;
-      closingBracePos++;
-    }
-    
-    const nodeContent = text.substring(position, closingBracePos);
-    
-    // Calculate line numbers for highlighting
-    const beforeNode = text.substring(0, position);
-    const startLine = beforeNode.split('\n').length;
-    const nodeLines = nodeContent.split('\n');
-    const endLine = startLine + nodeLines.length - 1;
-    
-    return {
-      start: position,
-      end: closingBracePos,
-      startLine,
-      endLine,
-      content: nodeContent
-    };
   };
 
+  // Create a selection range for the node
+  const createNodeSelectionRange = (nodeName: string): Range | null => {
+    if (!editorRef.current) return null;
+    
+    const textArea = editorRef.current.querySelector("textarea");
+    if (!textArea) return null;
+    
+    const text = textArea.value;
+    const position = findNodePosition(text, nodeName);
+    
+    if (!position) return null;
+    
+    try {
+      const range = document.createRange();
+      const startPos = position.start;
+      const endPos = position.end;
+      
+      // We need to convert text positions to DOM positions
+      // This is a simplified approach and might need refinement
+      const textToStartNode = text.substring(0, startPos);
+      const startLine = (textToStartNode.match(/\n/g) || []).length + 1;
+      
+      const textToEndNode = text.substring(0, endPos);
+      const endLine = (textToEndNode.match(/\n/g) || []).length + 1;
+      
+      // Store selection information for highlighting overlay
+      lastSnapshotRef.current = range;
+      
+      return range;
+    } catch (err) {
+      console.error("Error creating selection range:", err);
+      return null;
+    }
+  };
+
+  // Highlight the current node in the editor
   const highlightCurrentNode = (nodeName: string) => {
-    if (!textareaRef.current || !jsonText) return;
+    console.log("[JsonEditor] Highlighting node:", nodeName);
     
-    const nodeRange = findNodeRange(jsonText, nodeName);
-    if (!nodeRange) return;
-    
-    setActiveNodeRange(nodeRange);
-    
-    // Scroll to the node (aim for a few lines above it)
-    const lineHeight = 20; // approximate line height
-    textareaRef.current.scrollTop = (nodeRange.startLine - 3) * lineHeight;
-    
-    console.log(`Highlighted node ${nodeName} from line ${nodeRange.startLine} to ${nodeRange.endLine}`);
-  };
-
-  const handleNodeChange = (value: string) => {
-    setSelectedNode(value);
-    highlightCurrentNode(value);
-    if (onNodeSelect) {
-      onNodeSelect(value);
+    if (!editorRef.current || !highlightOverlayRef.current) {
+      console.log("[JsonEditor] Editor or overlay ref not available yet");
+      return;
     }
-  };
-
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setJsonText(e.target.value);
+    
     try {
-      const parsed = JSON.parse(e.target.value);
-      setError(null);
-      onChange(parsed);
+      // Create a selection range for the node
+      const range = createNodeSelectionRange(nodeName);
       
-      const nodes = Object.keys(parsed).filter(key => 
-        key !== 'inkVersion' && key !== 'listDefs' && key !== '#f'
-      );
-      if (JSON.stringify(nodes) !== JSON.stringify(nodeOptions)) {
-        setNodeOptions(nodes);
+      if (!range) {
+        console.log(`[JsonEditor] Couldn't find node ${nodeName} in the JSON`);
+        return;
       }
-    } catch (e) {
-      setError("Invalid JSON: " + (e as Error).message);
+      
+      // Position the highlight overlay
+      const textArea = editorRef.current.querySelector("textarea");
+      if (!textArea) return;
+      
+      const text = textArea.value;
+      const position = findNodePosition(text, nodeName);
+      
+      if (!position) return;
+      
+      // Count lines and characters to position the overlay
+      const textToStartNode = text.substring(0, position.start);
+      const startLine = (textToStartNode.match(/\n/g) || []).length;
+      const startCharInLine = position.start - textToStartNode.lastIndexOf("\n") - 1;
+      
+      const nodeText = text.substring(position.start, position.end);
+      const nodeLines = (nodeText.match(/\n/g) || []).length + 1;
+      
+      // Update overlay dimensions and position
+      // This uses a combination of line height and character width approximation
+      const lineHeight = 20; // Approximate line height in pixels
+      const charWidth = 8;   // Approximate character width in pixels
+      
+      const overlay = highlightOverlayRef.current;
+      
+      // Safety check for overlay
+      if (!overlay) return;
+      
+      overlay.style.top = `${startLine * lineHeight}px`;
+      overlay.style.left = `${startCharInLine * charWidth}px`;
+      overlay.style.height = `${nodeLines * lineHeight}px`;
+      overlay.style.width = `calc(100% - ${startCharInLine * charWidth}px)`;
+      
+      // Make sure the overlay is visible
+      overlay.classList.remove("hidden");
+      
+      // If a node was clicked, inform the parent
+      if (onNodeSelect) {
+        onNodeSelect(nodeName);
+      }
+    } catch (err) {
+      console.error("Error highlighting node:", err);
     }
   };
 
-  const handleReformat = () => {
-    try {
-      const parsed = JSON.parse(jsonText);
-      const formatted = JSON.stringify(parsed, null, 2);
-      setJsonText(formatted);
-      setError(null);
-      onChange(parsed);
-      toast({
-        title: "JSON reformatted",
-        description: "Your JSON has been successfully reformatted.",
-        duration: 3000,
-      });
-      
-      setTimeout(() => highlightCurrentNode(selectedNode), 100);
-    } catch (e) {
-      setError("Cannot reformat: " + (e as Error).message);
-      toast({
-        title: "Reformat failed",
-        description: (e as Error).message,
-        variant: "destructive",
-        duration: 3000,
-      });
-    }
-  };
-
-  const handleAnalyzeStructure = () => {
-    try {
-      const parsed = JSON.parse(jsonText);
-      
-      // Use our new dynamic structure analysis
-      const { nodeToPage, pageToNode, totalPages } = analyzeStoryStructure(parsed);
-      
-      // Display results
-      toast({
-        title: "Story Analysis",
-        description: `Found ${totalPages} pages in the story structure`,
-        duration: 5000,
-      });
-      
-      console.log("Story Structure Analysis:", {
-        totalPages,
-        nodeToPage,
-        pageToNode
-      });
-      
-    } catch (e) {
-      toast({
-        title: "Analysis Failed",
-        description: (e as Error).message,
-        variant: "destructive",
-        duration: 3000,
-      });
-    }
-  };
-
-  const handleFocusNode = () => {
-    highlightCurrentNode(selectedNode);
-  };
-
-  // Renders a highlighted overlay for the currently selected node
+  // Render the highlight overlay
   const renderHighlightOverlay = () => {
-    if (!activeNodeRange || !jsonText) return null;
-    
-    // Split the JSON text into lines
-    const lines = jsonText.split('\n');
-    
-    // Create an array of line highlights
-    const lineHighlights = lines.map((line, index) => {
-      const lineNumber = index + 1;
-      const isHighlighted = lineNumber >= activeNodeRange.startLine && lineNumber <= activeNodeRange.endLine;
-      
-      return (
-        <div 
-          key={`line-${lineNumber}`}
-          className={`json-line ${isHighlighted ? 'json-line-highlighted' : ''}`}
-        >
-          {line}
-        </div>
-      );
-    });
-    
-    return lineHighlights;
+    // Get a snapshot of the selection if available
+    const snapshot = lastSnapshotRef.current;
+    if (!snapshot) return null;
+
+    return null; // The overlay is positioned with CSS
   };
 
-  const textAreaStyle = {
-    fontFamily: 'monospace',
-    fontSize: '14px',
-    lineHeight: '1.5',
-    whiteSpace: 'pre',
-    tabSize: 2,
-    position: 'relative' as const,
+  // Handle node selection
+  const handleNodeClick = (e: React.MouseEvent<HTMLTextAreaElement>) => {
+    if (!editorRef.current) return;
+    
+    const textArea = e.currentTarget;
+    const text = textArea.value;
+    
+    try {
+      // Get cursor position
+      const cursorPos = textArea.selectionStart;
+      
+      // Find which node contains this position
+      const nodes = Object.keys(storyData || {}).filter(key => {
+        // Skip non-object properties or special properties
+        if (
+          !storyData[key] || 
+          typeof storyData[key] !== "object" ||
+          key === "inkVersion" ||
+          key === "listDefs"
+        ) {
+          return false;
+        }
+        return true;
+      });
+      
+      // Find node containing cursor position
+      for (const node of nodes) {
+        const position = findNodePosition(text, node);
+        if (position && cursorPos >= position.start && cursorPos <= position.end) {
+          setSelectedNode(node);
+          highlightCurrentNode(node);
+          break;
+        }
+      }
+    } catch (err) {
+      console.error("Error handling node click:", err);
+    }
   };
 
   return (
-    <div className="flex flex-col h-full space-y-4">
-      <style>
-        {`
-          .json-editor-container {
-            position: relative;
-          }
-          
-          .json-editor-textarea {
-            font-family: monospace;
-            font-size: 14px;
-            line-height: 1.5;
-            tab-size: 2;
-            white-space: pre;
-          }
-          
-          .json-line {
-            height: 20px;
-            padding: 0 8px;
-            white-space: pre;
-            line-height: 1.5;
-          }
-          
-          .json-line-highlighted {
-            background-color: rgba(59, 130, 246, 0.1);
-            border-left: 3px solid #3b82f6;
-            border-right: 3px solid #3b82f6;
-          }
-          
-          .json-node-active {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            pointer-events: none;
-            white-space: pre;
-            font-family: monospace;
-            font-size: 14px;
-            line-height: 1.5;
-            tab-size: 2;
-            overflow: auto;
-            user-select: none;
-          }
-        `}
-      </style>
-      
-      <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-4">
-          <h3 className="text-lg font-medium">JSON Editor</h3>
-          
-          <div className="flex items-center space-x-2">
-            <span className="text-sm">Current Node:</span>
-            <Select value={selectedNode} onValueChange={handleNodeChange}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Select node" />
-              </SelectTrigger>
-              <SelectContent>
-                {nodeOptions.map((node) => (
-                  <SelectItem key={node} value={node}>
-                    {node}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleFocusNode}
-              title="Find node in JSON"
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-          </div>
+    <div className="relative">
+      <div className="mb-4 flex justify-between items-center">
+        <div className="text-sm text-muted-foreground">
+          {isValid ? (
+            <span className="flex items-center text-green-600">
+              <CheckCircle className="h-4 w-4 mr-1" />
+              Valid JSON
+            </span>
+          ) : (
+            <span className="text-red-500">{error}</span>
+          )}
         </div>
         
-        <div className="flex space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleAnalyzeStructure}
-            title="Analyze Story Structure"
-          >
-            Analyze Structure
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleReformat}
-            title="Reformat JSON"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Reformat
-          </Button>
-        </div>
+        {selectedNode && (
+          <div className="text-sm bg-muted px-2 py-1 rounded">
+            Editing: <span className="font-mono">{selectedNode}</span>
+          </div>
+        )}
       </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-3 flex items-start text-red-600">
-          <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
-          <span className="text-sm">{error}</span>
-        </div>
-      )}
+      <div className="relative" ref={editorRef}>
+        <textarea
+          value={jsonValue}
+          onChange={handleEditorChange}
+          onClick={handleNodeClick}
+          className="w-full h-[500px] font-mono text-sm p-4 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          spellCheck="false"
+        />
 
-      <ScrollArea className="h-[500px] border rounded-md bg-gray-50 json-editor-container">
         <div
           ref={highlightOverlayRef}
-          className="json-node-active"
+          className="json-node-highlight absolute pointer-events-none overflow-hidden"
         >
           {renderHighlightOverlay()}
         </div>
-        <Textarea
-          ref={textareaRef}
-          value={jsonText}
-          onChange={handleTextChange}
-          className="json-editor-textarea min-h-[500px] border-none focus-visible:ring-0"
-          placeholder="Enter your story JSON here..."
-          style={{
-            fontFamily: 'monospace',
-            fontSize: '14px',
-            lineHeight: '1.5',
-            whiteSpace: 'pre',
-            tabSize: 2,
-            position: 'relative',
-          }}
-        />
-      </ScrollArea>
+      </div>
     </div>
   );
 };
