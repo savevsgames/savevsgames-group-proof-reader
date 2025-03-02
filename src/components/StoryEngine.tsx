@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, memo } from "react";
 import { CommentModal } from "./CommentModal";
 import { BookLayout } from "./story/BookLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -10,7 +10,7 @@ import {
   StoryEngineProps,
 } from "@/types";
 
-export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
+export const StoryEngine: React.FC<StoryEngineProps> = memo(({ storyId }) => {
   const { user } = useAuth();
   
   // Use specific selectors with proper typing to minimize re-renders
@@ -18,14 +18,16 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
     (state) => ({
       loading: state.loading,
       error: state.error
-    })
+    }),
+    shallow // Use shallow comparison to prevent unnecessary renders
   );
   
   const metadataState = useStoryStore(
     (state) => ({
       bookTitle: state.title,
       totalPages: state.totalPages
-    })
+    }),
+    shallow
   );
   
   const navigationState = useStoryStore(
@@ -33,7 +35,8 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
       currentPage: state.currentPage,
       canGoBack: state.canGoBack,
       currentNode: state.currentNode
-    })
+    }),
+    shallow
   );
   
   const contentState = useStoryStore(
@@ -42,14 +45,16 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
       currentChoices: state.currentChoices,
       canContinue: state.canContinue,
       currentStoryPosition: state.currentStoryPosition
-    })
+    }),
+    shallow
   );
   
   const commentsState = useStoryStore(
     (state) => ({
       comments: state.comments,
       commentCount: state.commentCount
-    })
+    }),
+    shallow
   );
   
   // Actions don't need shallow comparison as they don't change
@@ -69,20 +74,26 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
   const handleCommentModalOpenChange = useCallback((open: boolean) => {
     setIsCommentModalOpen(open);
     
-    if (open && storyId) {
+    if (open && storyId && contentState.currentStoryPosition > 0) {
       // Fetch latest comments when modal opens
       actions.fetchComments(storyId, contentState.currentStoryPosition);
     }
   }, [storyId, contentState.currentStoryPosition, actions.fetchComments]);
 
-  // Initialize comments when we load a new story position
+  // Initialize comments when loading a new story position
+  // Add proper dependency array to prevent infinite loops
   useEffect(() => {
     if (storyId && contentState.currentStoryPosition > 0) {
-      actions.fetchComments(storyId, contentState.currentStoryPosition);
+      // Debounce comment fetching to prevent rapid consecutive calls
+      const timeoutId = setTimeout(() => {
+        actions.fetchComments(storyId, contentState.currentStoryPosition);
+      }, 300);
+      
+      return () => clearTimeout(timeoutId);
     }
   }, [storyId, contentState.currentStoryPosition, actions.fetchComments]);
   
-  // Handle adding comment to LLM context
+  // Handle adding comment to LLM context - memoize to prevent recreation
   const handleAddToLlmContext = useCallback((commentType: string, commentText: string, username: string) => {
     console.log(`Adding comment to LLM context: ${commentType}`, { text: commentText, username });
     // Implementation can be added when needed
@@ -142,4 +153,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
       />
     </div>
   );
-};
+});
+
+// Add display name for better debugging
+StoryEngine.displayName = 'StoryEngine';

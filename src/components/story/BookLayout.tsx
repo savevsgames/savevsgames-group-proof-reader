@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { memo } from 'react';
 import { StoryDisplay } from './StoryDisplay';
 import { BookHeader } from './BookHeader';
 import { StoryChoice } from '@/lib/storyUtils';
@@ -30,7 +30,7 @@ interface BookLayoutProps {
   onAddToLlmContext?: (commentType: string, commentText: string, username: string) => void;
 }
 
-export const BookLayout: React.FC<BookLayoutProps> = ({
+export const BookLayout: React.FC<BookLayoutProps> = memo(({
   bookTitle,
   currentPage,
   totalPages,
@@ -110,4 +110,7 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
       </div>
     </div>
   );
-};
+});
+
+// Add display name for better debugging
+BookLayout.displayName = 'BookLayout';

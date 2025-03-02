@@ -1,5 +1,5 @@
 
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { StoryEngine } from "@/components/StoryEngine";
 import Header from "@/components/Header";
@@ -11,6 +11,9 @@ const StoryPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  
+  // Track initialization status with a ref to prevent multiple initializations
+  const initializationAttempted = useRef(false);
   
   // Group selectors to minimize re-renders
   const {
@@ -25,20 +28,23 @@ const StoryPage = () => {
     error: state.error,
     title: state.title,
     totalPages: state.totalPages
-  }));
+  }), shallow);
   
   // Actions selector - separate from state to avoid re-renders
   const initializeStory = useStoryStore(state => state.initializeStory);
   
   // Memoize the initialization to prevent multiple calls
   const handleInitialization = useCallback(async (storyId: string) => {
+    // Track that we've attempted initialization
+    initializationAttempted.current = true;
+    
     console.log("[StoryPage] Initializing story with ID:", storyId);
     await initializeStory(storyId);
   }, [initializeStory]);
   
-  // Initialize story on mount or when ID changes
+  // Initialize story only once on mount or when ID changes
   useEffect(() => {
-    console.log("[StoryPage] Component mounted with ID:", id);
+    console.log("[StoryPage] Component mounted or ID changed:", id);
     
     if (!id) {
       toast({
@@ -50,16 +56,26 @@ const StoryPage = () => {
       return;
     }
     
-    // Only initialize if needed (storyId doesn't match or not initialized yet)
-    if (id !== storyId || loading || error) {
-      handleInitialization(id);
-    } else {
-      console.log("[StoryPage] Story already initialized:", {
-        storyId,
-        totalPages
-      });
+    // Use the ref to ensure we don't initialize multiple times
+    if (!initializationAttempted.current) {
+      // Only initialize if needed (storyId doesn't match or not initialized yet)
+      if (id !== storyId || loading || error) {
+        handleInitialization(id);
+      } else {
+        console.log("[StoryPage] Story already initialized:", {
+          storyId,
+          totalPages
+        });
+      }
     }
-  }, [id, navigate, toast, handleInitialization, storyId, loading, error, totalPages]);
+    
+    // Reset ref when ID changes
+    return () => {
+      if (id !== storyId) {
+        initializationAttempted.current = false;
+      }
+    };
+  }, [id, navigate, toast, handleInitialization, storyId]);
 
   return (
     <div className="min-h-screen bg-[#3A2618] w-full overflow-x-hidden">
