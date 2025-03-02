@@ -3,7 +3,7 @@
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/734d2606-1eaf-497a-83c1-099a3175b9d0
+**URL**: https://savevsgames-group-proof-reader.vercel.app/
 
 ## Story Engine Documentation
 
