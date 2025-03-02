@@ -17,7 +17,7 @@ interface CommentsViewProps {
 
 const CommentsView: React.FC<CommentsViewProps> = ({
   storyId,
-  currentNode,
+  currentNode = '',
   currentPage,
   onAddToLlmContext
 }) => {
@@ -40,9 +40,10 @@ const CommentsView: React.FC<CommentsViewProps> = ({
   // Only fetch comments when the page changes or component mounts
   useEffect(() => {
     if (storyId && currentPage) {
+      console.log("[CommentsView] Fetching comments for page:", currentPage);
       fetchComments(storyId, currentPage);
     }
-  }, [storyId, currentPage]);
+  }, [storyId, currentPage, fetchComments]);
   
   const handleCommentTextChange = (text: string) => {
     setCommentText(text);
@@ -105,7 +106,7 @@ const CommentsView: React.FC<CommentsViewProps> = ({
           user={user}
           userProfile={profile}
           storyId={storyId}
-          currentNode={currentNode || ''}
+          currentNode={currentNode}
           currentPage={currentPage}
           isEditing={!!editingCommentId}
           editingCommentId={editingCommentId}
@@ -114,7 +115,6 @@ const CommentsView: React.FC<CommentsViewProps> = ({
           onCommentTextChange={handleCommentTextChange}
           onCommentTypeChange={handleCommentTypeChange}
           onCancelEdit={handleCancelEdit}
-          onCommentsUpdate={(count: number) => {/* This is kept for backward compatibility */}}
           comments={comments}
         />
       )}

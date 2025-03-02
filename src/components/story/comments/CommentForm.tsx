@@ -62,6 +62,17 @@ const CommentForm = ({
       return;
     }
     
+    // Validate required props to avoid runtime errors
+    if (!storyId || currentPage === undefined) {
+      console.error("Missing required props:", { storyId, currentPage });
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again later.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       if (isEditing && editingCommentId) {
         await updateComment(editingCommentId, storyId, currentPage, commentText, commentType);
@@ -73,7 +84,10 @@ const CommentForm = ({
           description: "Your comment has been updated successfully.",
         });
       } else {
-        await addComment(storyId, currentPage, commentText, commentType, user.id, currentNode);
+        // Ensure we have a valid node to associate the comment with
+        const nodeToUse = currentNode || 'root';
+        
+        await addComment(storyId, currentPage, commentText, commentType, user.id, nodeToUse);
         onCommentTextChange('');
         
         toast({

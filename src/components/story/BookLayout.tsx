@@ -50,13 +50,17 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
   onOpenComments,
   onPageChange
 }) => {
+  // Ensure we have valid values for required props
+  const validatedCurrentPage = typeof currentPage === 'number' ? currentPage : 1;
+  const validatedCurrentNode = currentNode || 'root';
+
   return (
     <div className="container mx-auto relative book-container mt-6 px-0 md:px-2 overflow-hidden">
       {/* Fixed z-index for the header to ensure it's above shadow */}
       <div className="relative z-10">
         <BookHeader 
           bookTitle={bookTitle}
-          currentPage={currentPage}
+          currentPage={validatedCurrentPage}
           totalPages={totalPages}
           canGoBack={canGoBack}
           commentCount={commentCount}
@@ -78,8 +82,8 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
             <StoryDisplay 
               text={currentText} 
               storyId={storyId}
-              currentNode={currentNode}
-              currentPage={currentPage}
+              currentNode={validatedCurrentNode}
+              currentPage={validatedCurrentPage}
               canContinue={canContinue}
               choices={choices}
               isEnding={isEnding}
@@ -95,9 +99,13 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
           <div className="h-full bg-[#E8DCC4] p-4 md:p-6 lg:p-8 book-page rounded-lg md:rounded-l-none md:rounded-r-lg">
             <CommentsView 
               storyId={storyId}
-              currentNode={currentNode}
-              currentPage={currentPage}
-              onAddToLlmContext={(commentType, commentText, username) => {/* Implementation can be added later */}}
+              currentNode={validatedCurrentNode}
+              currentPage={validatedCurrentPage}
+              onAddToLlmContext={(commentType, commentText, username) => {
+                if (onAddToLlmContext) {
+                  onAddToLlmContext(commentType, commentText, username);
+                }
+              }}
             />
           </div>
         </div>
