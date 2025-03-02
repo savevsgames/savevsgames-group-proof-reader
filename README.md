@@ -1,9 +1,11 @@
 
-# Welcome to your Lovable project
+# Welcome to saveVSgames Group Proof Reader – The Ultimate Interactive Game/Story Editing Tool
 
-## Project info
+## Bring your stories to life with an intuitive, AI-powered interactive fiction engine powered by ink js!
 
-**URL**: https://savevsgames-group-proof-reader.vercel.app/
+Story Engine is a dynamic platform for writers, game developers, and interactive storytellers who want to create and navigate branching narratives with ease. Whether you're using a custom JSON format or the powerful Ink scripting language, our engine lets you craft immersive, choice-driven experiences. With AI-assisted editing, real-time collaboration, and an intuitive reader interface, Story Engine streamlines the process of writing, refining, and sharing interactive stories.
+
+👉 Start creating now: Live Demo
 
 ## Story Engine Documentation
 
@@ -299,21 +301,11 @@ The application uses Zustand for state management with several slices:
    // 4. Process and return results
    ```
 
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/734d2606-1eaf-497a-83c1-099a3175b9d0) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
+## TO CLONE THE REPOSITORY
 
 **Use your preferred IDE**
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+You can clone this repo and push changes to a "feature" branch ex. "git checkout -b feature/newllmoptions"
 
 Follow these steps:
 
@@ -349,6 +341,7 @@ npm run dev
 
 This project is built with:
 
+- Loveable - Project Scaffolding
 - Vite - Fast build tool and development server
 - TypeScript - Strongly typed JavaScript
 - React - UI component library
@@ -359,12 +352,4 @@ This project is built with:
 - Zustand - Lightweight state management
 - React Router - Client-side routing
 - Monaco Editor - Code editing component for JSON view
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/734d2606-1eaf-497a-83c1-099a3175b9d0) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
 
