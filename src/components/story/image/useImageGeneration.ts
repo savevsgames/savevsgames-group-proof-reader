@@ -161,9 +161,17 @@ export const useImageGeneration = ({
     requestInProgress.current = true;
     
     try {
+      console.log('Attempting to generate image with params:', { 
+        storyId, 
+        nodeId: currentNode, 
+        pageNumber: currentPage, 
+        prompt: imagePrompt 
+      });
+      
       const newImageData = await generateNewImage(storyId, currentNode, currentPage, imagePrompt);
       
       if (newImageData) {
+        console.log('Image generation successful, received data:', newImageData);
         setImageData(newImageData);
         
         // Show toast if not already generating
@@ -175,27 +183,37 @@ export const useImageGeneration = ({
           });
         }
       } else {
-        throw new Error("Failed to generate image data");
+        throw new Error("Failed to generate image data - received null response");
       }
     } catch (error: any) {
       console.error('Error in generateImage:', error);
+      const errorDetails = error.message || "Unknown error";
+      console.log('Full error details:', error);
+      
+      // Extract more details from the error if possible
+      let errorMessage = "Image generation failed";
+      if (error.message.includes('Edge Function')) {
+        errorMessage = "The image generation service is currently unavailable. Please try again later.";
+      } else if (typeof error === 'object' && error.details) {
+        errorMessage = error.details;
+      }
       
       toast({
         title: "Image generation failed",
-        description: error.message || "Something went wrong",
+        description: errorMessage,
         variant: "destructive"
       });
       
-      // Update local state to reflect error
+      // Update local state to reflect error with detailed message
       setImageData(prev => prev ? {
         ...prev,
         status: 'error',
-        error_message: error.message || "Unknown error"
+        error_message: errorDetails
       } : {
         id: 'temp-error-id',
         image_url: '',
         status: 'error',
-        error_message: error.message || "Unknown error"
+        error_message: errorDetails
       });
     } finally {
       setLoading(false);

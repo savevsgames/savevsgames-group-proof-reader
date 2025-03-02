@@ -21,7 +21,11 @@ export const StoryImage: React.FC<StoryImageProps> = memo(({
   text 
 }) => {
   // Extract image prompt from text - memoized to prevent recalculation
-  const imagePrompt = useMemo(() => extractImagePrompt(text), [text]);
+  const imagePrompt = useMemo(() => {
+    const prompt = extractImagePrompt(text);
+    console.log('Extracted image prompt:', prompt ? `"${prompt}"` : 'none');
+    return prompt;
+  }, [text]);
   
   // Use custom hook for image generation logic
   const { loading, imageData, generateImage } = useImageGeneration({
@@ -33,6 +37,15 @@ export const StoryImage: React.FC<StoryImageProps> = memo(({
 
   // If there's no image prompt in the text, don't render anything
   if (!imagePrompt) return null;
+
+  // Log image state for debugging
+  console.log('StoryImage current state:', { 
+    storyId, 
+    currentNode, 
+    currentPage, 
+    promptLength: imagePrompt.length,
+    imageState: imageData?.status || 'no data'
+  });
 
   return (
     <div className="my-6 w-full flex flex-col items-center">

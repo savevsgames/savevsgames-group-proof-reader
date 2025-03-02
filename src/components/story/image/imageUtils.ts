@@ -25,20 +25,29 @@ export const extractImagePrompt = (text: string): string | null => {
 // Fetch existing image data from Supabase
 export const fetchImageData = async (storyId: string, nodeId: string): Promise<ImageData | null> => {
   try {
+    console.log('Fetching image data for:', { storyId, nodeId });
+    
     const { data, error } = await supabase
       .from('story_images')
       .select('*')
       .eq('book_id', storyId)
       .eq('story_node', nodeId)
-      .single();
+      .maybeSingle();
     
     if (error && error.code !== 'PGRST116') {
+      console.error('Error fetching image data:', error);
       throw error;
+    }
+    
+    if (data) {
+      console.log('Found image data:', data);
+    } else {
+      console.log('No image data found for story node');
     }
     
     return data;
   } catch (error) {
-    console.error('Error fetching image:', error);
+    console.error('Exception fetching image:', error);
     return null;
   }
 };
@@ -74,7 +83,16 @@ export const generateNewImage = async (
     // Check for error status
     if (response.error) {
       console.error('Error from image generation service:', response.error);
-      throw new Error(response.error.message || 'Error from image generation service');
+      // Extract more detailed error information if available
+      const errorMessage = response.error.message || 'Error from image generation service';
+      const errorDetails = response.error.details || errorMessage;
+      
+      throw {
+        message: errorMessage,
+        details: errorDetails,
+        statusCode: response.error.statusCode || 500,
+        originalError: response.error
+      };
     }
     
     // Check if data exists
