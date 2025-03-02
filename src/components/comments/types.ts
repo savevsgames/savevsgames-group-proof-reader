@@ -1,6 +1,7 @@
 
 // Import from our centralized types
 import { User, Comment, CommentType } from '@/types';
+import { Profile } from '@/lib/supabase';
 
 // Re-export the types for backward compatibility
 export type { Comment, CommentType };
@@ -29,16 +30,26 @@ export interface CommentsListProps {
   comments: Comment[];
   isLoading: boolean;
   currentUser: User | null;
-  isModerator: boolean;
-  onEditComment: (comment: Comment) => void;
-  onDeleteComment?: (commentId: string) => void;
-  onAddToLlmContext?: (commentType: string, commentText: string, username: string) => void;
+  isModerator?: boolean;
+  onUpdate: (commentId: string, text: string, commentType: string) => void;
+  onDelete?: (commentId: string) => void;
+  onAddToContext?: (commentType: string, commentText: string, username: string) => void;
 }
 
 // Props for CommentForm component
 export interface CommentFormProps {
+  user: User | null;
+  userProfile?: Profile | null;
   storyId: string;
   currentNode: string;
   currentPage: number;
-  onCommentAdded: (newComment: Comment) => void;
+  isEditing: boolean;
+  editingCommentId: string | null;
+  commentText: string;
+  commentType: CommentType;
+  onCommentTextChange: (text: string) => void;
+  onCommentTypeChange: (type: CommentType) => void;
+  onCancelEdit: () => void;
+  onCommentsUpdate?: (count: number) => void;
+  comments: Comment[];
 }

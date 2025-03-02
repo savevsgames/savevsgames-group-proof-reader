@@ -4,13 +4,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Send } from 'lucide-react';
 import CommentTypeSelector from "@/components/comments/CommentTypeSelector";
-import { CommentType } from '@/lib/commentTypes';
+import { CommentType } from '@/types';
 import { User } from '@supabase/supabase-js';
-import { Comment } from '@/types/features/comments.types';
+import { Profile } from '@/lib/supabase';
+import { Comment } from '@/types';
 import { useStoryStore } from '@/stores/storyState';
+import { useToast } from '@/hooks/use-toast';
 
 interface CommentFormProps {
   user: User | null;
+  userProfile?: Profile | null;
   storyId: string;
   currentNode: string;
   currentPage: number;
@@ -21,12 +24,13 @@ interface CommentFormProps {
   onCommentTextChange: (text: string) => void;
   onCommentTypeChange: (type: CommentType) => void;
   onCancelEdit: () => void;
-  onCommentsUpdate: (count: number) => void; // Keeping for backward compatibility
+  onCommentsUpdate?: (count: number) => void; // Keeping for backward compatibility
   comments: Comment[];
 }
 
 const CommentForm = ({
   user,
+  userProfile,
   storyId,
   currentNode,
   currentPage,
@@ -40,27 +44,50 @@ const CommentForm = ({
   onCommentsUpdate,
   comments,
 }: CommentFormProps) => {
-  // Get store actions
-  const { addComment, updateComment } = useStoryStore(state => ({
-    addComment: state.addComment,
-    updateComment: state.updateComment
-  }));
+  // Get store actions with object destructuring to avoid re-renders
+  const addComment = useStoryStore(state => state.addComment);
+  const updateComment = useStoryStore(state => state.updateComment);
+  const { toast } = useToast();
   
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     
     if (!user) {
       console.error("User not logged in.");
+      toast({
+        title: "Error",
+        description: "You must be logged in to comment.",
+        variant: "destructive",
+      });
       return;
     }
     
-    if (isEditing && editingCommentId) {
-      await updateComment(editingCommentId, storyId, currentPage, commentText, commentType);
-      onCommentTextChange('');
-      onCancelEdit();
-    } else {
-      await addComment(storyId, currentPage, commentText, commentType, user.id, currentNode);
-      onCommentTextChange('');
+    try {
+      if (isEditing && editingCommentId) {
+        await updateComment(editingCommentId, storyId, currentPage, commentText, commentType);
+        onCommentTextChange('');
+        onCancelEdit();
+        
+        toast({
+          title: "Comment Updated",
+          description: "Your comment has been updated successfully.",
+        });
+      } else {
+        await addComment(storyId, currentPage, commentText, commentType, user.id, currentNode);
+        onCommentTextChange('');
+        
+        toast({
+          title: "Comment Posted",
+          description: "Your comment has been posted successfully.",
+        });
+      }
+    } catch (error) {
+      console.error("Error submitting comment:", error);
+      toast({
+        title: "Error",
+        description: "There was an error submitting your comment. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 

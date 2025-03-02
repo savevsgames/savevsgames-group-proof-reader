@@ -28,20 +28,21 @@ const CommentsView: React.FC<CommentsViewProps> = ({
   const [commentType, setCommentType] = useState<CommentType>('general');
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   
-  // Get comments from store using individual selectors to prevent re-render loops
+  // Access store state selectively to prevent re-render loops
   const comments = useStoryStore(state => state.comments);
   const commentCount = useStoryStore(state => state.commentCount);
   const isLoading = useStoryStore(state => state.commentsLoading);
   
+  // Access store actions
   const fetchComments = useStoryStore(state => state.fetchComments);
-  const updateComment = useStoryStore(state => state.updateComment);
   const deleteComment = useStoryStore(state => state.deleteComment);
   
+  // Only fetch comments when the page changes or component mounts
   useEffect(() => {
     if (storyId && currentPage) {
       fetchComments(storyId, currentPage);
     }
-  }, [fetchComments, storyId, currentPage]);
+  }, [storyId, currentPage]);
   
   const handleCommentTextChange = (text: string) => {
     setCommentText(text);
@@ -54,10 +55,6 @@ const CommentsView: React.FC<CommentsViewProps> = ({
   const handleCancelEdit = () => {
     setEditingCommentId(null);
     setCommentText('');
-  };
-  
-  const handleAddComment = async () => {
-    // This is now handled by the CommentForm component
     setShowAddComment(false);
   };
   
@@ -65,6 +62,7 @@ const CommentsView: React.FC<CommentsViewProps> = ({
     setEditingCommentId(commentId);
     setCommentText(text);
     setCommentType(commentType as CommentType);
+    setShowAddComment(true);
   };
   
   const handleDeleteComment = async (commentId: string) => {
