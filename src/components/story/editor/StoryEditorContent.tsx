@@ -5,6 +5,7 @@ import { Save, LayoutDashboard } from "lucide-react";
 import StoryTabs from "@/components/story/StoryTabs";
 import { CustomStory, StoryEditorContentProps } from "@/types";
 import { Link } from "react-router-dom";
+import { useStoryStore } from "@/stores/storyState";
 
 // Memoize the component to prevent unnecessary re-renders
 const StoryEditorContent: React.FC<StoryEditorContentProps> = memo(({
@@ -21,6 +22,9 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = memo(({
   isPublicEditable = false
 }) => {
   console.log("[StoryEditorContent] Rendering with node:", currentNode);
+  
+  // Get current page from the store
+  const currentPage = useStoryStore(state => state.currentPage);
   
   // Safety check for storyData to prevent errors
   useEffect(() => {
@@ -115,6 +119,7 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = memo(({
           onStoryDataChange={handleStoryDataChange}
           onUnsavedChanges={onUnsavedChanges}
           currentNode={currentNode || 'root'}
+          currentPage={currentPage}
           onNodeChange={onNodeChange}
           isPublicEditable={isPublicEditable}
         />

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
-import { CustomStory } from "@/lib/storyUtils";
+import { CustomStory, NodeMappings } from "@/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,8 @@ interface JsonEditorProps {
   storyData: CustomStory;
   onChange: (data: CustomStory) => void;
   currentNode?: string;
+  currentPage?: number;
+  nodeMappings?: NodeMappings;
   onNodeSelect?: (nodeName: string) => void;
 }
 
@@ -28,6 +30,8 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
   storyData, 
   onChange,
   currentNode = "root",
+  currentPage,
+  nodeMappings,
   onNodeSelect
 }) => {
   const [jsonText, setJsonText] = useState<string>("");
@@ -39,6 +43,7 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
   const highlightOverlayRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
+  // Effect for updating node options when story data changes
   useEffect(() => {
     if (storyData) {
       const nodes = Object.keys(storyData).filter(key => 
@@ -54,6 +59,7 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
     }
   }, [storyData]);
 
+  // Effect for updating text when story data changes
   useEffect(() => {
     if (storyData) {
       try {
@@ -66,12 +72,28 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
     }
   }, [storyData]);
 
+  // Effect for highlighting based on current node
   useEffect(() => {
     if (currentNode && currentNode !== selectedNode) {
       setSelectedNode(currentNode);
       highlightCurrentNode(currentNode);
     }
   }, [currentNode, jsonText]);
+
+  // New effect for highlighting based on page changes
+  useEffect(() => {
+    if (currentPage && nodeMappings?.pageToNode) {
+      const nodeForPage = nodeMappings.pageToNode[currentPage];
+      if (nodeForPage && nodeForPage !== selectedNode) {
+        console.log(`[JsonEditor] Highlighting node ${nodeForPage} for page ${currentPage}`);
+        setSelectedNode(nodeForPage);
+        highlightCurrentNode(nodeForPage);
+        if (onNodeSelect) {
+          onNodeSelect(nodeForPage);
+        }
+      }
+    }
+  }, [currentPage, nodeMappings, jsonText]);
 
   // Calculate the range of a node in the JSON text
   const findNodeRange = (text: string, nodeName: string): NodeRange | null => {
@@ -359,7 +381,7 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
       <ScrollArea className="h-[500px] border rounded-md bg-gray-50 json-editor-container">
         <div
           ref={highlightOverlayRef}
-          className="json-node-active hidden"
+          className="json-node-active"
         >
           {renderHighlightOverlay()}
         </div>

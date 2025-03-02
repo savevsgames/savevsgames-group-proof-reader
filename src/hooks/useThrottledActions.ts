@@ -13,6 +13,7 @@ interface ThrottledActionOptions {
 
 export const useThrottledActions = () => {
   const lastActionTimestamp = useRef<Record<string, number>>({});
+  const pendingActionRef = useRef<Record<string, boolean>>({});
   
   const throttledAction = useCallback(<T extends (...args: any[]) => any>(
     actionKey: string,
@@ -31,6 +32,12 @@ export const useThrottledActions = () => {
     return async (...args: Parameters<T>): Promise<ReturnType<T> | undefined> => {
       const now = Date.now();
       
+      // Check if we already have a pending action
+      if (pendingActionRef.current[actionKey]) {
+        console.log(`[Throttle] Action "${actionKey}" already in progress, skipping`);
+        return undefined;
+      }
+      
       // Check if we need to throttle
       if (
         lastActionTimestamp.current[actionKey] && 
@@ -42,6 +49,7 @@ export const useThrottledActions = () => {
       
       // Update timestamp immediately to prevent double-clicks
       lastActionTimestamp.current[actionKey] = now;
+      pendingActionRef.current[actionKey] = true;
       
       try {
         // Show loading toast if provided
@@ -73,6 +81,9 @@ export const useThrottledActions = () => {
         }
         
         return undefined;
+      } finally {
+        // Always clear pending status when done
+        pendingActionRef.current[actionKey] = false;
       }
     };
   }, []);

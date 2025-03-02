@@ -22,6 +22,7 @@ interface StoryTabsProps {
   onStoryDataChange: (data: CustomStory) => void;
   onUnsavedChanges: (hasChanges: boolean) => void;
   currentNode?: string;
+  currentPage?: number;
   onNodeChange?: (nodeName: string) => void;
   isPublicEditable?: boolean;
 }
@@ -32,6 +33,7 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
   onStoryDataChange,
   onUnsavedChanges,
   currentNode = "root",
+  currentPage = 1,
   onNodeChange,
   isPublicEditable = false
 }) => {
@@ -84,16 +86,13 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
     setActiveTab(value as TabType);
     
     if (value === 'comments') {
-      const currentPage = currentNode && mappings.nodeToPage ? 
-        (mappings.nodeToPage[currentNode] || 1) : 1;
+      const currentPageNumber = currentPage || (currentNode && mappings.nodeToPage ? 
+        (mappings.nodeToPage[currentNode] || 1) : 1);
       
-      useStoryStore.getState().fetchComments(storyId, currentPage);
+      useStoryStore.getState().fetchComments(storyId, currentPageNumber);
     }
   };
 
-  const currentPage = currentNode && mappings.nodeToPage ? 
-    (mappings.nodeToPage[currentNode] || 1) : 1;
-  
   const totalPages = mappings.pageToNode ? Object.keys(mappings.pageToNode).length : 0;
   
   console.log(`[StoryTabs] Navigation state:`, {
@@ -143,6 +142,8 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
               onUnsavedChanges(true);
             }}
             currentNode={currentNode}
+            currentPage={currentPage}
+            nodeMappings={mappings}
             onNodeSelect={handleNodeSelection}
           />
         </TabsContent>
@@ -181,7 +182,7 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
           <CommentsView 
             storyId={storyId} 
             currentNode={currentNode}
-            currentPage={currentPage}
+            currentPage={currentPage || 1}
             onAddToLlmContext={handleAddToLlmContext}
           />
         </TabsContent>
@@ -196,7 +197,7 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
               onStoryDataChange(data);
               onUnsavedChanges(true);
             }}
-            currentPage={currentPage}
+            currentPage={currentPage || 1}
           />
         </TabsContent>
       </Card>

@@ -26,7 +26,9 @@ const StoryNavigationHandler: React.FC<StoryNavigationHandlerProps> = ({ childre
       console.log("[StoryNavigationHandler] Page change request:", page);
       return storeHandlePageChange(page);
     }, {
-      errorMessage: 'Failed to change page'
+      errorMessage: 'Failed to change page',
+      loadingMessage: `Navigating to page ${page}...`,
+      successMessage: `Navigated to page ${page}`
     })();
   }, [storeHandlePageChange, throttledAction]);
   
@@ -35,7 +37,9 @@ const StoryNavigationHandler: React.FC<StoryNavigationHandlerProps> = ({ childre
       console.log("[StoryNavigationHandler] Node change request:", nodeName);
       return storeHandleNodeChange(nodeName);
     }, {
-      errorMessage: 'Failed to change node'
+      errorMessage: 'Failed to change node',
+      loadingMessage: `Loading node ${nodeName}...`,
+      successMessage: `Node ${nodeName} loaded`
     })();
   }, [storeHandleNodeChange, throttledAction]);
   
@@ -50,7 +54,9 @@ const StoryNavigationHandler: React.FC<StoryNavigationHandlerProps> = ({ childre
       }
       return Promise.resolve();
     }, {
-      errorMessage: 'Navigation failed'
+      errorMessage: 'Navigation failed',
+      loadingMessage: `Navigating ${target}...`,
+      successMessage: `Navigation complete`
     })();
   }, [goBack, handleRestart, throttledAction]);
   
