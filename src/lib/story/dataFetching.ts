@@ -1,5 +1,5 @@
 
-import { supabase } from '../supabase';
+import { supabase, validateImageQualitySettings, DEFAULT_IMAGE_QUALITY_SETTINGS } from '../supabase';
 
 // Fetch comment count for a position - updated to use page number
 export const fetchCommentCount = async (storyId: string, position: number) => {
@@ -62,6 +62,47 @@ export const fetchBookDetails = async (storyId: string) => {
   }
 
   return data;
+};
+
+// Fetch image generation settings from the database
+export const fetchImageGenerationSettings = async (storyId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('book_llm_settings')
+      .select('image_generation_settings')
+      .eq('book_id', storyId)
+      .single();
+      
+    if (error) {
+      console.error('Error fetching image settings:', error);
+      return {
+        base_style: 'High-detail pixel art in a fantasy style',
+        quality_settings: DEFAULT_IMAGE_QUALITY_SETTINGS
+      };
+    }
+    
+    if (!data || !data.image_generation_settings) {
+      return {
+        base_style: 'High-detail pixel art in a fantasy style',
+        quality_settings: DEFAULT_IMAGE_QUALITY_SETTINGS
+      };
+    }
+    
+    // Validate the quality settings from the database
+    const settings = data.image_generation_settings;
+    const validatedSettings = {
+      base_style: settings.base_style || 'High-detail pixel art in a fantasy style',
+      quality_settings: validateImageQualitySettings(settings.quality_settings)
+    };
+    
+    return validatedSettings;
+  } catch (error) {
+    console.error('Error in fetchImageGenerationSettings:', error);
+    return {
+      base_style: 'High-detail pixel art in a fantasy style',
+      quality_settings: DEFAULT_IMAGE_QUALITY_SETTINGS
+    };
+  }
 };
 
 // Fetch story content from URL

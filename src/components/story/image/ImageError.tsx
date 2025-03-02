@@ -37,7 +37,7 @@ export const ImageError: React.FC<ImageErrorProps> = memo(({
     
     // Check for parameter validation errors
     if (imageData.error_message.includes("is not one of") && imageData.error_message.includes("quality")) {
-      return "The image quality setting is invalid. Please contact support to fix this configuration.";
+      return "The image quality setting is invalid. This has been fixed for future attempts. Please try again.";
     }
     
     if (imageData.error_message.includes('OpenAI API error')) {
@@ -54,7 +54,7 @@ export const ImageError: React.FC<ImageErrorProps> = memo(({
         return "The OpenAI API key is missing or invalid. Please check your API configuration.";
       }
       if (imageData.error_message.includes('invalid_request_error')) {
-        return "There was an issue with the image generation parameters. Please try a different prompt.";
+        return "There was an issue with the image generation parameters. The system will attempt to correct these for the next try.";
       }
       return imageData.error_message.replace('OpenAI API error: ', '');
     }

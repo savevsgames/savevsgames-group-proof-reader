@@ -26,3 +26,49 @@ export type AppUser = {
   username?: string;
   avatar_url?: string;
 };
+
+// Define image generation settings types for better type checking
+export type ImageQualityType = 'standard' | 'hd';
+export type ImageStyleType = 'vivid' | 'natural';
+export type ImageSizeType = '1024x1024' | '1024x1792' | '1792x1024';
+
+export type ImageQualitySettings = {
+  quality: ImageQualityType;
+  style: ImageStyleType;
+  size: ImageSizeType;
+};
+
+export type ImageGenerationSettings = {
+  base_style: string;
+  quality_settings: ImageQualitySettings;
+};
+
+// Default image quality settings that match our database defaults
+export const DEFAULT_IMAGE_QUALITY_SETTINGS: ImageQualitySettings = {
+  quality: 'hd',
+  style: 'vivid',
+  size: '1024x1024'
+};
+
+// Helper function to validate and fix image quality settings
+export const validateImageQualitySettings = (settings?: Partial<ImageQualitySettings>): ImageQualitySettings => {
+  if (!settings) return DEFAULT_IMAGE_QUALITY_SETTINGS;
+  
+  const validQuality = ['standard', 'hd'].includes(settings.quality || '') 
+    ? settings.quality as ImageQualityType
+    : DEFAULT_IMAGE_QUALITY_SETTINGS.quality;
+    
+  const validStyle = ['vivid', 'natural'].includes(settings.style || '')
+    ? settings.style as ImageStyleType
+    : DEFAULT_IMAGE_QUALITY_SETTINGS.style;
+    
+  const validSize = ['1024x1024', '1024x1792', '1792x1024'].includes(settings.size || '')
+    ? settings.size as ImageSizeType
+    : DEFAULT_IMAGE_QUALITY_SETTINGS.size;
+    
+  return {
+    quality: validQuality,
+    style: validStyle,
+    size: validSize
+  };
+};
