@@ -14,6 +14,41 @@ const corsHeaders = {
 // Create Supabase client
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+// Validate OpenAI image generation parameters
+function validateAndFixImageSettings(settings) {
+  const fixedSettings = { ...settings };
+  
+  // Valid quality values for DALL-E 3 are 'standard' or 'hd'
+  if (fixedSettings.quality_settings?.quality === 'high') {
+    console.log('Converting invalid quality value "high" to "hd"');
+    fixedSettings.quality_settings.quality = 'hd';
+  }
+  
+  // Ensure quality is one of the valid values
+  if (fixedSettings.quality_settings?.quality && 
+      !['standard', 'hd'].includes(fixedSettings.quality_settings.quality)) {
+    console.log(`Invalid quality value "${fixedSettings.quality_settings.quality}", defaulting to "standard"`);
+    fixedSettings.quality_settings.quality = 'standard';
+  }
+  
+  // Valid style values are 'vivid' or 'natural'
+  if (fixedSettings.quality_settings?.style && 
+      !['vivid', 'natural'].includes(fixedSettings.quality_settings.style)) {
+    console.log(`Invalid style value "${fixedSettings.quality_settings.style}", defaulting to "vivid"`);
+    fixedSettings.quality_settings.style = 'vivid';
+  }
+  
+  // Valid size values are '1024x1024', '1792x1024', or '1024x1792'
+  const validSizes = ['1024x1024', '1792x1024', '1024x1792'];
+  if (fixedSettings.quality_settings?.size && 
+      !validSizes.includes(fixedSettings.quality_settings.size)) {
+    console.log(`Invalid size value "${fixedSettings.quality_settings.size}", defaulting to "1024x1024"`);
+    fixedSettings.quality_settings.size = '1024x1024';
+  }
+  
+  return fixedSettings;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -100,7 +135,7 @@ serve(async (req) => {
     }
 
     // Default settings if none found
-    const imageSettings = settings?.image_generation_settings || {
+    let imageSettings = settings?.image_generation_settings || {
       base_style: "High-detail pixel art in a fantasy style, rendered as if an oil painting was converted to pixel art. Each pixel should be distinct and carefully placed, maintaining the richness of oil painting textures while achieving a retro-pixel aesthetic.",
       quality_settings: {
         size: "1024x1024",
@@ -108,6 +143,9 @@ serve(async (req) => {
         style: "vivid"
       }
     };
+    
+    // Validate and fix any invalid parameters
+    imageSettings = validateAndFixImageSettings(imageSettings);
 
     // Create enhanced prompt with style guidelines
     const enhancedPrompt = `Style: ${imageSettings.base_style}
@@ -116,7 +154,7 @@ Additional details: Maintain consistent pixel density and color palette. Ensure 
 
     console.log('Enhanced prompt created:', enhancedPrompt.substring(0, 100) + '...');
 
-    // Define quality settings
+    // Define quality settings with validation
     const imageSize = imageSettings.quality_settings?.size || "1024x1024";
     const imageQuality = imageSettings.quality_settings?.quality || "standard";
     const imageStyle = imageSettings.quality_settings?.style || "vivid";
@@ -200,7 +238,7 @@ Additional details: Maintain consistent pixel density and color palette. Ensure 
         .from('story_images')
         .update({
           status: 'error',
-          error_message: `OpenAI API error: Status ${openAIResponse.status} - ${errorText}`,
+          error_message: `OpenAI API Error (${openAIResponse.status}): ${errorText}`,
           updated_at: new Date().toISOString()
         })
         .eq('id', imageData.id);
