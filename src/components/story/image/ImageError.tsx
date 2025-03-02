@@ -36,11 +36,11 @@ export const ImageError: React.FC<ImageErrorProps> = memo(({
     }
     
     if (imageData.error_message.includes('OpenAI API error')) {
-      if (imageData.error_message.includes('quota')) {
-        return "OpenAI API quota exceeded. Please try again later or contact support.";
+      if (imageData.error_message.includes('quota') || imageData.error_message.includes('billing')) {
+        return "OpenAI API quota exceeded or billing issue. Please check your OpenAI account.";
       }
-      if (imageData.error_message.includes('content policy')) {
-        return "The image prompt violates content policy. Please try a different, more appropriate prompt.";
+      if (imageData.error_message.includes('content policy') || imageData.error_message.includes('safety system')) {
+        return "The image prompt violates OpenAI's content policy. Please try a different, more appropriate prompt.";
       }
       if (imageData.error_message.includes('rate limit')) {
         return "Rate limit exceeded. Please wait a minute and try again.";
@@ -49,6 +49,14 @@ export const ImageError: React.FC<ImageErrorProps> = memo(({
         return "The OpenAI API key is missing or invalid. Please check your API configuration.";
       }
       return imageData.error_message.replace('OpenAI API error: ', '');
+    }
+    
+    if (imageData.error_message.includes('status 4')) {
+      return "The OpenAI API couldn't process this request. Please try a different prompt.";
+    }
+    
+    if (imageData.error_message.includes('status 5')) {
+      return "The OpenAI service is currently experiencing issues. Please try again later.";
     }
     
     if (imageData.error_message.includes('attempt_count')) {
@@ -65,6 +73,22 @@ export const ImageError: React.FC<ImageErrorProps> = memo(({
     
     // Show the specific error message if available
     return imageData.error_message;
+  };
+
+  const getTechnicalDetails = () => {
+    if (imageData.error_message) {
+      return (
+        <details className="mt-2">
+          <summary className="text-xs text-gray-500 cursor-pointer">
+            Technical details
+          </summary>
+          <pre className="mt-1 p-2 bg-gray-100 rounded text-xs overflow-auto max-h-32 whitespace-pre-wrap">
+            {imageData.error_message}
+          </pre>
+        </details>
+      );
+    }
+    return null;
   };
 
   // Show enhanced prompt if available
@@ -98,6 +122,8 @@ export const ImageError: React.FC<ImageErrorProps> = memo(({
           <p className="text-xs text-gray-400 mt-4">
             If the issue persists, try a different, simpler image description.
           </p>
+          
+          {getTechnicalDetails()}
         </div>
       </div>
     </div>
