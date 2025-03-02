@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Menu, User, LogOut, LogIn, Upload, ChevronLeft } from 'lucide-react';
-import { uploadAvatar, getUserProfile } from '@/lib/authUtils';
+import { Menu, LogOut, LogIn, Upload, ChevronLeft } from 'lucide-react';
+import { uploadAvatar } from '@/lib/authUtils';
 import { toast } from '@/hooks/use-toast';
 
 interface HeaderProps {
@@ -18,28 +18,13 @@ const Header: React.FC<HeaderProps> = ({
   backTo = '/dashboard',
   backLabel = 'Back to Library'
 }) => {
-  const { user, isGuest, signOut } = useAuth();
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const { user, profile, isGuest, signOut } = useAuth();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   
   const isStoryPage = location.pathname.includes('/story/');
   
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (user && !isGuest) {
-        const { profile, error } = await getUserProfile(user.id);
-        if (!error && profile && profile.avatar_url) {
-          console.log('[Header] Fetched avatar URL:', profile.avatar_url);
-          setAvatarUrl(profile.avatar_url);
-        }
-      }
-    };
-    
-    fetchUserProfile();
-  }, [user, isGuest]);
-
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
@@ -60,7 +45,6 @@ const Header: React.FC<HeaderProps> = ({
       return;
     }
     
-    setAvatarUrl(publicUrl);
     toast({
       title: "Avatar updated",
       description: "Your profile picture has been updated successfully.",
@@ -75,6 +59,8 @@ const Header: React.FC<HeaderProps> = ({
     await signOut();
     navigate('/');
   };
+
+  const displayName = profile?.username || (user?.email ? user.email.split('@')[0] : 'User');
 
   return (
     <header className={`bg-[#3A2618] text-[#E8DCC4] py-4 px-6 shadow-md ${isStoryPage ? '' : 'mb-4'}`}>
@@ -102,14 +88,14 @@ const Header: React.FC<HeaderProps> = ({
             <>
               <div className="flex items-center gap-3">
                 <div className="text-sm">
-                  {isGuest ? 'Guest User' : user.username || user.email}
+                  {isGuest ? 'Guest User' : displayName}
                 </div>
                 
                 {!isGuest && (
                   <div className="relative cursor-pointer group" onClick={handleAvatarClick}>
                     <Avatar className="h-10 w-10 border-2 border-[#F97316] group-hover:border-white transition-colors">
-                      {avatarUrl ? (
-                        <AvatarImage src={avatarUrl} alt="User avatar" />
+                      {profile?.avatar_url ? (
+                        <AvatarImage src={profile.avatar_url} alt="User avatar" />
                       ) : (
                         <AvatarFallback className="bg-[#F97316] text-[#E8DCC4]">
                           <Upload className="h-4 w-4" />
@@ -171,8 +157,8 @@ const Header: React.FC<HeaderProps> = ({
                 {!isGuest && (
                   <div className="relative cursor-pointer" onClick={handleAvatarClick}>
                     <Avatar className="h-10 w-10 border-2 border-[#F97316]">
-                      {avatarUrl ? (
-                        <AvatarImage src={avatarUrl} alt="User avatar" />
+                      {profile?.avatar_url ? (
+                        <AvatarImage src={profile.avatar_url} alt="User avatar" />
                       ) : (
                         <AvatarFallback className="bg-[#F97316] text-[#E8DCC4]">
                           <Upload className="h-4 w-4" />
@@ -189,7 +175,7 @@ const Header: React.FC<HeaderProps> = ({
                   </div>
                 )}
                 <div>
-                  <div className="font-medium">{isGuest ? 'Guest User' : user.username || user.email}</div>
+                  <div className="font-medium">{isGuest ? 'Guest User' : displayName}</div>
                   {!isGuest && (
                     <div className="text-xs text-[#E8DCC4]/70">Tap avatar to upload photo</div>
                   )}

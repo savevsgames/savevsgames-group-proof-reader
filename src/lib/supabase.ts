@@ -8,6 +8,17 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIU
 // Create the Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// Define Profile type based on the database schema
+export type Profile = {
+  id: string;
+  username?: string;
+  created_at?: string;
+  email?: string;
+  first_name?: string;
+  avatar_url?: string;
+  updated_at?: string;
+};
+
 // AppUser type for our simplified user representation
 export type AppUser = {
   id: string;

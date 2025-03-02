@@ -1,12 +1,13 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, Profile } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
-import { signIn as authSignIn, signUp as authSignUp, signOut as authSignOut } from '@/lib/authUtils';
+import { signIn as authSignIn, signUp as authSignUp, signOut as authSignOut, getUserProfile } from '@/lib/authUtils';
 
 interface AuthContextType {
   user: User | null;
+  profile: Profile | null;
   isLoading: boolean;
   isGuest: boolean; 
   signIn: (email: string, password: string) => Promise<{ error: any }>;
@@ -19,9 +20,31 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
   const { toast } = useToast();
+
+  // Fetch user profile whenever the user changes
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (user && !isGuest) {
+        console.log('[AuthContext] Fetching user profile for', user.id);
+        const { profile: userProfile, error } = await getUserProfile(user.id);
+        
+        if (error) {
+          console.error('[AuthContext] Error fetching profile:', error);
+        } else if (userProfile) {
+          console.log('[AuthContext] Profile fetched successfully:', userProfile);
+          setProfile(userProfile);
+        }
+      } else {
+        setProfile(null);
+      }
+    };
+    
+    fetchProfile();
+  }, [user, isGuest]);
 
   useEffect(() => {
     const getInitialSession = async () => {
@@ -31,7 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (session?.user) {
           console.log('[AuthContext] Found existing session', session.user);
-          setUser(session.user as User);
+          setUser(session.user);
           setIsGuest(false);
         }
       } catch (error) {
@@ -48,10 +71,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       async (_event, session) => {
         console.log('[AuthContext] Auth state changed', { event: _event, user: session?.user });
         if (session?.user) {
-          setUser(session.user as User);
+          setUser(session.user);
           setIsGuest(false);
         } else {
           setUser(null);
+          setProfile(null);
         }
         setIsLoading(false);
       }
@@ -75,7 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       if (data?.user) {
-        setUser(data.user as User);
+        setUser(data.user);
         setIsGuest(false);
         toast({
           title: "Signed in successfully",
@@ -119,6 +143,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await authSignOut();
       setUser(null);
+      setProfile(null);
       setIsGuest(false);
       toast({
         title: "Signed out",
@@ -137,6 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const continueAsGuest = () => {
     console.log('[AuthContext] Continuing as guest');
     setUser(null);
+    setProfile(null);
     setIsGuest(true);
     toast({
       title: "Guest mode",
@@ -148,6 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider
       value={{
         user,
+        profile,
         isLoading,
         isGuest,
         signIn,

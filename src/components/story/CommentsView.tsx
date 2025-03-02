@@ -5,7 +5,6 @@ import { CommentsList } from "./CommentsList";
 import CommentForm from "./comments/CommentForm";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
-import { User } from "@supabase/supabase-js";
 import { useStoryStore } from "@/stores/storyState";
 import { CommentType } from "@/types";
 
@@ -23,7 +22,7 @@ const CommentsView: React.FC<CommentsViewProps> = ({
   onAddToLlmContext
 }) => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [showAddComment, setShowAddComment] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [commentType, setCommentType] = useState<CommentType>('general');
@@ -106,6 +105,7 @@ const CommentsView: React.FC<CommentsViewProps> = ({
       {showAddComment && (
         <CommentForm
           user={user}
+          userProfile={profile}
           storyId={storyId}
           currentNode={currentNode || ''}
           currentPage={currentPage}

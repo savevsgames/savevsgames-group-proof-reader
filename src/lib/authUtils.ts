@@ -1,4 +1,5 @@
-import { supabase } from './supabase';
+
+import { supabase, Profile } from './supabase';
 import { toast } from '@/hooks/use-toast';
 import { User } from '@supabase/supabase-js';
 
@@ -11,7 +12,7 @@ export const getCurrentUser = async (): Promise<User | null> => {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     logAuth('Get current user', session?.user || null);
-    return session?.user as User || null;
+    return session?.user || null;
   } catch (error) {
     logAuth('Error getting current user', error);
     return null;
@@ -133,7 +134,7 @@ export const uploadAvatar = async (file: File, userId: string) => {
   }
 };
 
-export const getUserProfile = async (userId: string) => {
+export const getUserProfile = async (userId: string): Promise<{ profile: Profile | null, error: any }> => {
   logAuth('Get user profile attempt', { userId });
   try {
     const { data, error } = await supabase
@@ -144,13 +145,13 @@ export const getUserProfile = async (userId: string) => {
       
     if (error) {
       logAuth('Get user profile error', error);
-      return { error };
+      return { profile: null, error };
     }
     
     logAuth('Get user profile successful', data);
-    return { profile: data, error: null };
+    return { profile: data as Profile, error: null };
   } catch (error) {
     logAuth('Exception during get user profile', error);
-    return { error };
+    return { profile: null, error };
   }
 };
