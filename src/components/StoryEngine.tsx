@@ -81,6 +81,12 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
       actions.fetchComments(storyId, contentState.currentStoryPosition);
     }
   }, [storyId, contentState.currentStoryPosition, actions.fetchComments]);
+  
+  // Handle adding comment to LLM context
+  const handleAddToLlmContext = useCallback((commentType: string, commentText: string, username: string) => {
+    console.log(`Adding comment to LLM context: ${commentType}`, { text: commentText, username });
+    // Implementation can be added when needed
+  }, []);
 
   // Show loading state
   if (uiState.loading) {
@@ -124,6 +130,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = ({ storyId }) => {
         onRestart={actions.handleRestart}
         onOpenComments={() => setIsCommentModalOpen(true)}
         onPageChange={actions.handlePageChange}
+        onAddToLlmContext={handleAddToLlmContext}
       />
 
       <CommentModal

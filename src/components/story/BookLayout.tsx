@@ -27,6 +27,7 @@ interface BookLayoutProps {
   onRestart: () => void;
   onOpenComments: () => void;
   onPageChange: (pageNumber: number) => void;
+  onAddToLlmContext?: (commentType: string, commentText: string, username: string) => void;
 }
 
 export const BookLayout: React.FC<BookLayoutProps> = ({
@@ -48,7 +49,8 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
   onBack,
   onRestart,
   onOpenComments,
-  onPageChange
+  onPageChange,
+  onAddToLlmContext
 }) => {
   // Ensure we have valid values for required props
   const validatedCurrentPage = typeof currentPage === 'number' ? currentPage : 1;
@@ -101,11 +103,7 @@ export const BookLayout: React.FC<BookLayoutProps> = ({
               storyId={storyId}
               currentNode={validatedCurrentNode}
               currentPage={validatedCurrentPage}
-              onAddToLlmContext={(commentType, commentText, username) => {
-                if (onAddToLlmContext) {
-                  onAddToLlmContext(commentType, commentText, username);
-                }
-              }}
+              onAddToLlmContext={onAddToLlmContext}
             />
           </div>
         </div>
