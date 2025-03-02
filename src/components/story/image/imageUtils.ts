@@ -26,7 +26,7 @@ export const extractImagePrompt = (text: string): string | null => {
 // Fetch existing image data from Supabase
 export const fetchImageData = async (storyId: string, nodeId: string): Promise<ImageData | null> => {
   try {
-    console.log('Fetching image data for:', { storyId, nodeId });
+    // console.log('Fetching image data for:', { storyId, nodeId });
     
     const { data, error } = await supabase
       .from('story_images')
@@ -41,9 +41,9 @@ export const fetchImageData = async (storyId: string, nodeId: string): Promise<I
     }
     
     if (data) {
-      console.log('Found image data:', data);
+      // console.log('Found image data:', data);
     } else {
-      console.log('No image data found for story node');
+      // console.log('No image data found for story node');
     }
     
     return data;
@@ -58,10 +58,11 @@ export const generateNewImage = async (
   storyId: string, 
   nodeId: string, 
   pageNumber: number, 
-  prompt: string
+  prompt: string,
+  forceRegenerate: boolean = false
 ): Promise<ImageData | null> => {
   try {
-    console.log('Calling image generation with params:', { storyId, nodeId, pageNumber, prompt });
+    // console.log('Calling image generation with params:', { storyId, nodeId, pageNumber, prompt, forceRegenerate });
     
     const response = await supabase.functions.invoke('generate-story-image', {
       body: {
@@ -69,6 +70,7 @@ export const generateNewImage = async (
         nodeId,
         pageNumber,
         prompt,
+        forceRegenerate,
       },
     });
     
@@ -79,7 +81,7 @@ export const generateNewImage = async (
     }
     
     // Log the full response for debugging
-    console.log('Image generation raw response:', response);
+    // console.log('Image generation raw response:', response);
     
     // Check for error status
     if (response.error) {

@@ -14,6 +14,11 @@ export const ImageCompleted: React.FC<ImageCompletedProps> = memo(({
   onRegenerate, 
   loading 
 }) => {
+  // Call regenerate with force=true parameter
+  const handleRegenerate = () => {
+    onRegenerate();
+  };
+
   return (
     <div className="w-full max-w-lg">
       <img 
@@ -25,7 +30,7 @@ export const ImageCompleted: React.FC<ImageCompletedProps> = memo(({
         <Button
           variant="outline"
           size="sm"
-          onClick={onRegenerate}
+          onClick={handleRegenerate}
           disabled={loading}
           className="text-xs"
         >

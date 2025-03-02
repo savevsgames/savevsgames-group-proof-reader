@@ -139,7 +139,7 @@ export const useImageGeneration = ({
   }, [shouldFetchImage, storyId, currentNode]);
 
   // Improved image generation function with better error handling and debounce
-  const generateImage = async () => {
+  const generateImage = async (forceRegenerate = false) => {
     if (!imagePrompt) {
       toast({
         title: "No image prompt found",
@@ -151,7 +151,7 @@ export const useImageGeneration = ({
 
     // Prevent multiple simultaneous requests
     if (loading || requestInProgress.current) {
-      console.log('Image generation already in progress, skipping request');
+      // console.log('Image generation already in progress, skipping request');
       return;
     }
 
@@ -161,17 +161,24 @@ export const useImageGeneration = ({
     requestInProgress.current = true;
     
     try {
-      console.log('Attempting to generate image with params:', { 
-        storyId, 
-        nodeId: currentNode, 
-        pageNumber: currentPage, 
-        prompt: imagePrompt 
-      });
+      // console.log('Attempting to generate image with params:', { 
+      //   storyId, 
+      //   nodeId: currentNode, 
+      //   pageNumber: currentPage, 
+      //   prompt: imagePrompt,
+      //   forceRegenerate 
+      // });
       
-      const newImageData = await generateNewImage(storyId, currentNode, currentPage, imagePrompt);
+      const newImageData = await generateNewImage(
+        storyId, 
+        currentNode, 
+        currentPage, 
+        imagePrompt,
+        forceRegenerate
+      );
       
       if (newImageData) {
-        console.log('Image generation successful, received data:', newImageData);
+        // console.log('Image generation successful, received data:', newImageData);
         setImageData(newImageData);
         
         // Show toast if not already generating
@@ -188,7 +195,7 @@ export const useImageGeneration = ({
     } catch (error: any) {
       console.error('Error in generateImage:', error);
       const errorDetails = error.message || "Unknown error";
-      console.log('Full error details:', error);
+      // console.log('Full error details:', error);
       
       // Extract more details from the error if possible
       let errorMessage = "Image generation failed";

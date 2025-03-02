@@ -1,4 +1,3 @@
-
 import { StateCreator } from 'zustand';
 import { StoryStore } from './types';
 import { supabase } from '@/lib/supabase';
@@ -39,7 +38,7 @@ export const createStorySlice: StateCreator<
       store.nodeMappings &&
       Object.keys(store.nodeMappings.nodeToPage || {}).length > 0
     ) {
-      console.log("[StoryStore] Story already initialized with valid data, skipping");
+      // console.log("[StoryStore] Story already initialized with valid data, skipping");
       return;
     }
     
@@ -58,7 +57,7 @@ export const createStorySlice: StateCreator<
     
     try {
       // Fetch story data from Supabase
-      console.log("[StoryStore] Fetching story data from Supabase for ID:", storyId);
+      // console.log("[StoryStore] Fetching story data from Supabase for ID:", storyId);
       const { data, error } = await supabase
         .from("books")
         .select("*")
@@ -71,29 +70,29 @@ export const createStorySlice: StateCreator<
       }
       
       if (data) {
-        console.log("[StoryStore] Story data fetched:", {
-          title: data.title,
-          hasStoryUrl: !!data.story_url,
-          hasStoryContent: !!data.story_content,
-        });
+        // console.log("[StoryStore] Story data fetched:", {
+        //   title: data.title,
+        //   hasStoryUrl: !!data.story_url,
+        //   hasStoryContent: !!data.story_content,
+        // });
         
         // Store the title from the database
         set({ title: data.title || 'Untitled Story' });
         
         // Extract story content
-        console.log("[StoryStore] Extracting story content");
+        // console.log("[StoryStore] Extracting story content");
         const storyContent = await extractStoryContent(data);
         
         if (storyContent) {
-          console.log(`[StoryStore] Valid story content extracted with ${Object.keys(storyContent).length} top-level keys`);
+          // console.log(`[StoryStore] Valid story content extracted with ${Object.keys(storyContent).length} top-level keys`);
           
           // Log comprehensive information about the story structure
-          console.log("[StoryStore] Story structure overview:", {
-            hasStart: !!storyContent.start,
-            hasRoot: !!storyContent.root,
-            isInkFormat: !!storyContent.inkVersion,
-            contentSize: JSON.stringify(storyContent).length,
-          });
+          // console.log("[StoryStore] Story structure overview:", {
+          //   hasStart: !!storyContent.start,
+          //   hasRoot: !!storyContent.root,
+          //   isInkFormat: !!storyContent.inkVersion,
+          //   contentSize: JSON.stringify(storyContent).length,
+          // });
           
           // First, analyze and count only actual story nodes
           const skipKeys = ['inkVersion', 'listDefs', '#f'];
@@ -109,7 +108,7 @@ export const createStorySlice: StateCreator<
             );
           });
           
-          console.log(`[StoryStore] Found ${storyNodeKeys.length} valid story nodes`);
+          // console.log(`[StoryStore] Found ${storyNodeKeys.length} valid story nodes`);
           
           // If we have Ink.js format but no valid story nodes, we need special handling
           const isInkFormat = storyContent.inkVersion && Array.isArray(storyContent.root);
@@ -129,15 +128,15 @@ export const createStorySlice: StateCreator<
             const currentStoryData = get().storyData;
             if (!currentStoryData) return;
             
-            console.log("[StoryStore] Generating node mappings by tracking story flow");
+            // console.log("[StoryStore] Generating node mappings by tracking story flow");
             const { nodeMappings, totalPages } = generateAndLogNodeMappings(currentStoryData);
             
             // Log the results of the mapping operation
-            console.log("[StoryStore] Node mapping results:", {
-              mappedNodes: Object.keys(nodeMappings.nodeToPage).length,
-              mappedPages: Object.keys(nodeMappings.pageToNode).length,
-              generatedTotalPages: totalPages
-            });
+            // console.log("[StoryStore] Node mapping results:", {
+            //   mappedNodes: Object.keys(nodeMappings.nodeToPage).length,
+            //   mappedPages: Object.keys(nodeMappings.pageToNode).length,
+            //   generatedTotalPages: totalPages
+            // });
             
             // Set mappings and page count in a single update to avoid multiple renders
             set({ 
@@ -147,12 +146,12 @@ export const createStorySlice: StateCreator<
             
             // Initialize story content with the appropriate start node
             const startNode = determineStartNode(currentStoryData);
-            console.log(`[StoryStore] Determined start node: ${startNode}`);
+            // console.log(`[StoryStore] Determined start node: ${startNode}`);
             
             const startNodeData = currentStoryData[startNode];
             
             if (startNodeData && (typeof startNodeData.text === 'string' || startNodeData.text === '')) {
-              console.log("[StoryStore] Setting initial node:", startNode);
+              // console.log("[StoryStore] Setting initial node:", startNode);
               // Batch state updates into a single set call
               set({
                 currentNode: startNode,
@@ -246,11 +245,11 @@ export const createStorySlice: StateCreator<
     
     // Check if the data has actually changed to prevent unnecessary updates
     if (currentState.storyData && shallow(currentState.storyData, data)) {
-      console.log("[StoryStore] Story data unchanged, skipping update");
+      // console.log("[StoryStore] Story data unchanged, skipping update");
       return;
     }
     
-    console.log("[StoryStore] Story data change requested");
+    // console.log("[StoryStore] Story data change requested");
     
     // First, count actual story nodes to validate story structure
     const skipKeys = ['inkVersion', 'listDefs', '#f'];
@@ -266,7 +265,7 @@ export const createStorySlice: StateCreator<
       );
     });
     
-    console.log(`[StoryStore] Found ${storyNodeKeys.length} valid story nodes in updated data`);
+    // console.log(`[StoryStore] Found ${storyNodeKeys.length} valid story nodes in updated data`);
     
     // Update story data and mark as unsaved
     set({ storyData: data, hasUnsavedChanges: true });
@@ -278,16 +277,16 @@ export const createStorySlice: StateCreator<
     setTimeout(() => {
       // Only proceed if this is still the latest request
       if ((get() as any)._lastMappingRequestId !== requestId) {
-        console.log("[StoryStore] Cancelling outdated mapping request");
+        // console.log("[StoryStore] Cancelling outdated mapping request");
         return;
       }
       
       // Update node mappings with story flow tracking
-      console.log("[StoryStore] Regenerating node mappings with story flow tracking");
+      // console.log("[StoryStore] Regenerating node mappings with story flow tracking");
       const { nodeMappings, totalPages } = generateAndLogNodeMappings(data);
       
       // Use flow-based page mapping as the single source of truth
-      console.log(`[StoryStore] Using mapped flow-based page count: ${totalPages}`);
+      // console.log(`[StoryStore] Using mapped flow-based page count: ${totalPages}`);
       
       // Update node mappings and page count
       set({ 

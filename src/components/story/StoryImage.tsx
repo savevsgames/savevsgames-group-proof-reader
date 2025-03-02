@@ -23,7 +23,7 @@ export const StoryImage: React.FC<StoryImageProps> = memo(({
   // Extract image prompt from text - memoized to prevent recalculation
   const imagePrompt = useMemo(() => {
     const prompt = extractImagePrompt(text);
-    console.log('Extracted image prompt:', prompt ? `"${prompt}"` : 'none');
+    // console.log('Extracted image prompt:', prompt ? `"${prompt}"` : 'none');
     return prompt;
   }, [text]);
   
@@ -38,15 +38,20 @@ export const StoryImage: React.FC<StoryImageProps> = memo(({
   // If there's no image prompt in the text, don't render anything
   if (!imagePrompt) return null;
 
+  // Force regeneration when the button is clicked
+  const handleRegenerate = () => {
+    generateImage(true);
+  };
+  
   // Log image state for debugging
-  console.log('StoryImage current state:', { 
-    storyId, 
-    currentNode, 
-    currentPage, 
-    promptLength: imagePrompt.length,
-    imageState: imageData?.status || 'no data',
-    hasEnhancedPrompt: !!imageData?.enhanced_prompt
-  });
+  // console.log('StoryImage current state:', { 
+  //   storyId, 
+  //   currentNode, 
+  //   currentPage, 
+  //   promptLength: imagePrompt.length,
+  //   imageState: imageData?.status || 'no data',
+  //   hasEnhancedPrompt: !!imageData?.enhanced_prompt
+  // });
 
   return (
     <div className="my-6 w-full flex flex-col items-center">
@@ -55,7 +60,7 @@ export const StoryImage: React.FC<StoryImageProps> = memo(({
         {imageData?.status === 'completed' && imageData.image_url ? (
           <ImageCompleted 
             imageUrl={imageData.image_url} 
-            onRegenerate={generateImage}
+            onRegenerate={handleRegenerate}
             loading={loading}
           />
         ) : imageData?.status === 'generating' || imageData?.status === 'uploading' ? (
@@ -64,13 +69,13 @@ export const StoryImage: React.FC<StoryImageProps> = memo(({
           <ImageError 
             imageData={imageData}
             prompt={imagePrompt}
-            onRetry={generateImage}
+            onRetry={handleRegenerate}
             loading={loading}
           />
         ) : (
           <ImagePlaceholder 
             prompt={imagePrompt}
-            onGenerate={generateImage}
+            onGenerate={() => generateImage(false)}
             loading={loading}
           />
         )}
