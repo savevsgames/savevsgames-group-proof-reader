@@ -2,8 +2,7 @@
 import { StateCreator } from 'zustand';
 import { StoryStore } from './types';
 import { supabase } from '@/lib/supabase';
-import { extractStoryContent } from '@/lib/storyEditorUtils';
-import { generateAndLogNodeMappings } from '@/lib/storyEditorUtils';
+import { extractStoryContent, generateAndLogNodeMappings } from '@/lib/storyEditorUtils';
 import { CustomStory } from '@/types';
 import { shallow } from 'zustand/shallow';
 
@@ -86,10 +85,22 @@ export const createStorySlice: StateCreator<
         const storyContent = await extractStoryContent(data);
         
         if (storyContent) {
-          console.log(`[StoryStore] Valid story content extracted with ${Object.keys(storyContent).length} nodes`);
+          console.log(`[StoryStore] Valid story content extracted with ${Object.keys(storyContent).length} top-level keys`);
+          
+          // Log comprehensive information about the story structure
+          console.log("[StoryStore] Story structure overview:", {
+            hasStart: !!storyContent.start,
+            hasRoot: !!storyContent.root,
+            isInkFormat: !!storyContent.inkVersion,
+            contentSize: JSON.stringify(storyContent).length,
+            dbTotalPages: data.total_pages
+          });
           
           // First, analyze and count only actual story nodes
+          const skipKeys = ['inkVersion', 'listDefs', '#f'];
           const storyNodeKeys = Object.keys(storyContent).filter(key => {
+            if (skipKeys.includes(key)) return false;
+            
             const node = storyContent[key];
             return (
               node && 
@@ -101,6 +112,12 @@ export const createStorySlice: StateCreator<
           
           console.log(`[StoryStore] Found ${storyNodeKeys.length} valid story nodes`);
           
+          // If we have Ink.js format but no valid story nodes, we need special handling
+          const isInkFormat = storyContent.inkVersion && Array.isArray(storyContent.root);
+          if (isInkFormat && storyNodeKeys.length === 0) {
+            console.log("[StoryStore] Detected Ink.js format with no custom nodes, needs special handling");
+          }
+          
           // Set story data first - do this separately to avoid circular dependencies
           set({ 
             storyData: storyContent, 
@@ -108,6 +125,7 @@ export const createStorySlice: StateCreator<
           });
           
           // Now generate node mappings with proper story flow tracking
+          // Use setTimeout to avoid blocking the main thread and allow UI updates
           setTimeout(() => {
             const currentStoryData = get().storyData;
             if (!currentStoryData) return;
@@ -115,21 +133,44 @@ export const createStorySlice: StateCreator<
             console.log("[StoryStore] Generating node mappings by tracking story flow");
             const { nodeMappings, totalPages } = generateAndLogNodeMappings(currentStoryData);
             
-            // Use the computed page count from story flow, falling back to DB if needed
-            const computedPages = totalPages > 0 ? totalPages : 0;
-            const dbPages = data.total_pages > 0 ? data.total_pages : 0;
-            const storyNodes = storyNodeKeys.length;
+            // Log the results of the mapping operation
+            console.log("[StoryStore] Node mapping results:", {
+              mappedNodes: Object.keys(nodeMappings.nodeToPage).length,
+              mappedPages: Object.keys(nodeMappings.pageToNode).length,
+              generatedTotalPages: totalPages
+            });
             
-            // Prioritize the flow-based count, then node count, then DB value
-            const finalPageCount = computedPages > 0 
-              ? computedPages 
-              : (storyNodes > 0 ? storyNodes : (dbPages > 0 ? dbPages : 1));
+            // Comprehensive calculation strategy for total pages
+            // 1. Prefer computed page count from node flow mapping
+            // 2. Otherwise use the raw node count
+            // 3. Fallback to database value if available
+            // 4. Last resort: use 1 page as minimum
             
-            console.log("[StoryStore] Setting totalPages:", {
-              flowBasedPages: totalPages,
-              storyNodeCount: storyNodes,
-              dbPages: data.total_pages,
-              finalPageCount
+            const mappedPages = totalPages;
+            const rawNodeCount = storyNodeKeys.length;
+            const dbPageCount = data.total_pages || 0;
+            
+            let finalPageCount = 1; // Default minimum
+            
+            // Decision tree for page count
+            if (mappedPages > 0) {
+              finalPageCount = mappedPages;
+              console.log(`[StoryStore] Using mapped flow-based page count: ${finalPageCount}`);
+            } else if (rawNodeCount > 0) {
+              finalPageCount = rawNodeCount;
+              console.log(`[StoryStore] Using raw node count as page count: ${finalPageCount}`);
+            } else if (dbPageCount > 0) {
+              finalPageCount = dbPageCount;
+              console.log(`[StoryStore] Using database page count: ${finalPageCount}`);
+            } else {
+              console.log(`[StoryStore] Using default minimum page count: ${finalPageCount}`);
+            }
+            
+            console.log("[StoryStore] Final page count decision:", {
+              mappedPages,
+              rawNodeCount,
+              dbPageCount,
+              finalDecision: finalPageCount
             });
             
             // Set mappings and page count in a single update to avoid multiple renders
@@ -138,31 +179,51 @@ export const createStorySlice: StateCreator<
               totalPages: finalPageCount
             });
             
-            // Initialize story content with the start node
-            const startNode = currentStoryData.start ? 'start' : 'root';
+            // Initialize story content with the appropriate start node
+            const startNode = determineStartNode(currentStoryData);
+            console.log(`[StoryStore] Determined start node: ${startNode}`);
+            
             const startNodeData = currentStoryData[startNode];
             
-            if (startNodeData && startNodeData.text) {
+            if (startNodeData && (typeof startNodeData.text === 'string' || startNodeData.text === '')) {
               console.log("[StoryStore] Setting initial node:", startNode);
               // Batch state updates into a single set call
               set({
                 currentNode: startNode,
-                currentText: startNodeData.text,
+                currentText: startNodeData.text || '',
                 currentChoices: startNodeData.choices || [],
                 currentPage: 1,
                 storyHistory: [], 
                 canGoBack: false
               });
             } else {
-              console.log("[StoryStore] No valid start node found, defaulting to 'root'");
-              set({
-                currentNode: 'root',
-                currentText: "Story begins...",
-                currentChoices: [],
-                currentPage: 1,
-                storyHistory: [], 
-                canGoBack: false
-              });
+              console.log("[StoryStore] No valid start node content found, using fallback");
+              
+              // If the start node doesn't have valid content, use the first valid node
+              if (storyNodeKeys.length > 0) {
+                const firstNode = storyNodeKeys[0];
+                const firstNodeData = currentStoryData[firstNode];
+                
+                set({
+                  currentNode: firstNode,
+                  currentText: firstNodeData.text || '',
+                  currentChoices: firstNodeData.choices || [],
+                  currentPage: 1,
+                  storyHistory: [], 
+                  canGoBack: false
+                });
+              } else {
+                // Ultimate fallback - create default content
+                console.log("[StoryStore] No valid nodes found, using default content");
+                set({
+                  currentNode: 'default',
+                  currentText: "Story begins...",
+                  currentChoices: [],
+                  currentPage: 1,
+                  storyHistory: [], 
+                  canGoBack: false
+                });
+              }
             }
             
             // Final state update to set loading to false
@@ -226,7 +287,10 @@ export const createStorySlice: StateCreator<
     console.log("[StoryStore] Story data change requested");
     
     // First, count actual story nodes to validate story structure
+    const skipKeys = ['inkVersion', 'listDefs', '#f'];
     const storyNodeKeys = Object.keys(data).filter(key => {
+      if (skipKeys.includes(key)) return false;
+      
       const node = data[key];
       return (
         node && 
@@ -257,18 +321,26 @@ export const createStorySlice: StateCreator<
       const { nodeMappings, totalPages } = generateAndLogNodeMappings(data);
       
       // Determine final page count based on multiple sources
-      const computedPages = totalPages > 0 ? totalPages : 0;
-      const storyNodes = storyNodeKeys.length;
+      const mappedPages = totalPages;
+      const rawNodeCount = storyNodeKeys.length;
       
-      // Prioritize the flow-based page count, then node count
-      const finalPageCount = computedPages > 0 
-        ? computedPages 
-        : (storyNodes > 0 ? storyNodes : 1);
+      // Decision tree for page count
+      let finalPageCount = 1; // Default minimum
       
-      console.log("[StoryStore] Updated page count:", {
-        flowBasedPages: totalPages,
-        storyNodeCount: storyNodes,
-        finalPageCount
+      if (mappedPages > 0) {
+        finalPageCount = mappedPages;
+        console.log(`[StoryStore] Using mapped flow-based page count: ${finalPageCount}`);
+      } else if (rawNodeCount > 0) {
+        finalPageCount = rawNodeCount;
+        console.log(`[StoryStore] Using raw node count as page count: ${finalPageCount}`);
+      } else {
+        console.log(`[StoryStore] Using default minimum page count: ${finalPageCount}`);
+      }
+      
+      console.log("[StoryStore] Updated page count decision:", {
+        mappedPages,
+        rawNodeCount,
+        finalDecision: finalPageCount
       });
       
       // Update node mappings and page count
@@ -276,6 +348,45 @@ export const createStorySlice: StateCreator<
         nodeMappings, 
         totalPages: finalPageCount 
       });
-    }, 300);
+    }, 300); // Debounce time
   },
 });
+
+// Helper function to determine the story's start node
+function determineStartNode(storyData: any): string {
+  // No data case
+  if (!storyData) return 'root';
+  
+  // Check for explicit start node
+  if (storyData.start && typeof storyData.start === 'object' && 
+      (typeof storyData.start.text === 'string' || storyData.start.text === '')) {
+    return 'start';
+  }
+  
+  // Check for root node
+  if (storyData.root && typeof storyData.root === 'object' && 
+      (typeof storyData.root.text === 'string' || storyData.root.text === '')) {
+    return 'root';
+  }
+  
+  // Ink.js special format case
+  if (storyData.inkVersion && Array.isArray(storyData.root)) {
+    // For Ink.js, we'll use a special fragment naming convention
+    return 'fragment_0';
+  }
+  
+  // Last resort: find first valid content node
+  for (const key of Object.keys(storyData)) {
+    // Skip metadata keys
+    if (['inkVersion', 'listDefs', '#f'].includes(key)) continue;
+    
+    const node = storyData[key];
+    if (node && typeof node === 'object' && !Array.isArray(node) &&
+        (typeof node.text === 'string' || Array.isArray(node.choices))) {
+      return key;
+    }
+  }
+  
+  // Nothing found - fallback to 'root'
+  return 'root';
+}

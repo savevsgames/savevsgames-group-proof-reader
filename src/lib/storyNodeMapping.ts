@@ -16,8 +16,6 @@ export const generateComprehensiveNodeMapping = (storyJson: any): {
   pageToNode: Record<number, string>;
   totalPages: number;
 } => {
-  console.log("[Node Mapping] Beginning story node mapping generation");
-  
   if (!storyJson) {
     console.warn("[Node Mapping] No story data provided");
     return {
@@ -27,22 +25,266 @@ export const generateComprehensiveNodeMapping = (storyJson: any): {
     };
   }
   
+  console.log("[Node Mapping] Analyzing story structure:", {
+    hasRoot: !!storyJson.root,
+    hasStart: !!storyJson.start,
+    topLevelKeys: Object.keys(storyJson).slice(0, 10), // Log first 10 keys to avoid huge logs
+    inkVersion: storyJson.inkVersion,
+    keysCount: Object.keys(storyJson).length
+  });
+  
   // Detect if this is our custom story format with start/root node and nextNode properties
   const isCustomFormat = (
     (storyJson.start && typeof storyJson.start === 'object' && storyJson.start.text) || 
     (storyJson.root && typeof storyJson.root === 'object' && storyJson.root.text)
   );
   
-  console.log("[Node Mapping] Detected format:", isCustomFormat ? "Custom Format" : "Unknown Format");
+  // Detect if this is an ink.js format story (has inkVersion and root array)
+  const isInkFormat = storyJson.inkVersion && Array.isArray(storyJson.root);
+  
+  console.log("[Node Mapping] Format detection:", { 
+    isCustomFormat, 
+    isInkFormat,
+    formatType: isCustomFormat ? "Custom" : (isInkFormat ? "Ink.js" : "Unknown") 
+  });
   
   if (isCustomFormat) {
+    console.log("[Node Mapping] Using custom format mapping strategy");
     return generateMappingFromCustomFormat(storyJson);
+  } else if (isInkFormat) {
+    console.log("[Node Mapping] Using Ink.js format mapping strategy");
+    return generateMappingFromInkFormat(storyJson);
   }
   
   // Fallback for unknown formats - just map all keys
   console.warn("[Node Mapping] Unknown story format, using fallback mapping");
   return generateFallbackMapping(storyJson);
 };
+
+/**
+ * Generate node mappings from Ink.js format stories
+ * These have a different structure than our custom format
+ */
+function generateMappingFromInkFormat(storyJson: any): {
+  nodeToPage: Record<string, number>;
+  pageToNode: Record<number, string>;
+  totalPages: number;
+} {
+  console.log("[Node Mapping] Starting Ink.js format mapping");
+  
+  const nodeToPage: Record<string, number> = {};
+  const pageToNode: Record<number, string> = {};
+  let pageCounter = 1;
+  
+  // Track processed nodes to avoid duplicates
+  const processedNodes = new Set<string>();
+  
+  // First, extract all story fragment nodes from the ink structure
+  const storyFragments = extractInkStoryFragments(storyJson);
+  
+  console.log(`[Node Mapping] Found ${storyFragments.length} story fragments`);
+  if (storyFragments.length > 0) {
+    console.log("[Node Mapping] Sample fragment:", storyFragments[0]);
+  }
+  
+  // Process each fragment as a page
+  storyFragments.forEach((fragment, index) => {
+    const fragmentId = fragment.id || `fragment_${index}`;
+    if (!processedNodes.has(fragmentId)) {
+      nodeToPage[fragmentId] = pageCounter;
+      pageToNode[pageCounter] = fragmentId;
+      processedNodes.add(fragmentId);
+      pageCounter++;
+      
+      if (pageCounter <= 5 || pageCounter % 50 === 0) {
+        console.log(`[Node Mapping] Mapped: Fragment '${fragmentId}' -> Page ${pageCounter-1}`);
+      }
+    }
+  });
+  
+  const totalPages = pageCounter - 1;
+  console.log(`[Node Mapping] Completed Ink.js mapping with ${totalPages} pages`);
+  
+  return {
+    nodeToPage,
+    pageToNode,
+    totalPages
+  };
+}
+
+/**
+ * Extract story fragments from Ink.js format
+ * These are sections of text that represent distinct parts of the story
+ */
+function extractInkStoryFragments(storyJson: any): Array<{id: string, text: string, hasChoices: boolean}> {
+  // Initialize with an empty array
+  const fragments: Array<{id: string, text: string, hasChoices: boolean}> = [];
+  
+  try {
+    // The main story content in Ink.js format is in the root array
+    if (storyJson && Array.isArray(storyJson.root)) {
+      console.log("[Ink Extraction] Processing root array with", storyJson.root.length, "elements");
+      
+      // Process the root array recursively
+      processInkContentArray(storyJson.root, fragments);
+      
+      // Also look for named content containers
+      const namedContent = getNamedContentBlocks(storyJson);
+      for (const [key, content] of Object.entries(namedContent)) {
+        if (Array.isArray(content)) {
+          console.log(`[Ink Extraction] Processing named content "${key}"`);
+          processInkContentArray(content, fragments, key);
+        }
+      }
+    } else {
+      console.warn("[Ink Extraction] No valid root array found in Ink story");
+    }
+  } catch (error) {
+    console.error("[Ink Extraction] Error extracting story fragments:", error);
+  }
+  
+  console.log(`[Ink Extraction] Extracted ${fragments.length} total story fragments`);
+  return fragments;
+}
+
+/**
+ * Get named content blocks from an Ink.js story
+ * These are typically story branches or sections referenced by name
+ */
+function getNamedContentBlocks(storyJson: any): Record<string, any> {
+  const namedContent: Record<string, any> = {};
+  
+  // In Ink.js format, named content is stored directly at the root level
+  // but we skip metadata keys and other special properties
+  const skipKeys = ['inkVersion', 'listDefs', '#f', 'root', 'start'];
+  
+  for (const key of Object.keys(storyJson)) {
+    if (!skipKeys.includes(key) && key.indexOf('.') === -1) {
+      namedContent[key] = storyJson[key];
+    }
+  }
+  
+  console.log(`[Ink Extraction] Found ${Object.keys(namedContent).length} named content blocks`);
+  return namedContent;
+}
+
+/**
+ * Process an Ink content array to extract story fragments
+ * This handles the recursive nature of Ink.js content
+ * Importantly, this avoids processing the same content multiple times
+ */
+function processInkContentArray(
+  contentArray: any[], 
+  fragments: Array<{id: string, text: string, hasChoices: boolean}>,
+  parentId: string = ''
+) {
+  // Safety check
+  if (!Array.isArray(contentArray)) {
+    return;
+  }
+  
+  let currentText = '';
+  let fragmentId = parentId ? `${parentId}_${fragments.length}` : `fragment_${fragments.length}`;
+  let hasChoices = false;
+  
+  // Process array elements sequentially
+  for (let i = 0; i < contentArray.length; i++) {
+    const element = contentArray[i];
+    
+    // Text content (starts with ^)
+    if (typeof element === 'string' && element.startsWith('^')) {
+      const text = element.substring(1).trim();
+      
+      // Handle image descriptions in the text (e.g., "IMAGE: [description]")
+      if (text.includes('IMAGE:')) {
+        // If we already have text, create a fragment
+        if (currentText.trim()) {
+          fragments.push({
+            id: fragmentId,
+            text: currentText.trim(),
+            hasChoices
+          });
+          
+          // Reset for next fragment
+          currentText = '';
+          hasChoices = false;
+          fragmentId = parentId ? `${parentId}_${fragments.length}` : `fragment_${fragments.length}`;
+        }
+        
+        // Create a separate fragment for the image
+        fragments.push({
+          id: `image_${fragments.length}`,
+          text: text,
+          hasChoices: false
+        });
+      } else {
+        // Regular text - append to current fragment
+        currentText += (currentText ? ' ' : '') + text;
+      }
+    }
+    // Choice array (options for the reader)
+    else if (Array.isArray(element) && element.some(item => 
+      typeof item === 'object' && item.hasOwnProperty('^->'))) {
+      hasChoices = true;
+      
+      // Create a fragment with accumulated text and choices
+      if (currentText.trim()) {
+        fragments.push({
+          id: fragmentId,
+          text: currentText.trim(),
+          hasChoices: true
+        });
+        
+        // Reset for next fragment
+        currentText = '';
+        hasChoices = false;
+        fragmentId = parentId ? `${parentId}_${fragments.length}` : `fragment_${fragments.length}`;
+      }
+      
+      // Process child arrays recursively (may contain nested content)
+      const targetPath = element.find(item => 
+        typeof item === 'object' && item.hasOwnProperty('^->'))?.["^->"];
+        
+      if (targetPath) {
+        const childId = `choice_${targetPath.replace(/\./g, '_')}`;
+        processInkContentArray(element, fragments, childId);
+      }
+    }
+    // Object with a path (^->)
+    else if (typeof element === 'object' && element && element["^->"]) {
+      // Handle navigation to another part of the story
+      const targetPath = element["^->"];
+      
+      // If we have accumulated text, create a fragment before we navigate
+      if (currentText.trim()) {
+        fragments.push({
+          id: fragmentId,
+          text: currentText.trim(),
+          hasChoices
+        });
+        
+        // Reset for next fragment
+        currentText = '';
+        hasChoices = false;
+        fragmentId = parentId ? `${parentId}_${fragments.length}` : `fragment_${fragments.length}`;
+      }
+    }
+    // Nested array content
+    else if (Array.isArray(element)) {
+      const nestedId = `${fragmentId}_nested_${i}`;
+      processInkContentArray(element, fragments, nestedId);
+    }
+  }
+  
+  // Add any remaining text as a fragment
+  if (currentText.trim()) {
+    fragments.push({
+      id: fragmentId,
+      text: currentText.trim(),
+      hasChoices
+    });
+  }
+}
 
 /**
  * Generate node mappings by following the story flow through nextNode links
@@ -88,6 +330,13 @@ function generateMappingFromCustomFormat(storyJson: any): {
       continue;
     }
     
+    // Process the current node
+    console.log(`[Node Mapping] Processing node: ${currentNodeName}`, {
+      hasText: typeof nodeData.text === 'string',
+      choicesCount: Array.isArray(nodeData.choices) ? nodeData.choices.length : 0,
+      isEnding: !!nodeData.isEnding
+    });
+    
     // Mark node as processed
     processedNodes.add(currentNodeName);
     
@@ -102,6 +351,7 @@ function generateMappingFromCustomFormat(storyJson: any): {
     if (Array.isArray(nodeData.choices)) {
       nodeData.choices.forEach(choice => {
         if (choice && choice.nextNode && !processedNodes.has(choice.nextNode)) {
+          console.log(`[Node Mapping] Queuing choice next node: ${choice.nextNode}`);
           nodeQueue.push(choice.nextNode);
         }
       });
