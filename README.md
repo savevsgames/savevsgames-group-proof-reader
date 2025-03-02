@@ -104,6 +104,63 @@ Integrated commenting allows readers and editors to:
 - Filter and sort comments by type
 - Use feedback to improve story content
 
+### LLM-Assisted Editing
+
+The platform incorporates AI-powered assistance for story editing through:
+
+#### Supabase Edge Functions for AI Integration
+
+- **Secure API Communication**: Edge functions handle all communication with AI services, keeping API keys secure
+  - The `generate-story-content` function processes all story-related AI requests
+  - Tokenization and proper context management is handled server-side
+  - Multiple AI models are supported through model switching
+
+- **Content Generation Types**:
+  - **JSON Editing**: Directly suggests structural changes to story nodes
+  - **Creative Suggestions**: Provides alternative plot directions and writing improvements
+
+- **Implementation Details**:
+  - Edge functions proxy requests to OpenAI with appropriate credentials
+  - Response formatting and error handling are managed server-side
+  - Usage monitoring and rate limiting prevent excessive costs
+
+#### Context-Aware AI System
+
+- **Story Context Collection**:
+  - Current node text and metadata
+  - Previous and next page content
+  - Story structure and relationships
+  - Navigation history and user reading patterns
+
+- **Community Comments Integration**:
+  - Comments are categorized and processed as context for AI
+  - Editorial suggestions can be directly added to AI context
+  - Comment sentiment and frequency guides AI recommendations
+  - Users can selectively include specific comments in AI prompts
+
+- **Document and Reference Knowledge**:
+  - RAG (Retrieval-Augmented Generation) system pulls relevant information from uploaded documents
+  - Character descriptions, world-building details, and style guides inform AI responses
+  - Document content is embedded for semantic search capabilities
+
+#### User Interface for AI Collaboration
+
+- **AI Settings Management**:
+  - Model selection (gpt-4o, gpt-4o-mini, etc.)
+  - Temperature adjustment for creative vs. precise outputs
+  - System prompt customization for tailored assistance
+
+- **Multi-modal Interaction**:
+  - Text-based story editing suggestions
+  - JSON structural recommendations
+  - Writing style and tone adjustments
+  - Plot consistency verification
+
+- **Feedback Loop**:
+  - Users can accept, modify, or reject AI suggestions
+  - Rating system improves future recommendations
+  - AI learns from editorial decisions over time
+
 ### Editing Page Architecture
 
 The story editing page (`StoryEditPage.tsx`) orchestrates the editing experience with these key components:
@@ -208,6 +265,40 @@ The application uses Zustand for state management with several slices:
 6. User actions trigger navigation or edits
 7. Changes are persisted back to storage
 
+#### Supabase Edge Functions for LLM Integration
+
+1. **Content Generation Pipeline**:
+   - The `generate-story-content` edge function serves as the interface to AI systems
+   - Client preparation of context data through `preparePromptData` function
+   - Full story context, including neighboring nodes, is included in prompts
+   - Comments are formatted and categorized to provide editorial guidance
+
+2. **Data Security and Performance**:
+   - API keys and credentials are stored securely in Supabase environment
+   - Edge functions provide server-side processing to reduce client load
+   - Response caching and optimization for faster subsequent requests
+   - Rate limiting and usage tracking prevent excessive costs
+
+3. **Implementation Details**:
+   ```typescript
+   // Client-side request to edge function
+   const { data, error } = await supabase.functions.invoke('generate-story-content', {
+     body: JSON.stringify({
+       systemPrompt,
+       prompt: fullPrompt,
+       contentType: llmType,
+       model,
+       temperature
+     })
+   });
+   
+   // Edge function processing
+   // 1. Extract parameters
+   // 2. Validate inputs
+   // 3. Call OpenAI API
+   // 4. Process and return results
+   ```
+
 ## How can I edit this code?
 
 There are several ways of editing your application.
@@ -276,3 +367,4 @@ Simply open [Lovable](https://lovable.dev/projects/734d2606-1eaf-497a-83c1-099a3
 ## I want to use a custom domain - is that possible?
 
 We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+

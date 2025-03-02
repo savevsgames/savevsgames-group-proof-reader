@@ -1,110 +1,123 @@
 
-import { serve } from "https://deno.land/std@0.131.0/http/server.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { createClient } from '@supabase/supabase-js';
+import { corsHeaders } from '../_shared/cors.ts';
 
+// Properly typed request body for better documentation and type safety
 interface RequestBody {
   systemPrompt: string;
   prompt: string;
   contentType: "edit_json" | "story_suggestions";
-  model: string;
-  temperature: number;
+  model?: string;
+  temperature?: number;
 }
 
-serve(async (req) => {
+/**
+ * Supabase Edge Function for generating AI-assisted story content
+ * 
+ * This function serves as a secure proxy between the client application and OpenAI,
+ * handling all communication with the AI service while keeping API keys secure.
+ * 
+ * The function:
+ * 1. Receives context data (story context, comments, etc.) from the client
+ * 2. Formats and sends this data to OpenAI with appropriate parameters
+ * 3. Processes and returns the AI-generated content to the client
+ */
+Deno.serve(async (req) => {
   // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Get the OPENAI_API_KEY from environment variables
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const { systemPrompt, prompt, contentType, model, temperature } = await req.json() as RequestBody;
     
-    if (!OPENAI_API_KEY) {
-      throw new Error("OPENAI_API_KEY environment variable is not set");
+    // Log the received request for debugging
+    console.log('Content generation request:', { contentType, model, promptLength: prompt.length });
+
+    // Input validation
+    if (!prompt || !contentType) {
+      throw new Error('Missing required parameters: prompt and contentType are required');
     }
 
-    // Parse request body
-    const requestData: RequestBody = await req.json();
-    const { systemPrompt, prompt, contentType, model, temperature } = requestData;
+    // Get API key from environment
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openAIApiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
 
-    // Prepare final system prompt based on content type
-    const finalSystemPrompt = systemPrompt + (
-      contentType === "edit_json" 
-        ? "\nYou are a JSON editor. Your task is to generate valid JSON for story nodes based on user instructions and context provided."
-        : "\nYou are a creative writing assistant providing suggestions and ideas to improve the story."
-    );
+    // Use appropriate model based on request or fallback to default
+    const modelToUse = model || 'gpt-4o-mini';
+    const tempToUse = temperature !== undefined ? temperature : 0.7;
 
-    // Make OpenAI API request
-    const openAIResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
+    console.log(`Using model: ${modelToUse} with temperature: ${tempToUse}`);
+
+    // Prepare OpenAI request
+    const openAIRequest = {
+      model: modelToUse,
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt || "You are an AI assistant for interactive story editing and analysis."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      temperature: tempToUse,
+      max_tokens: 2048  // Adjust based on expected response length
+    };
+
+    // Call the OpenAI API
+    const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
-        ...corsHeaders
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${openAIApiKey}`
       },
-      body: JSON.stringify({
-        model: model,
-        messages: [
-          {
-            role: "system",
-            content: finalSystemPrompt
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: temperature,
-        max_tokens: 2000,
-      })
+      body: JSON.stringify(openAIRequest)
     });
 
+    // Handle API errors
     if (!openAIResponse.ok) {
-      const errorText = await openAIResponse.text();
-      console.error(`OpenAI API Error (${openAIResponse.status}):`, errorText);
-      
-      return new Response(
-        JSON.stringify({ 
-          error: `OpenAI API Error (${openAIResponse.status}): ${errorText}` 
-        }),
-        { 
-          status: openAIResponse.status, 
-          headers: { 
-            "Content-Type": "application/json",
-            ...corsHeaders
-          } 
-        }
-      );
+      const errorData = await openAIResponse.json();
+      console.error('OpenAI API error:', errorData);
+      throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
     }
 
-    // Parse and return the OpenAI response
+    // Extract and format the response
     const data = await openAIResponse.json();
-    const generatedContent = data.choices[0]?.message?.content || "";
+    const generatedContent = data.choices[0].message.content;
 
+    console.log('Content generated successfully', { 
+      contentType, 
+      contentLength: generatedContent.length,
+      modelUsed: modelToUse
+    });
+
+    // Return the formatted response
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         content: generatedContent,
-        contentType: contentType
+        contentType: contentType,
+        model: modelToUse
       }),
-      { 
-        headers: { 
-          "Content-Type": "application/json",
-          ...corsHeaders
-        } 
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
+    
   } catch (error) {
-    console.error("Error processing request:", error.message);
+    // Proper error handling with detailed logging
+    console.error('Error in generate-story-content function:', error);
     
     return new Response(
-      JSON.stringify({ error: error.message || "An error occurred" }),
-      { 
-        status: 500, 
-        headers: { 
-          "Content-Type": "application/json",
-          ...corsHeaders
-        } 
+      JSON.stringify({
+        error: error.message || 'An error occurred during content generation'
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }
