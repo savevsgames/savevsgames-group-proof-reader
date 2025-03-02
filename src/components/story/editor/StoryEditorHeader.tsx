@@ -1,7 +1,7 @@
 
 import React, { memo, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Save } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface StoryEditorHeaderProps {
@@ -12,6 +12,7 @@ interface StoryEditorHeaderProps {
   isLoading: boolean;
   onPageChange: (page: number) => void;
   onSave?: () => void;
+  isPublicEditable?: boolean;
 }
 
 // Use memo to prevent unnecessary re-renders
@@ -22,7 +23,8 @@ const StoryEditorHeader: React.FC<StoryEditorHeaderProps> = memo(({
   hasUnsavedChanges,
   isLoading,
   onPageChange,
-  onSave
+  onSave,
+  isPublicEditable = false
 }) => {
   // Prevent unnecessary calculations on every render with proper type safety
   const isFirstPage = useMemo(() => {
@@ -119,6 +121,16 @@ const StoryEditorHeader: React.FC<StoryEditorHeaderProps> = memo(({
     <div className="flex items-center justify-between mb-6">
       <div className="flex items-baseline space-x-4">
         <h1 className="text-2xl font-bold text-gray-800">{title || 'Untitled Story'}</h1>
+        
+        {isPublicEditable && (
+          <Badge 
+            variant="outline" 
+            className="bg-green-50 text-green-700 border-green-200 flex items-center"
+          >
+            <ShieldCheck className="h-3 w-3 mr-1" />
+            Community Editable
+          </Badge>
+        )}
         
         {hasUnsavedChanges && !isLoading && (
           <Badge 

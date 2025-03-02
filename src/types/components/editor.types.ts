@@ -21,4 +21,6 @@ export interface StoryEditorContentProps {
   onSave: () => void;
   onNodeChange: (nodeName: string) => void;
   onNavigate: (target: string) => void;
+  isPublicEditable?: boolean;
 }
+

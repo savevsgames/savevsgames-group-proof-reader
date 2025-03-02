@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Book, Edit } from "lucide-react";
+import { Book, Edit, ShieldCheck } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/Header";
 
@@ -19,6 +18,7 @@ interface BookType {
   lastUpdated: Date | string;
   story_url?: string;
   creator_id?: string;
+  is_public_editable?: boolean;
 }
 
 const Dashboard = () => {
@@ -55,6 +55,7 @@ const Dashboard = () => {
               ? new Date(book.updated_at)
               : new Date(),
             creator_id: book.creator_id,
+            is_public_editable: book.is_public_editable || false,
           }));
           setBooks(mappedBooks);
           console.log("Fetched books:", mappedBooks);
@@ -126,6 +127,11 @@ const Dashboard = () => {
   // Function to check if user is the creator of the book
   const isCreator = (book: BookType) => {
     return user && book.creator_id === user.id;
+  };
+
+  // Function to check if user can edit the book (creator OR public editable)
+  const canEdit = (book: BookType) => {
+    return (user && book.creator_id === user.id) || book.is_public_editable === true;
   };
 
   // Function to get the appropriate category color
@@ -207,8 +213,16 @@ const Dashboard = () => {
                       }}
                     />
                     
-                    {/* Edit icon for creator */}
-                    {isCreator(book) && (
+                    {/* Public editable badge */}
+                    {book.is_public_editable && (
+                      <div className="absolute top-2 left-2 bg-green-100 text-green-800 px-2 py-1 rounded-full flex items-center text-xs font-medium">
+                        <ShieldCheck className="h-3 w-3 mr-1" />
+                        Public
+                      </div>
+                    )}
+                    
+                    {/* Edit icon for users who can edit */}
+                    {canEdit(book) && (
                       <div className="absolute top-2 right-2 bg-white bg-opacity-80 p-1 rounded-full">
                         <Edit className="h-4 w-4 text-[#F97316]" />
                       </div>
@@ -273,9 +287,20 @@ const Dashboard = () => {
               </div>
 
               <div className="md:w-2/3 p-6">
-                <h2 className="text-2xl font-serif font-bold text-[#3A2618] mb-2">
-                  {selectedBook.title}
-                </h2>
+                <div className="flex items-center gap-2 mb-2">
+                  <h2 className="text-2xl font-serif font-bold text-[#3A2618]">
+                    {selectedBook.title}
+                  </h2>
+                  
+                  {/* Public editable badge in modal */}
+                  {selectedBook.is_public_editable && (
+                    <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full flex items-center text-xs font-medium">
+                      <ShieldCheck className="h-3 w-3 mr-1" />
+                      Public
+                    </span>
+                  )}
+                </div>
+                
                 {selectedBook.subtitle && (
                   <p className="text-lg text-gray-700 mb-2">
                     {selectedBook.subtitle}
@@ -307,13 +332,16 @@ const Dashboard = () => {
                     Read Story
                   </button>
                   
-                  {/* Edit button - only shown to creators */}
-                  {isCreator(selectedBook) && (
+                  {/* Edit button - shown to creators AND for public books */}
+                  {canEdit(selectedBook) && (
                     <button
                       onClick={handleEditBook}
                       className="w-full bg-white text-[#F97316] border border-[#F97316] py-3 rounded-md font-medium hover:bg-[#F97316]/10 transition-colors duration-200 flex items-center justify-center"
                     >
-                      <Edit className="h-4 w-4 mr-2" /> Edit Story
+                      <Edit className="h-4 w-4 mr-2" /> 
+                      {selectedBook.is_public_editable && !isCreator(selectedBook) 
+                        ? "Edit Community Book" 
+                        : "Edit Story"}
                     </button>
                   )}
                 </div>

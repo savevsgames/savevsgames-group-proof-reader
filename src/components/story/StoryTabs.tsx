@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
@@ -23,6 +22,7 @@ interface StoryTabsProps {
   onUnsavedChanges: (hasChanges: boolean) => void;
   currentNode?: string;
   onNodeChange?: (nodeName: string) => void;
+  isPublicEditable?: boolean;
 }
 
 const StoryTabs: React.FC<StoryTabsProps> = ({
@@ -32,11 +32,11 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
   onUnsavedChanges,
   currentNode = "root",
   onNodeChange,
+  isPublicEditable = false
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>("json");
   const { user } = useAuth();
   
-  // Get comment count from store with proper typing
   const commentCount = useStoryStore(state => state.commentCount);
   
   const [mappings, setMappings] = useState<NodeMappings>({
@@ -82,12 +82,10 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
   const handleTabChange = (value: string) => {
     setActiveTab(value as TabType);
     
-    // When switching to comments tab, make sure we fetch the latest comments
     if (value === 'comments') {
       const currentPage = currentNode && mappings.nodeToPage ? 
         (mappings.nodeToPage[currentNode] || 1) : 1;
       
-      // Fetch comments from store
       useStoryStore.getState().fetchComments(storyId, currentPage);
     }
   };
@@ -231,6 +229,7 @@ const StoryTabs: React.FC<StoryTabsProps> = ({
               onStoryDataChange(data);
               onUnsavedChanges(true);
             }}
+            isPublicEditable={isPublicEditable}
           />
         </TabsContent>
 

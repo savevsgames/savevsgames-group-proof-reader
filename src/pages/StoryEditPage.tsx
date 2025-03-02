@@ -13,6 +13,7 @@ import { selectHasUnsavedChanges, selectLoading, selectSaving,
   selectCurrentNode, selectCurrentPage, selectTotalPages, 
   selectError, selectTitle, selectStoryData } from "@/stores/storyState/selectors";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
 
 const StoryEditPage = () => {
   const { id } = useParams();
@@ -28,6 +29,9 @@ const StoryEditPage = () => {
   const currentNode = useStoryStore(selectCurrentNode);
   const currentPage = useStoryStore(selectCurrentPage);
   const totalPages = useStoryStore(selectTotalPages);
+  
+  // Add state for public editable flag
+  const [isPublicEditable, setIsPublicEditable] = useState(false);
   
   // Add local error state for better error handling
   const [localError, setLocalError] = useState<string | null>(null);
@@ -53,6 +57,35 @@ const StoryEditPage = () => {
   
   // Add a debounce guard for state updates
   const lastUpdateTimestamp = React.useRef(0);
+  
+  // Check if story is publicly editable
+  useEffect(() => {
+    async function checkPublicEditable() {
+      if (!storyId) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('books')
+          .select('is_public_editable')
+          .eq('id', storyId)
+          .single();
+        
+        if (error) {
+          console.error("[StoryEditPage] Error checking public editable status:", error);
+          return;
+        }
+        
+        if (data) {
+          console.log("[StoryEditPage] Book public editable status:", data.is_public_editable);
+          setIsPublicEditable(!!data.is_public_editable);
+        }
+      } catch (err) {
+        console.error("[StoryEditPage] Error fetching public editable status:", err);
+      }
+    }
+    
+    checkPublicEditable();
+  }, [storyId]);
   
   // Initialize story on component mount, with error handling and prevention of multiple initialization
   useEffect(() => {
@@ -265,6 +298,7 @@ const StoryEditPage = () => {
       totalPages, 
       loading, 
       hasUnsavedChanges,
+      isPublicEditable,
       error: displayError
     });
   }
@@ -283,6 +317,7 @@ const StoryEditPage = () => {
           isLoading={loading || saving}
           onPageChange={handlePageChangeWithGuard}
           onSave={handleSaveWithGuard}
+          isPublicEditable={isPublicEditable}
         />
         
         {/* Content area */}
@@ -304,6 +339,7 @@ const StoryEditPage = () => {
                 onNodeChange={handleNodeChange}
                 onSave={handleSaveWithGuard}
                 onNavigate={handleNavigate}
+                isPublicEditable={isPublicEditable}
               />
             ) : (
               <EmptyState />

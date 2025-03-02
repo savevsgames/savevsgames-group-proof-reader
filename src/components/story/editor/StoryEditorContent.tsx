@@ -1,9 +1,10 @@
 
 import React, { useCallback, useEffect, memo } from "react";
 import { Button } from "@/components/ui/button";
-import { Save } from "lucide-react";
+import { Save, LayoutDashboard } from "lucide-react";
 import StoryTabs from "@/components/story/StoryTabs";
 import { CustomStory, StoryEditorContentProps } from "@/types";
+import { Link } from "react-router-dom";
 
 // Memoize the component to prevent unnecessary re-renders
 const StoryEditorContent: React.FC<StoryEditorContentProps> = memo(({
@@ -16,7 +17,8 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = memo(({
   onUnsavedChanges,
   onSave,
   onNodeChange,
-  onNavigate
+  onNavigate,
+  isPublicEditable = false
 }) => {
   console.log("[StoryEditorContent] Rendering with node:", currentNode);
   
@@ -82,15 +84,28 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = memo(({
           Editing Node: <span className="font-mono text-sm bg-[#F5F1E8] px-2 py-1 rounded">{currentNode || 'root'}</span>
         </h3>
         
-        <Button
-          onClick={handleSave}
-          disabled={saving || !hasUnsavedChanges}
-          className={`bg-[#3A2618] hover:bg-[#5A3A28] text-white`}
-          type="button"
-        >
-          <Save className="h-4 w-4 mr-2" />
-          {saving ? "Saving..." : "Save Changes"}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            asChild
+            variant="outline"
+            className="bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+          >
+            <Link to="/dashboard">
+              <LayoutDashboard className="h-4 w-4 mr-2" />
+              Dashboard
+            </Link>
+          </Button>
+          
+          <Button
+            onClick={handleSave}
+            disabled={saving || !hasUnsavedChanges}
+            className={`bg-[#3A2618] hover:bg-[#5A3A28] text-white`}
+            type="button"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {saving ? "Saving..." : "Save Changes"}
+          </Button>
+        </div>
       </div>
       
       {storyData && (
@@ -101,6 +116,7 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = memo(({
           onUnsavedChanges={onUnsavedChanges}
           currentNode={currentNode || 'root'}
           onNodeChange={onNodeChange}
+          isPublicEditable={isPublicEditable}
         />
       )}
     </div>
