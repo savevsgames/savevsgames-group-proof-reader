@@ -88,7 +88,7 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
         }
       }
       
-      // Safely check if nodeMappings exists before trying to access its properties
+      // Add proper null check for nodeMappings before trying to access properties
       if (!nodeMappings || !nodeMappings.nodeToPage) {
         console.log(`[JsonEditor] Node mappings not available yet for node "${nodeToHighlight}"`);
         return;
