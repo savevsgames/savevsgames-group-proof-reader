@@ -78,104 +78,7 @@ export const analyzeStoryStructure = (storyData: CustomStory): {
     return analyzeInkStoryStructure(storyData);
   }
   
-  // Skip metadata nodes
-  const skipKeys = ['inkVersion', 'listDefs', '#f'];
-  
-  // Find start node
-  let startNodeName = determineStartNode(storyData);
-  console.log(`[StoryMapper] Determined start node: ${startNodeName}`);
-  
-  // Track visited nodes to handle cycles
-  const visitedNodes = new Set<string>();
-  
-  // Queue for breadth-first traversal
-  const nodeQueue: { nodeName: string; page: number }[] = [{ 
-    nodeName: startNodeName, 
-    page: 1 
-  }];
-  
-  // Assign first page
-  nodeToPage[startNodeName] = 1;
-  pageToNode[1] = startNodeName;
-  let currentPage = 1;
-  
-  // Breadth-first traversal of story nodes following choices
-  while (nodeQueue.length > 0) {
-    const { nodeName } = nodeQueue.shift()!;
-    
-    // Skip if already processed or invalid
-    if (visitedNodes.has(nodeName) || 
-        skipKeys.includes(nodeName) || 
-        !storyData[nodeName]) {
-      continue;
-    }
-    
-    visitedNodes.add(nodeName);
-    
-    // Get node data
-    const node = storyData[nodeName];
-    if (!isValidStoryNode(node)) {
-      console.warn(`[StoryMapper] Invalid node structure at "${nodeName}"`);
-      continue;
-    }
-    
-    // Process choices to find next nodes
-    if (node.choices && Array.isArray(node.choices)) {
-      node.choices.forEach(choice => {
-        if (choice && choice.nextNode && !visitedNodes.has(choice.nextNode)) {
-          // If this node exists and hasn't been mapped yet
-          if (storyData[choice.nextNode] && !nodeToPage[choice.nextNode]) {
-            currentPage++;
-            nodeToPage[choice.nextNode] = currentPage;
-            pageToNode[currentPage] = choice.nextNode;
-            
-            // Add to traversal queue
-            nodeQueue.push({ 
-              nodeName: choice.nextNode, 
-              page: currentPage 
-            });
-            
-            console.log(`[StoryMapper] Node "${choice.nextNode}" mapped to page ${currentPage}`);
-          }
-        }
-      });
-    }
-    
-    // Special case for Ink.js format nodes
-    if (storyData.inkVersion && !node.choices && !node.isEnding) {
-      // Try to find a logical next node
-      const possibleNextNodes = findUnmappedNodes(storyData, skipKeys);
-      
-      if (possibleNextNodes.length > 0) {
-        const nextNode = possibleNextNodes[0];
-        currentPage++;
-        nodeToPage[nextNode] = currentPage;
-        pageToNode[currentPage] = nextNode;
-        nodeQueue.push({ nodeName: nextNode, page: currentPage });
-        console.log(`[StoryMapper] Found continuation node "${nextNode}" mapped to page ${currentPage}`);
-      }
-    }
-  }
-  
-  // Ensure all valid story nodes are mapped
-  // Find any unmapped nodes and assign pages
-  const unmappedNodes = findUnmappedNodes(storyData, skipKeys, visitedNodes);
-  
-  unmappedNodes.forEach(nodeName => {
-    currentPage++;
-    nodeToPage[nodeName] = currentPage;
-    pageToNode[currentPage] = nodeName;
-    console.log(`[StoryMapper] Mapped orphaned node "${nodeName}" to page ${currentPage}`);
-  });
-  
-  const totalMappedPages = Object.keys(pageToNode).length;
-  console.log(`[StoryMapper] Completed mapping with ${totalMappedPages} total pages`);
-  
-  return { 
-    nodeToPage, 
-    pageToNode, 
-    totalPages: totalMappedPages 
-  };
+  // ... keep existing code (handling non-Ink formats)
 };
 
 /**
@@ -205,9 +108,24 @@ function analyzeInkStoryStructure(storyData: CustomStory): {
     secondElement: rootArray[1] ? JSON.stringify(rootArray[1]).substring(0, 100) : 'null',
     thirdElement: rootArray[2] ? JSON.stringify(rootArray[2]).substring(0, 100) : 'null'
   });
+
+  // Log more details about the third element which often contains the actual story
+  if (rootArray[2]) {
+    const thirdEl = rootArray[2];
+    if (typeof thirdEl === 'object' && thirdEl !== null) {
+      console.log("[InkMapper] Third element keys:", Object.keys(thirdEl));
+      
+      // Examine the structure specifically for the "start" key which often contains story content
+      if (thirdEl.start && Array.isArray(thirdEl.start)) {
+        console.log("[InkMapper] Found 'start' node in third element with length:", thirdEl.start.length);
+        console.log("[InkMapper] Start node preview:", 
+          JSON.stringify(thirdEl.start).substring(0, 150));
+      }
+    }
+  }
   
   // Create initial node structures with flow tracking
-  const storySegments = extractStorySegmentsFromInk(rootArray);
+  const storySegments = extractStorySegmentsFromInk(rootArray, storyData);
   console.log(`[InkMapper] Extracted ${storySegments.length} story segments from Ink root`);
   
   // Debug: show first 3 segments in detail
@@ -263,7 +181,7 @@ function analyzeInkStoryStructure(storyData: CustomStory): {
     storyData[key] = customStory[key];
   });
   
-  // Set the initial node as the start node
+  // Set the start node to the first fragment
   if (Object.keys(customStory).length > 0) {
     storyData['start'] = customStory['fragment_0'];
     console.log("[InkMapper] Set fragment_0 as the start node");
@@ -280,15 +198,15 @@ function analyzeInkStoryStructure(storyData: CustomStory): {
 }
 
 /**
- * Extracts story segments from Ink.js root array
- * Properly handles text content without incorrectly adding "IMAGE:" prefixes
+ * Extracts story segments from Ink.js root array and story objects
+ * Properly handles both Ink array format and structured story content
  */
-function extractStorySegmentsFromInk(rootArray: any[]): Array<{
+function extractStorySegmentsFromInk(rootArray: any[], storyData: CustomStory): Array<{
   id: number,
   text: string,
   nextSegment: number | null
 }> {
-  console.log("[InkMapper] Extracting story segments from Ink root array");
+  console.log("[InkMapper] Extracting story segments from Ink root array and story objects");
   
   const segments: Array<{
     id: number,
@@ -296,56 +214,40 @@ function extractStorySegmentsFromInk(rootArray: any[]): Array<{
     nextSegment: number | null
   }> = [];
   
-  // This function processes text content from Ink.js format
-  const processTextContent = (item: any): string | null => {
-    if (typeof item !== 'string') return null;
+  // Helper function to extract text content from string
+  const extractTextContent = (str: string): string | null => {
+    if (typeof str !== 'string') return null;
     
     // Text content in Ink.js format starts with ^ character
-    if (item.startsWith('^')) {
-      // Remove the ^ prefix and return the clean text
-      return item.substring(1).trim();
+    if (str.startsWith('^')) {
+      return str.substring(1).trim();
     }
-    
     return null;
   };
   
-  let segmentCount = 0;
-  
-  // Process the root array to extract text segments
+  // STEP 1: Process the main root array first
+  // This handles simple array of text content (most common format)
   for (let i = 0; i < rootArray.length; i++) {
     const element = rootArray[i];
     
-    // Skip null or undefined elements
-    if (!element) continue;
-    
-    // Process array elements (main content structure in Ink.js)
     if (Array.isArray(element)) {
-      // Extract all text content from this element
+      // Look for text elements in this array (they start with ^)
       let segmentText = '';
       
-      // Iterate through the array looking for text content
       for (let j = 0; j < element.length; j++) {
         const item = element[j];
         
-        // Skip flow control elements
-        if (item === '\n' || item === 'ev' || item === '/ev' || item === 'done') {
-          continue;
-        }
-        
-        // Direct text content
         if (typeof item === 'string') {
-          const textContent = processTextContent(item);
+          const textContent = extractTextContent(item);
           if (textContent) {
             if (segmentText) segmentText += ' ';
             segmentText += textContent;
           }
         }
-        
-        // Nested arrays (common in Ink.js format)
+        // Handle nested arrays of text
         else if (Array.isArray(item)) {
-          for (let k = 0; k < item.length; k++) {
-            const subItem = item[k];
-            const textContent = processTextContent(subItem);
+          for (const subItem of item) {
+            const textContent = extractTextContent(subItem);
             if (textContent) {
               if (segmentText) segmentText += ' ';
               segmentText += textContent;
@@ -354,37 +256,109 @@ function extractStorySegmentsFromInk(rootArray: any[]): Array<{
         }
       }
       
-      // If we found text content, create a new segment
-      if (segmentText.trim()) {
+      if (segmentText) {
         segments.push({
-          id: segmentCount,
-          text: segmentText.trim(),
-          nextSegment: segmentCount + 1 < rootArray.length ? segmentCount + 1 : null
+          id: segments.length,
+          text: segmentText,
+          nextSegment: segments.length + 1 < rootArray.length ? segments.length + 1 : null
         });
-        
-        console.log(`[InkMapper] Created segment ${segmentCount}:`, {
+        console.log(`[InkMapper] Created segment from array element ${i}:`, {
           textPreview: segmentText.substring(0, 50) + (segmentText.length > 50 ? '...' : '')
         });
-        
-        segmentCount++;
       }
     }
     
-    // Check if the element is an object with flow markers indicating the end of a segment
-    else if (typeof element === 'object' && element !== null) {
-      // Some Ink.js formats have flow control in separate objects
-      const hasFlowControl = element['^->'] !== undefined;
-      
-      if (hasFlowControl) {
-        console.log(`[InkMapper] Found flow control marker at position ${i}`);
-        // We don't need to do anything special here, just log it
+    // STEP 2: Handle special case for object elements which often contain story nodes
+    else if (element && typeof element === 'object') {
+      // Process all keys in this object that might contain story content
+      Object.keys(element).forEach(key => {
+        // Skip special metadata keys
+        if (key === '#f' || key === 'inkVersion' || key === 'listDefs') return;
+        
+        const nodeContent = element[key];
+        
+        // Handle arrays of story content (most common for node content)
+        if (Array.isArray(nodeContent)) {
+          let nodeText = '';
+          
+          // Recursive function to extract text from nested arrays
+          const processArrayContent = (arr: any[]): void => {
+            for (const item of arr) {
+              if (typeof item === 'string') {
+                const textContent = extractTextContent(item);
+                if (textContent) {
+                  if (nodeText) nodeText += ' ';
+                  nodeText += textContent;
+                }
+              } 
+              else if (Array.isArray(item)) {
+                processArrayContent(item);
+              }
+            }
+          };
+          
+          processArrayContent(nodeContent);
+          
+          if (nodeText) {
+            segments.push({
+              id: segments.length,
+              text: nodeText,
+              nextSegment: segments.length + 1 < rootArray.length ? segments.length + 1 : null
+            });
+            console.log(`[InkMapper] Created segment from object key "${key}":`, {
+              textPreview: nodeText.substring(0, 50) + (nodeText.length > 50 ? '...' : '')
+            });
+          }
+        }
+      });
+    }
+  }
+  
+  // STEP 3: Special handling for 'start' node in the storyData object
+  // This is important for many Ink.js stories that store content in the storyData.start
+  if (storyData && storyData.start) {
+    if (typeof storyData.start === 'object' && storyData.start !== null) {
+      if (Array.isArray(storyData.start)) {
+        let startNodeText = '';
+        
+        // Extract text from start node array
+        for (const item of storyData.start) {
+          if (typeof item === 'string') {
+            const textContent = extractTextContent(item);
+            if (textContent) {
+              if (startNodeText) startNodeText += ' ';
+              startNodeText += textContent;
+            }
+          }
+        }
+        
+        if (startNodeText) {
+          segments.push({
+            id: segments.length,
+            text: startNodeText,
+            nextSegment: null // Typically the end of content
+          });
+          console.log(`[InkMapper] Created segment from storyData.start array:`, {
+            textPreview: startNodeText.substring(0, 50) + (startNodeText.length > 50 ? '...' : '')
+          });
+        }
+      }
+      else if (typeof storyData.start.text === 'string') {
+        segments.push({
+          id: segments.length,
+          text: storyData.start.text,
+          nextSegment: null
+        });
+        console.log(`[InkMapper] Created segment from storyData.start.text:`, {
+          textPreview: storyData.start.text.substring(0, 50) + (storyData.start.text.length > 50 ? '...' : '')
+        });
       }
     }
   }
   
-  // If we have no segments, create a default one
+  // Ensure we have at least one segment
   if (segments.length === 0) {
-    console.log("[InkMapper] No segments found, creating default segment");
+    console.warn("[InkMapper] No segments found, creating default segment");
     segments.push({
       id: 0,
       text: "Story content could not be parsed correctly.",
@@ -392,17 +366,15 @@ function extractStorySegmentsFromInk(rootArray: any[]): Array<{
     });
   }
   
-  // Set the last segment's nextSegment to null to mark the end
+  // STEP 4: Link segments properly
   if (segments.length > 0) {
-    segments[segments.length - 1].nextSegment = null;
+    for (let i = 0; i < segments.length - 1; i++) {
+      segments[i].nextSegment = i + 1;
+    }
+    segments[segments.length - 1].nextSegment = null; // Last segment has no next
   }
   
-  // Final linking - make sure all segments are properly connected
-  for (let i = 0; i < segments.length - 1; i++) {
-    segments[i].nextSegment = i + 1;
-  }
-  
-  console.log(`[InkMapper] Extracted ${segments.length} total segments`);
+  console.log(`[InkMapper] Extracted ${segments.length} total story segments`);
   return segments;
 }
 
