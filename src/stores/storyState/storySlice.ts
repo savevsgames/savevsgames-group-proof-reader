@@ -26,7 +26,7 @@ export const createStorySlice: StateCreator<
   setInkStory: (story) => set({ story }),
   setTitle: (title) => set({ title }),
   
-  // Initialize story data with improved state management
+  // Initialize story data with improved story flow handling
   initializeStory: async (storyId) => {
     const store = get();
     
@@ -39,11 +39,7 @@ export const createStorySlice: StateCreator<
       store.nodeMappings &&
       Object.keys(store.nodeMappings.nodeToPage || {}).length > 0
     ) {
-      console.log("[StoryStore] Story already initialized with valid data, skipping", {
-        storyId,
-        currentNodeMappings: store.nodeMappings ? Object.keys(store.nodeMappings.nodeToPage || {}).length : 0,
-        totalPages: store.totalPages
-      });
+      console.log("[StoryStore] Story already initialized with valid data, skipping");
       return;
     }
     
@@ -92,28 +88,46 @@ export const createStorySlice: StateCreator<
         if (storyContent) {
           console.log(`[StoryStore] Valid story content extracted with ${Object.keys(storyContent).length} nodes`);
           
+          // First, analyze and count only actual story nodes
+          const storyNodeKeys = Object.keys(storyContent).filter(key => {
+            const node = storyContent[key];
+            return (
+              node && 
+              typeof node === 'object' && 
+              !Array.isArray(node) && 
+              (typeof node.text === 'string' || Array.isArray(node.choices))
+            );
+          });
+          
+          console.log(`[StoryStore] Found ${storyNodeKeys.length} valid story nodes`);
+          
           // Set story data first - do this separately to avoid circular dependencies
           set({ 
             storyData: storyContent, 
             hasUnsavedChanges: false 
           });
           
-          // Now generate node mappings with improved page counting - in a separate update
-          // This prevents some potential circular dependencies
+          // Now generate node mappings with proper story flow tracking
           setTimeout(() => {
             const currentStoryData = get().storyData;
             if (!currentStoryData) return;
             
-            console.log("[StoryStore] Generating node mappings");
+            console.log("[StoryStore] Generating node mappings by tracking story flow");
             const { nodeMappings, totalPages } = generateAndLogNodeMappings(currentStoryData);
             
-            // Determine the final page count, prioritizing the computed value but falling back to DB
+            // Use the computed page count from story flow, falling back to DB if needed
             const computedPages = totalPages > 0 ? totalPages : 0;
             const dbPages = data.total_pages > 0 ? data.total_pages : 0;
-            const finalPageCount = computedPages > 0 ? computedPages : (dbPages > 0 ? dbPages : 1);
+            const storyNodes = storyNodeKeys.length;
+            
+            // Prioritize the flow-based count, then node count, then DB value
+            const finalPageCount = computedPages > 0 
+              ? computedPages 
+              : (storyNodes > 0 ? storyNodes : (dbPages > 0 ? dbPages : 1));
             
             console.log("[StoryStore] Setting totalPages:", {
-              mappedPages: totalPages,
+              flowBasedPages: totalPages,
+              storyNodeCount: storyNodes,
               dbPages: data.total_pages,
               finalPageCount
             });
@@ -151,13 +165,7 @@ export const createStorySlice: StateCreator<
               });
             }
             
-            console.log("[StoryStore] Initialization complete:", {
-              currentNode: get().currentNode,
-              totalPages: get().totalPages,
-              hasNodeMappings: !!get().nodeMappings && Object.keys(get().nodeMappings.nodeToPage || {}).length > 0
-            });
-            
-            // Final state update to set loading to false after everything else is done
+            // Final state update to set loading to false
             set({ loading: false });
           }, 0);
         } else {
@@ -187,8 +195,6 @@ export const createStorySlice: StateCreator<
             canGoBack: false,
             currentPage: 1 
           });
-          
-          console.log("[StoryStore] Default state initialized with 1 page");
         }
       } else {
         console.error("[StoryStore] Story not found");
@@ -206,7 +212,7 @@ export const createStorySlice: StateCreator<
     }
   },
   
-  // Optimize data change handler with debouncing and state comparison
+  // Optimize data change handler with proper story flow tracking
   handleStoryDataChange: (data) => {
     // Get current state
     const currentState = get();
@@ -217,16 +223,25 @@ export const createStorySlice: StateCreator<
       return;
     }
     
-    console.log("[StoryStore] Story data change requested", {
-      nodeCount: Object.keys(data).length,
-      firstNode: Object.keys(data)[0]
+    console.log("[StoryStore] Story data change requested");
+    
+    // First, count actual story nodes to validate story structure
+    const storyNodeKeys = Object.keys(data).filter(key => {
+      const node = data[key];
+      return (
+        node && 
+        typeof node === 'object' && 
+        !Array.isArray(node) && 
+        (typeof node.text === 'string' || Array.isArray(node.choices))
+      );
     });
+    
+    console.log(`[StoryStore] Found ${storyNodeKeys.length} valid story nodes in updated data`);
     
     // Update story data and mark as unsaved
     set({ storyData: data, hasUnsavedChanges: true });
     
-    // Debounce the node mapping update to prevent rapid consecutive updates
-    // Use a unique ID to track the latest request and cancel previous ones
+    // Debounce the node mapping update
     const requestId = Date.now();
     (get() as any)._lastMappingRequestId = requestId;
     
@@ -237,36 +252,30 @@ export const createStorySlice: StateCreator<
         return;
       }
       
-      // Update node mappings
-      console.log("[StoryStore] Regenerating node mappings after data change");
+      // Update node mappings with story flow tracking
+      console.log("[StoryStore] Regenerating node mappings with story flow tracking");
       const { nodeMappings, totalPages } = generateAndLogNodeMappings(data);
       
-      // Ensure we have at least 1 page
-      const finalPageCount = Math.max(totalPages, 1);
+      // Determine final page count based on multiple sources
+      const computedPages = totalPages > 0 ? totalPages : 0;
+      const storyNodes = storyNodeKeys.length;
       
-      // Compare with current state before updating
-      const currentMappings = get().nodeMappings;
-      const currentPageCount = get().totalPages;
+      // Prioritize the flow-based page count, then node count
+      const finalPageCount = computedPages > 0 
+        ? computedPages 
+        : (storyNodes > 0 ? storyNodes : 1);
       
-      // Only update if there's an actual change
-      if (
-        !currentMappings || 
-        !shallow(currentMappings.nodeToPage, nodeMappings.nodeToPage) || 
-        currentPageCount !== finalPageCount
-      ) {
-        console.log("[StoryStore] Updating state with new mappings:", {
-          mappedNodeCount: Object.keys(nodeMappings.nodeToPage).length,
-          finalPageCount,
-          previousCount: currentPageCount
-        });
-        
-        set({ 
-          nodeMappings, 
-          totalPages: finalPageCount 
-        });
-      } else {
-        console.log("[StoryStore] Node mappings unchanged, skipping update");
-      }
-    }, 300); // Add a 300ms debounce
+      console.log("[StoryStore] Updated page count:", {
+        flowBasedPages: totalPages,
+        storyNodeCount: storyNodes,
+        finalPageCount
+      });
+      
+      // Update node mappings and page count
+      set({ 
+        nodeMappings, 
+        totalPages: finalPageCount 
+      });
+    }, 300);
   },
 });

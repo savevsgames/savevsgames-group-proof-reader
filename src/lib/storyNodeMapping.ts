@@ -1,3 +1,4 @@
+
 /**
  * Unified interface for node mappings used throughout the application
  */
@@ -15,8 +16,7 @@ export const generateComprehensiveNodeMapping = (storyJson: any): {
   pageToNode: Record<number, string>;
   totalPages: number;
 } => {
-  console.log("[Node Mapping] Beginning comprehensive mapping generation");
-  console.log("[Node Mapping] Input data type:", typeof storyJson);
+  console.log("[Node Mapping] Beginning story node mapping generation");
   
   if (!storyJson) {
     console.warn("[Node Mapping] No story data provided");
@@ -27,257 +27,151 @@ export const generateComprehensiveNodeMapping = (storyJson: any): {
     };
   }
   
-  // Log the data structure for debugging
-  console.log("[Node Mapping] Story data keys:", Object.keys(storyJson));
-  console.log("[Node Mapping] Has 'root' node:", !!storyJson.root);
-  console.log("[Node Mapping] Has 'start' node:", !!storyJson.start);
+  // Detect if this is our custom story format with start/root node and nextNode properties
+  const isCustomFormat = (
+    (storyJson.start && typeof storyJson.start === 'object' && storyJson.start.text) || 
+    (storyJson.root && typeof storyJson.root === 'object' && storyJson.root.text)
+  );
   
-  // Detailed analysis of story structure
-  const storyKeys = Object.keys(storyJson);
-  const contentKeyCount = storyKeys.filter(key => !['inkVersion', 'listDefs', '#f'].includes(key)).length;
+  console.log("[Node Mapping] Detected format:", isCustomFormat ? "Custom Format" : "Unknown Format");
   
-  console.log(`[Node Mapping] Story has ${storyKeys.length} total keys, ${contentKeyCount} content keys`);
-  
-  // Analyze a few sample nodes in detail to understand their structure
-  const sampleSize = Math.min(3, storyKeys.length);
-  for (let i = 0; i < sampleSize; i++) {
-    const key = storyKeys[i];
-    const node = storyJson[key];
-    
-    if (node) {
-      console.log(`[Node Mapping] Sample node "${key}":`, {
-        type: typeof node,
-        isObject: typeof node === 'object' && !Array.isArray(node),
-        isArray: Array.isArray(node),
-        hasText: typeof node === 'object' && 'text' in node,
-        textType: node.text ? typeof node.text : 'N/A',
-        textLength: node.text ? node.text.length : 0,
-        hasChoices: typeof node === 'object' && 'choices' in node,
-        choicesType: node.choices ? (Array.isArray(node.choices) ? 'array' : typeof node.choices) : 'N/A',
-        choicesCount: Array.isArray(node.choices) ? node.choices.length : 0
-      });
-    }
+  if (isCustomFormat) {
+    return generateMappingFromCustomFormat(storyJson);
   }
   
-  if (storyJson.start) {
-    console.log("[Node Mapping] Start node structure:", {
-      hasText: !!storyJson.start.text,
-      textLength: storyJson.start.text?.length || 0,
-      hasChoices: Array.isArray(storyJson.start.choices),
-      choicesCount: storyJson.start.choices?.length || 0
-    });
-  }
+  // Fallback for unknown formats - just map all keys
+  console.warn("[Node Mapping] Unknown story format, using fallback mapping");
+  return generateFallbackMapping(storyJson);
+};
+
+/**
+ * Generate node mappings by following the story flow through nextNode links
+ * This follows the proper narrative flow of the story
+ */
+function generateMappingFromCustomFormat(storyJson: any): {
+  nodeToPage: Record<string, number>;
+  pageToNode: Record<number, string>;
+  totalPages: number;
+} {
+  console.log("[Node Mapping] Generating mapping from custom story format");
   
-  if (storyJson.root) {
-    console.log("[Node Mapping] Root node structure:", {
-      type: typeof storyJson.root,
-      isArray: Array.isArray(storyJson.root),
-      length: Array.isArray(storyJson.root) ? storyJson.root.length : 0,
-      hasText: !!storyJson.root.text,
-      textLength: storyJson.root.text?.length || 0
-    });
-  }
-  
-  // Skip metadata keys
-  const skipKeys = ['inkVersion', 'listDefs', '#f'];
-  
-  // Track all valid story nodes
-  const allNodes: string[] = [];
-  
-  // Recursive function to extract all possible nodes
-  const extractNodes = (obj: any, path: string = '') => {
-    if (!obj || typeof obj !== 'object') return;
-    
-    // Add current path as a node if it's not a metadata key
-    if (path && !skipKeys.includes(path) && !allNodes.includes(path)) {
-      console.log(`[Node Mapping] Adding node path: ${path}`);
-      allNodes.push(path);
-    }
-    
-    // Handle arrays by maintaining sequence
-    if (Array.isArray(obj)) {
-      console.log(`[Node Mapping] Processing array at path: ${path || 'root'}, length: ${obj.length}`);
-      obj.forEach((item, index) => {
-        const newPath = path ? `${path}[${index}]` : `[${index}]`;
-        
-        // If item is a string with content, mark it as a node
-        if (typeof item === 'string' && item.startsWith('^')) {
-          if (!allNodes.includes(newPath)) {
-            console.log(`[Node Mapping] Found text node at: ${newPath}`);
-            allNodes.push(newPath);
-          }
-        }
-        
-        extractNodes(item, newPath);
-      });
-      return;
-    }
-    
-    // Handle objects
-    console.log(`[Node Mapping] Processing object at path: ${path || 'root'}, keys: ${Object.keys(obj).length}`);
-    Object.entries(obj).forEach(([key, value]) => {
-      if (skipKeys.includes(key)) return;
-      
-      const newPath = path ? `${path}.${key}` : key;
-      
-      // Add this path if it's not already included
-      if (!allNodes.includes(newPath)) {
-        console.log(`[Node Mapping] Adding object node: ${newPath}`);
-        allNodes.push(newPath);
-      }
-      
-      extractNodes(value, newPath);
-    });
-  };
-  
-  // Start extraction from the root
-  console.log("[Node Mapping] Starting node extraction");
-  extractNodes(storyJson);
-  console.log(`[Node Mapping] Extracted ${allNodes.length} total potential nodes`);
-  console.log("[Node Mapping] First 10 nodes:", allNodes.slice(0, 10));
-  
-  // Filter for nodes that actually have content
-  console.log("[Node Mapping] Filtering for content nodes");
-  const contentNodes = allNodes.filter(nodePath => {
-    const nodeContent = getNestedProperty(storyJson, nodePath);
-    
-    // Log what we're checking
-    console.log(`[Node Mapping] Checking node content for: ${nodePath}`, {
-      type: typeof nodeContent,
-      isArray: Array.isArray(nodeContent),
-      isObject: nodeContent && typeof nodeContent === 'object' && !Array.isArray(nodeContent),
-      hasText: nodeContent && typeof nodeContent === 'object' && 'text' in nodeContent,
-      hasChoices: nodeContent && typeof nodeContent === 'object' && 'choices' in nodeContent
-    });
-    
-    // Check if this node has text content or contains arrays/objects with content
-    const hasContent = (
-      (typeof nodeContent === 'string' && nodeContent.startsWith('^')) ||
-      (Array.isArray(nodeContent) && nodeContent.some(item => 
-        typeof item === 'string' && item.startsWith('^'))) ||
-      (nodeContent && typeof nodeContent === 'object' && 
-        (nodeContent.text || (nodeContent.choices && nodeContent.choices.length > 0)))
-    );
-    
-    if (hasContent) {
-      console.log(`[Node Mapping] Node has content: ${nodePath}`);
-    }
-    
-    return hasContent;
-  });
-  
-  console.log(`[Node Mapping] Found ${contentNodes.length} nodes with actual content`);
-  console.log("[Node Mapping] Content nodes:", contentNodes);
-  
-  // Early exit check with fallback
-  if (contentNodes.length === 0) {
-    console.warn("[Node Mapping] No content nodes found, using all non-metadata keys as fallback");
-    
-    // Use all non-metadata keys as a fallback
-    const fallbackNodes = Object.keys(storyJson).filter(key => !skipKeys.includes(key));
-    
-    // If we still have no valid nodes, return empty mappings with page count 0
-    if (fallbackNodes.length === 0) {
-      console.error("[Node Mapping] No valid nodes found even with fallback");
-      return {
-        nodeToPage: {},
-        pageToNode: {},
-        totalPages: 0
-      };
-    }
-    
-    console.log(`[Node Mapping] Using ${fallbackNodes.length} fallback nodes`);
-    
-    // Generate fallback mappings
-    const nodeToPage: Record<string, number> = {};
-    const pageToNode: Record<number, string> = {};
-    
-    fallbackNodes.forEach((nodeName, index) => {
-      const pageNumber = index + 1;
-      nodeToPage[nodeName] = pageNumber;
-      pageToNode[pageNumber] = nodeName;
-    });
-    
-    console.log(`[Node Mapping] Created fallback mapping with ${fallbackNodes.length} pages`);
-    
-    return {
-      nodeToPage,
-      pageToNode,
-      totalPages: fallbackNodes.length
-    };
-  }
-  
-  // Sort nodes by type and depth for a more logical reading order
-  console.log("[Node Mapping] Sorting nodes");
-  const sortedNodes = [
-    // Root or start node always comes first
-    ...contentNodes.filter(node => node === 'root' || node === 'start'),
-    // Then standard nodes (no array indices)
-    ...contentNodes.filter(node => 
-      !node.includes('[') && node !== 'root' && node !== 'start'
-    ),
-    // Then array nodes, sorted by array depth and position
-    ...contentNodes.filter(node => node.includes('['))
-      .sort((a, b) => {
-        // Count depth of array nesting
-        const aDepth = (a.match(/\[/g) || []).length;
-        const bDepth = (b.match(/\[/g) || []).length;
-        
-        // First sort by depth, then lexicographically
-        return aDepth - bDepth || a.localeCompare(b);
-      })
-  ];
-  
-  console.log(`[Node Mapping] Ordered ${sortedNodes.length} nodes for sequential pagination`);
-  console.log("[Node Mapping] Sorted nodes:", sortedNodes);
-  
-  // Generate the mappings
-  console.log("[Node Mapping] Generating page mappings");
   const nodeToPage: Record<string, number> = {};
   const pageToNode: Record<number, string> = {};
+  let pageCounter = 1;
   
-  sortedNodes.forEach((nodePath, index) => {
-    const pageNumber = index + 1;
-    nodeToPage[nodePath] = pageNumber;
-    pageToNode[pageNumber] = nodePath;
-    console.log(`[Node Mapping] Mapped: Node '${nodePath}' -> Page ${pageNumber}`);
-  });
+  // Start with the beginning node (either 'start' or 'root')
+  const startNodeName = storyJson.start ? 'start' : 'root';
   
-  console.log(`[Node Mapping] Created mapping with ${Object.keys(nodeToPage).length} nodes and ${sortedNodes.length} pages`);
+  // Track nodes we've already processed to avoid infinite loops
+  const processedNodes = new Set<string>();
   
-  // Double check that we have at least one page if we found nodes
-  if (sortedNodes.length > 0 && Object.keys(nodeToPage).length === 0) {
-    console.warn("[Node Mapping] No pages mapped despite having nodes - using fallback");
+  // Queue for breadth-first traversal of the story graph
+  const nodeQueue: string[] = [startNodeName];
+  
+  console.log("[Node Mapping] Starting story traversal from:", startNodeName);
+  
+  // Process the story flow by following nextNode links
+  while (nodeQueue.length > 0) {
+    const currentNodeName = nodeQueue.shift() as string;
     
-    // Create at least one mapping for the first node
-    const firstNode = sortedNodes[0];
-    nodeToPage[firstNode] = 1;
-    pageToNode[1] = firstNode;
+    // Skip if we've already processed this node
+    if (processedNodes.has(currentNodeName)) {
+      continue;
+    }
     
-    console.log(`[Node Mapping] Created fallback mapping for node "${firstNode}" to page 1`);
+    // Get the node data
+    const nodeData = storyJson[currentNodeName];
     
-    return {
-      nodeToPage,
-      pageToNode,
-      totalPages: 1
-    };
+    // Skip invalid nodes
+    if (!nodeData || typeof nodeData !== 'object') {
+      console.warn(`[Node Mapping] Invalid node: ${currentNodeName}`);
+      continue;
+    }
+    
+    // Mark node as processed
+    processedNodes.add(currentNodeName);
+    
+    // Assign a page number to this node
+    nodeToPage[currentNodeName] = pageCounter;
+    pageToNode[pageCounter] = currentNodeName;
+    pageCounter++;
+    
+    console.log(`[Node Mapping] Mapped: Node '${currentNodeName}' -> Page ${pageCounter-1}`);
+    
+    // Queue up the next nodes from choices
+    if (Array.isArray(nodeData.choices)) {
+      nodeData.choices.forEach(choice => {
+        if (choice && choice.nextNode && !processedNodes.has(choice.nextNode)) {
+          nodeQueue.push(choice.nextNode);
+        }
+      });
+    }
   }
   
-  // Log a preview of the mapping
-  const previewCount = Math.min(5, sortedNodes.length);
-  console.log(`[Node Mapping] First ${previewCount} mappings:`, 
-    sortedNodes.slice(0, previewCount).reduce((acc, node, i) => {
-      acc[node] = i + 1;
-      return acc;
-    }, {} as Record<string, number>)
-  );
+  const totalPages = pageCounter - 1;
+  console.log(`[Node Mapping] Completed story mapping with ${totalPages} pages`);
   
   return {
     nodeToPage,
     pageToNode,
-    totalPages: sortedNodes.length
+    totalPages
   };
-};
+}
+
+/**
+ * Fallback mapping strategy for unknown formats
+ */
+function generateFallbackMapping(storyJson: any): {
+  nodeToPage: Record<string, number>;
+  pageToNode: Record<number, string>;
+  totalPages: number;
+} {
+  console.log("[Node Mapping] Using fallback mapping for unknown format");
+  
+  // Skip metadata keys
+  const skipKeys = ['inkVersion', 'listDefs', '#f'];
+  
+  // Get all story content nodes
+  const contentNodes = Object.keys(storyJson).filter(key => {
+    if (skipKeys.includes(key)) return false;
+    
+    // Only include nodes that actually have content (text and choices)
+    const node = storyJson[key];
+    return (
+      node && 
+      typeof node === 'object' && 
+      !Array.isArray(node) && 
+      (typeof node.text === 'string' || Array.isArray(node.choices))
+    );
+  });
+  
+  console.log(`[Node Mapping] Found ${contentNodes.length} content nodes through fallback method`);
+  
+  if (contentNodes.length === 0) {
+    console.warn("[Node Mapping] No valid content nodes found");
+    return {
+      nodeToPage: {},
+      pageToNode: {},
+      totalPages: 0
+    };
+  }
+  
+  // Generate mappings
+  const nodeToPage: Record<string, number> = {};
+  const pageToNode: Record<number, string> = {};
+  
+  contentNodes.forEach((nodeName, index) => {
+    const pageNumber = index + 1;
+    nodeToPage[nodeName] = pageNumber;
+    pageToNode[pageNumber] = nodeName;
+  });
+  
+  return {
+    nodeToPage,
+    pageToNode,
+    totalPages: contentNodes.length
+  };
+}
 
 /**
  * Analyzes a story's structure to generate node-to-page mappings
@@ -306,68 +200,53 @@ export const analyzeStoryStructure = (storyJson: any): {
 export function getNestedProperty(obj: any, path: string): any {
   if (!obj || !path) return undefined;
   
-  // Log the path for debugging
-  console.log(`[Node Extraction] Getting nested property: ${path}`);
-  
   // Handle direct property access
   if (path in obj) {
-    console.log(`[Node Extraction] Found direct property: ${path}`);
     return obj[path];
   }
   
   // Special case for root[index] format which is common in ink stories
   if (path.startsWith('root[')) {
-    console.log(`[Node Extraction] Handling root array format: ${path}`);
     let current = obj.root;
     const matches = path.substring(4).match(/\[(\d+)\]/g);
     
     if (matches) {
       for (const match of matches) {
         const index = parseInt(match.substring(1, match.length - 1), 10);
-        console.log(`[Node Extraction] Accessing array index: ${index}`);
         if (Array.isArray(current) && index < current.length) {
           current = current[index];
         } else {
-          console.log(`[Node Extraction] Invalid array index: ${index} for path: ${path}`);
           return undefined;
         }
       }
-      console.log(`[Node Extraction] Successfully accessed nested array property: ${path}`);
       return current;
     }
   }
   
   // Handle path with dot notation and array indices
-  console.log(`[Node Extraction] Traversing path segments: ${path}`);
   const parts = path.split(/\.|\[|\]/).filter(Boolean);
   let result = obj;
   
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i];
-    console.log(`[Node Extraction] Processing path segment: ${part}`);
     
     // Handle array indices
     if (!isNaN(Number(part))) {
       const index = Number(part);
-      console.log(`[Node Extraction] Handling array index: ${index}`);
       if (Array.isArray(result) && index < result.length) {
         result = result[index];
       } else {
-        console.log(`[Node Extraction] Invalid array index: ${index} for path segment: ${part}`);
         return undefined;
       }
     } 
     // Handle object properties
     else if (result && typeof result === 'object' && part in result) {
-      console.log(`[Node Extraction] Accessing object property: ${part}`);
       result = result[part];
     } else {
-      console.log(`[Node Extraction] Property not found: ${part} in path: ${path}`);
       return undefined;
     }
   }
   
-  console.log(`[Node Extraction] Successfully retrieved nested property for path: ${path}`);
   return result;
 }
 
@@ -380,8 +259,6 @@ export function validateNodeMappings(
   pageToNode: Record<number, string>
 ): boolean {
   console.log("[Node Validation] Validating node mappings");
-  console.log("[Node Validation] Nodes:", Object.keys(nodeToPage).length);
-  console.log("[Node Validation] Pages:", Object.keys(pageToNode).length);
   
   // 1. Check if all mappings are bidirectional
   const bidirectionalIssues = Object.entries(nodeToPage).filter(
@@ -389,19 +266,17 @@ export function validateNodeMappings(
   );
   
   if (bidirectionalIssues.length > 0) {
-    console.warn("[Node Validation] Found bidirectional mapping issues:", 
-      bidirectionalIssues.slice(0, 5));
+    console.warn("[Node Validation] Found bidirectional mapping issues");
     return false;
   }
   
   // 2. Check if page numbers are sequential
   const pageNumbers = Object.keys(pageToNode).map(Number).sort((a, b) => a - b);
-  console.log("[Node Validation] Page numbers:", pageNumbers);
   
   const isSequential = pageNumbers.every((page, index) => page === index + 1);
   
   if (!isSequential) {
-    console.warn("[Node Validation] Page numbers are not sequential:", pageNumbers);
+    console.warn("[Node Validation] Page numbers are not sequential");
     return false;
   }
   
@@ -410,12 +285,8 @@ export function validateNodeMappings(
     key => !['inkVersion', 'listDefs', '#f'].includes(key)
   ).length;
   
-  console.log("[Node Validation] Estimated content nodes:", contentNodeEstimate);
-  console.log("[Node Validation] Mapped nodes:", Object.keys(nodeToPage).length);
-  
   if (Object.keys(nodeToPage).length < contentNodeEstimate * 0.5) {
-    console.warn("[Node Validation] Mapping coverage seems low:",
-      `${Object.keys(nodeToPage).length} mappings for ~${contentNodeEstimate} content nodes`);
+    console.warn("[Node Validation] Mapping coverage seems low");
     return false;
   }
   

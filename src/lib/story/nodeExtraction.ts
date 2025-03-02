@@ -1,204 +1,126 @@
 
-import { CustomStory } from './types';
+import { CustomStory } from '@/types';
 import { parseInkNode } from './inkParser';
 
-// Function to extract a full story from Ink JSON with improved logging
+// Function to extract a full story from Ink JSON with improved flow tracking
 export const parseFullInkStory = (storyData: any): CustomStory => {
-  console.log("[Story Parsing] Starting full Ink story parsing");
+  console.log("[Story Parsing] Starting full story parsing");
   
   if (!storyData) {
     console.warn("[Story Parsing] No story data provided");
     return {};
   }
   
-  // Get all nodes using our node extraction function
-  console.log("[Story Parsing] Extracting all nodes from Ink JSON");
-  const storyNodes = extractAllNodesFromInkJSON(storyData);
-  console.log(`[Story Parsing] Extracted ${storyNodes.length} nodes from Ink JSON`);
-  
   const customStory: CustomStory = {};
   
-  // First, handle the root node specially
-  if (storyData.root) {
-    console.log("[Story Parsing] Processing root node");
-    // Extract text from the root node (usually in the first array element)
-    let rootText = "";
-    if (Array.isArray(storyData.root) && storyData.root.length > 0) {
-      // Find text elements (strings starting with ^)
-      for (const element of storyData.root) {
-        if (typeof element === 'string' && element.startsWith('^')) {
-          rootText += element.substring(1) + '\n';
-        }
-      }
+  // Extract all node names first
+  const nodeNames = extractStoryNodeNames(storyData);
+  console.log(`[Story Parsing] Found ${nodeNames.length} potential story nodes`);
+  
+  // Process each node, starting with root/start
+  const startNodeName = storyData.start ? 'start' : 'root';
+  
+  // Process nodes in a breadth-first manner to ensure proper flow
+  const processedNodes = new Set<string>();
+  const nodeQueue = [startNodeName];
+  
+  console.log(`[Story Parsing] Starting story traversal from ${startNodeName}`);
+  
+  while (nodeQueue.length > 0) {
+    const currentNodeName = nodeQueue.shift() as string;
+    
+    // Skip already processed nodes
+    if (processedNodes.has(currentNodeName)) {
+      continue;
     }
     
-    // Find navigation from root (usually a -> element)
-    let rootNextNode = null;
-    if (Array.isArray(storyData.root)) {
-      for (const element of storyData.root) {
-        if (typeof element === 'object' && element && element['->']) {
-          rootNextNode = element['->'];
-          break;
-        }
-      }
+    // Get the node data
+    const nodeData = storyData[currentNodeName];
+    
+    // Skip invalid nodes
+    if (!nodeData || typeof nodeData !== 'object') {
+      console.warn(`[Story Parsing] Invalid node: ${currentNodeName}`);
+      continue;
     }
     
-    // Create the root node in our custom format
-    customStory['root'] = {
-      text: rootText.trim(),
-      choices: rootNextNode ? [{ text: 'Continue', nextNode: rootNextNode }] : []
+    // Mark node as processed
+    processedNodes.add(currentNodeName);
+    
+    // Extract text and choices from the node
+    let nodeText = nodeData.text || '';
+    let nodeChoices = nodeData.choices || [];
+    let isEnding = !!nodeData.isEnding;
+    
+    // Create the node in our custom format
+    customStory[currentNodeName] = {
+      text: nodeText,
+      choices: nodeChoices,
+      isEnding
     };
     
-    console.log("[Story Parsing] Root node processed", {
-      textLength: rootText.length,
-      hasNextNode: !!rootNextNode
-    });
-  }
-  
-  // Now process the nested nodes that are inside the last element of root array
-  if (storyData.root && Array.isArray(storyData.root) && storyData.root.length > 2) {
-    console.log("[Story Parsing] Processing nested nodes in root array");
-    const nestedNodesContainer = storyData.root[storyData.root.length - 1];
+    console.log(`[Story Parsing] Processed node ${currentNodeName} (isEnding: ${isEnding})`);
     
-    if (typeof nestedNodesContainer === 'object' && nestedNodesContainer !== null) {
-      // Process each nested node
-      let processedCount = 0;
-      let textNodesCount = 0;
-      let choiceNodesCount = 0;
-      let endingNodesCount = 0;
-      
-      for (const nodeName of storyNodes) {
-        // Skip the root node as we've already processed it
-        if (nodeName === 'root') continue;
-        
-        // Get the node data from the nested container
-        const nodeData = nestedNodesContainer[nodeName];
-        
-        if (nodeData) {
-          // Extract text - typically the first element in the array if it's an array
-          let nodeText = "";
-          let nextNode = null;
-          let isEnding = false;
-          
-          if (Array.isArray(nodeData)) {
-            // Process text elements
-            for (const element of nodeData) {
-              if (typeof element === 'string' && element.startsWith('^')) {
-                nodeText += element.substring(1) + '\n';
-                textNodesCount++;
-              }
-              // Check for navigation
-              else if (typeof element === 'object' && element && element['->']) {
-                nextNode = element['->'];
-                choiceNodesCount++;
-              }
-              // Check for ending
-              else if (element === 'end') {
-                isEnding = true;
-                endingNodesCount++;
-              }
-            }
-          }
-          
-          // Create the node in our custom format
-          customStory[nodeName] = {
-            text: nodeText.trim(),
-            choices: nextNode ? [{ text: 'Continue', nextNode }] : [],
-            isEnding
-          };
-          
-          processedCount++;
+    // Queue up the next nodes from choices
+    if (Array.isArray(nodeChoices)) {
+      nodeChoices.forEach(choice => {
+        if (choice && choice.nextNode && !processedNodes.has(choice.nextNode)) {
+          nodeQueue.push(choice.nextNode);
+          console.log(`[Story Parsing] Queued next node: ${choice.nextNode}`);
         }
-      }
-      
-      console.log(`[Story Parsing] Processed ${processedCount} nested nodes`, {
-        withText: textNodesCount,
-        withChoices: choiceNodesCount,
-        withEndings: endingNodesCount
       });
     }
   }
   
-  console.log(`[Story Parsing] Completed parsing. Total nodes: ${Object.keys(customStory).length}`);
+  console.log(`[Story Parsing] Completed parsing with ${Object.keys(customStory).length} nodes`);
   
   return customStory;
 };
 
-// Function to extract all story nodes from the nested Ink JSON structure with improved logging
-export const extractAllNodesFromInkJSON = (storyData: any): string[] => {
-  console.log("[Node Extraction] Starting node extraction from Ink JSON");
+// Function to extract valid story node names
+export const extractStoryNodeNames = (storyData: any): string[] => {
+  console.log("[Node Extraction] Extracting story node names");
   
   if (!storyData) {
     console.warn("[Node Extraction] No story data provided");
     return [];
   }
   
-  // Start with the known first-level nodes (excluding metadata)
+  // Skip metadata keys
   const skipKeys = ['inkVersion', 'listDefs', '#f'];
-  const directNodes = Object.keys(storyData).filter(key => !skipKeys.includes(key));
   
-  console.log(`[Node Extraction] Found ${directNodes.length} direct nodes`);
-  
-  let nestedNodes: string[] = [];
-  
-  // Check if there's a root node containing other nodes
-  if (storyData.root && Array.isArray(storyData.root) && storyData.root.length > 2) {
-    console.log("[Node Extraction] Analyzing root array for nested nodes");
+  // Get all keys that represent actual story nodes (with text and choices)
+  const nodeNames = Object.keys(storyData).filter(key => {
+    if (skipKeys.includes(key)) return false;
     
-    // The last element in the root array might be an object containing other nodes
-    const lastElement = storyData.root[storyData.root.length - 1];
-    
-    if (typeof lastElement === 'object' && lastElement !== null) {
-      // Filter out metadata and function properties
-      nestedNodes = Object.keys(lastElement).filter(key =>
-        key !== '#f' && !key.startsWith('#')
-      );
-      
-      console.log(`[Node Extraction] Found ${nestedNodes.length} nested nodes in root array`);
-    }
-  }
+    const node = storyData[key];
+    return (
+      node && 
+      typeof node === 'object' && 
+      !Array.isArray(node) && 
+      (typeof node.text === 'string' || Array.isArray(node.choices))
+    );
+  });
   
-  // Also look for array-style nodes like root[0][1]
-  let arrayStyleNodes: string[] = [];
+  console.log(`[Node Extraction] Found ${nodeNames.length} story nodes`);
+  console.log("[Node Extraction] Node names:", nodeNames);
   
-  // Helper function to recursively extract array-style nodes
-  const extractArrayNodes = (obj: any, path: string = '') => {
-    if (!obj || typeof obj !== 'object') return;
-    
-    if (Array.isArray(obj)) {
-      obj.forEach((item, index) => {
-        const newPath = path ? `${path}[${index}]` : `[${index}]`;
-        
-        // If this item has content, add it as a node
-        if (typeof item === 'string' && item.startsWith('^')) {
-          arrayStyleNodes.push(newPath);
-        }
-        
-        extractArrayNodes(item, newPath);
-      });
-    } else {
-      Object.entries(obj).forEach(([key, value]) => {
-        // Skip metadata keys
-        if (skipKeys.includes(key)) return;
-        
-        const newPath = path ? `${path}.${key}` : key;
-        extractArrayNodes(value, newPath);
-      });
-    }
-  };
-  
-  extractArrayNodes(storyData.root, 'root');
-  console.log(`[Node Extraction] Found ${arrayStyleNodes.length} array-style nodes`);
-  
-  // Combine all node types into a single list, removing duplicates
-  const allNodes = [...new Set([...directNodes, ...nestedNodes, ...arrayStyleNodes])];
-  
-  console.log(`[Node Extraction] Total unique nodes found: ${allNodes.length}`);
-  
-  return allNodes;
+  return nodeNames;
 };
 
-// Helper to recursively extract nodes - legacy support with improved logging
+// Function to extract all story nodes from the nested Ink JSON structure (legacy method)
+export const extractAllNodesFromInkJSON = (storyData: any): string[] => {
+  console.log("[Node Extraction] Using legacy node extraction method");
+  
+  if (!storyData) {
+    console.warn("[Node Extraction] No story data provided");
+    return [];
+  }
+  
+  // Use the new method for consistency
+  return extractStoryNodeNames(storyData);
+};
+
+// Helper to recursively extract nodes - legacy support
 export const extractNodesRecursively = (inkJSON: any, customStory: CustomStory, nodeName: string) => {
   console.log(`[Recursive Extraction] Processing node: ${nodeName}`);
   
@@ -216,11 +138,7 @@ export const extractNodesRecursively = (inkJSON: any, customStory: CustomStory, 
       isEnding: parsedNode.isEnding
     };
     
-    console.log(`[Recursive Extraction] Added node "${nodeName}" to story`, {
-      textLength: parsedNode.text?.length || 0,
-      choicesCount: parsedNode.choices?.length || 0,
-      isEnding: parsedNode.isEnding
-    });
+    console.log(`[Recursive Extraction] Added node "${nodeName}" to story`);
     
     // Extract any linked nodes
     if (parsedNode.nextNode && !customStory[parsedNode.nextNode]) {
