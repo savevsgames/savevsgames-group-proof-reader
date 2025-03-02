@@ -15,20 +15,20 @@ const StoryPage = () => {
   // Track initialization status with a ref to prevent multiple initializations
   const initializationAttempted = useRef(false);
   
-  // Group selectors to minimize re-renders
+  // Group selectors to minimize re-renders using proper typing
   const {
     storyId,
     loading,
     error,
     title,
     totalPages
-  } = useStoryStore(state => ({
+  } = useStoryStore((state) => ({
     storyId: state.storyId,
     loading: state.loading,
     error: state.error,
     title: state.title,
     totalPages: state.totalPages
-  }), shallow);
+  }));
   
   // Actions selector - separate from state to avoid re-renders
   const initializeStory = useStoryStore(state => state.initializeStory);
@@ -75,7 +75,7 @@ const StoryPage = () => {
         initializationAttempted.current = false;
       }
     };
-  }, [id, navigate, toast, handleInitialization, storyId]);
+  }, [id, navigate, toast, handleInitialization, storyId, loading, error, totalPages]);
 
   return (
     <div className="min-h-screen bg-[#3A2618] w-full overflow-x-hidden">

@@ -5,7 +5,6 @@ import { BookLayout } from "./story/BookLayout";
 import { useAuth } from "@/context/AuthContext";
 import { User } from "@supabase/supabase-js";
 import { useStoryStore } from "@/stores/storyState";
-import { shallow } from "zustand/shallow";
 import { 
   StoryEngineProps,
 } from "@/types";
@@ -13,59 +12,32 @@ import {
 export const StoryEngine: React.FC<StoryEngineProps> = memo(({ storyId }) => {
   const { user } = useAuth();
   
-  // Use specific selectors with proper typing to minimize re-renders
-  const uiState = useStoryStore(
-    (state) => ({
-      loading: state.loading,
-      error: state.error
-    }),
-    shallow // Use shallow comparison to prevent unnecessary renders
-  );
+  // Use individual selectors to properly type and prevent errors
+  const loading = useStoryStore(state => state.loading);
+  const error = useStoryStore(state => state.error);
   
-  const metadataState = useStoryStore(
-    (state) => ({
-      bookTitle: state.title,
-      totalPages: state.totalPages
-    }),
-    shallow
-  );
+  const bookTitle = useStoryStore(state => state.title);
+  const totalPages = useStoryStore(state => state.totalPages);
   
-  const navigationState = useStoryStore(
-    (state) => ({
-      currentPage: state.currentPage,
-      canGoBack: state.canGoBack,
-      currentNode: state.currentNode
-    }),
-    shallow
-  );
+  const currentPage = useStoryStore(state => state.currentPage);
+  const canGoBack = useStoryStore(state => state.canGoBack);
+  const currentNode = useStoryStore(state => state.currentNode);
   
-  const contentState = useStoryStore(
-    (state) => ({
-      currentText: state.currentText,
-      currentChoices: state.currentChoices,
-      canContinue: state.canContinue,
-      currentStoryPosition: state.currentStoryPosition
-    }),
-    shallow
-  );
+  const currentText = useStoryStore(state => state.currentText);
+  const currentChoices = useStoryStore(state => state.currentChoices);
+  const canContinue = useStoryStore(state => state.canContinue);
+  const currentStoryPosition = useStoryStore(state => state.currentStoryPosition);
   
-  const commentsState = useStoryStore(
-    (state) => ({
-      comments: state.comments,
-      commentCount: state.commentCount
-    }),
-    shallow
-  );
+  const comments = useStoryStore(state => state.comments);
+  const commentCount = useStoryStore(state => state.commentCount);
   
   // Actions don't need shallow comparison as they don't change
-  const actions = useStoryStore((state) => ({
-    handleContinue: state.handleContinue,
-    handleChoice: state.handleChoice,
-    goBack: state.goBack,
-    handleRestart: state.handleRestart,
-    handlePageChange: state.handlePageChange,
-    fetchComments: state.fetchComments
-  }));
+  const handleContinue = useStoryStore(state => state.handleContinue);
+  const handleChoice = useStoryStore(state => state.handleChoice);
+  const goBack = useStoryStore(state => state.goBack);
+  const handleRestart = useStoryStore(state => state.handleRestart);
+  const handlePageChange = useStoryStore(state => state.handlePageChange);
+  const fetchComments = useStoryStore(state => state.fetchComments);
   
   // This is UI-only state and should remain local
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
@@ -74,24 +46,24 @@ export const StoryEngine: React.FC<StoryEngineProps> = memo(({ storyId }) => {
   const handleCommentModalOpenChange = useCallback((open: boolean) => {
     setIsCommentModalOpen(open);
     
-    if (open && storyId && contentState.currentStoryPosition > 0) {
+    if (open && storyId && currentStoryPosition > 0) {
       // Fetch latest comments when modal opens
-      actions.fetchComments(storyId, contentState.currentStoryPosition);
+      fetchComments(storyId, currentStoryPosition);
     }
-  }, [storyId, contentState.currentStoryPosition, actions.fetchComments]);
+  }, [storyId, currentStoryPosition, fetchComments]);
 
   // Initialize comments when loading a new story position
   // Add proper dependency array to prevent infinite loops
   useEffect(() => {
-    if (storyId && contentState.currentStoryPosition > 0) {
+    if (storyId && currentStoryPosition > 0) {
       // Debounce comment fetching to prevent rapid consecutive calls
       const timeoutId = setTimeout(() => {
-        actions.fetchComments(storyId, contentState.currentStoryPosition);
+        fetchComments(storyId, currentStoryPosition);
       }, 300);
       
       return () => clearTimeout(timeoutId);
     }
-  }, [storyId, contentState.currentStoryPosition, actions.fetchComments]);
+  }, [storyId, currentStoryPosition, fetchComments]);
   
   // Handle adding comment to LLM context - memoize to prevent recreation
   const handleAddToLlmContext = useCallback((commentType: string, commentText: string, username: string) => {
@@ -100,7 +72,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = memo(({ storyId }) => {
   }, []);
 
   // Show loading state
-  if (uiState.loading) {
+  if (loading) {
     return (
       <div className="flex justify-center items-center h-[60vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8DCC4]"></div>
@@ -110,11 +82,11 @@ export const StoryEngine: React.FC<StoryEngineProps> = memo(({ storyId }) => {
   }
 
   // Show error state
-  if (uiState.error) {
+  if (error) {
     return (
       <div className="text-center p-8 text-[#E8DCC4]">
         <h2 className="text-2xl font-bold mb-4">Error Loading Story</h2>
-        <p>{uiState.error}</p>
+        <p>{error}</p>
       </div>
     );
   }
@@ -122,25 +94,25 @@ export const StoryEngine: React.FC<StoryEngineProps> = memo(({ storyId }) => {
   return (
     <div className="flex justify-center items-center w-full">
       <BookLayout
-        bookTitle={metadataState.bookTitle}
-        currentPage={navigationState.currentPage}
-        totalPages={metadataState.totalPages}
-        currentText={contentState.currentText}
-        currentNode={navigationState.currentNode}
-        canContinue={contentState.canContinue}
-        choices={contentState.currentChoices}
-        isEnding={!contentState.canContinue && contentState.currentChoices.length === 0}
-        canGoBack={navigationState.canGoBack}
-        commentCount={commentsState.commentCount}
-        comments={commentsState.comments}
+        bookTitle={bookTitle}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        currentText={currentText}
+        currentNode={currentNode}
+        canContinue={canContinue}
+        choices={currentChoices}
+        isEnding={!canContinue && currentChoices.length === 0}
+        canGoBack={canGoBack}
+        commentCount={commentCount}
+        comments={comments}
         currentUser={user as User}
         storyId={storyId}
-        onContinue={actions.handleContinue}
-        onChoice={actions.handleChoice}
-        onBack={actions.goBack}
-        onRestart={actions.handleRestart}
+        onContinue={handleContinue}
+        onChoice={handleChoice}
+        onBack={goBack}
+        onRestart={handleRestart}
         onOpenComments={() => setIsCommentModalOpen(true)}
-        onPageChange={actions.handlePageChange}
+        onPageChange={handlePageChange}
         onAddToLlmContext={handleAddToLlmContext}
       />
 
@@ -148,7 +120,7 @@ export const StoryEngine: React.FC<StoryEngineProps> = memo(({ storyId }) => {
         isOpen={isCommentModalOpen}
         onOpenChange={handleCommentModalOpenChange}
         storyId={storyId}
-        storyPosition={contentState.currentStoryPosition}
+        storyPosition={currentStoryPosition}
         currentUser={user as User}
       />
     </div>
