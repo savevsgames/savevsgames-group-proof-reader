@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { BookOpen, ChevronLeft, MessageSquare, SkipBack, Home } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -30,13 +30,17 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
   onPageChange,
   hidePageSelector = false
 }) => {
-  const [pageInputValue, setPageInputValue] = useState<string>(currentPage.toString());
+  const [pageInputValue, setPageInputValue] = useState<string>(String(currentPage || 1));
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const navigate = useNavigate();
   
-  // Update the page input value when currentPage changes
-  React.useEffect(() => {
-    setPageInputValue(currentPage.toString());
-  }, [currentPage]);
+  // Only update the input value when currentPage changes AND not while popover is open
+  // This prevents an update loop when a user is typing in the input
+  useEffect(() => {
+    if (!isPopoverOpen) {
+      setPageInputValue(String(currentPage || 1));
+    }
+  }, [currentPage, isPopoverOpen]);
 
   const handlePageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Allow only numeric input
@@ -49,10 +53,15 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
     const pageNum = parseInt(pageInputValue);
     
     if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
-      onPageChange(pageNum);
+      // Close the popover first to prevent any re-render issues
+      setIsPopoverOpen(false);
+      // Delay the page change slightly to ensure popover state is updated
+      setTimeout(() => {
+        onPageChange(pageNum);
+      }, 0);
     } else {
       // Reset to current page if invalid
-      setPageInputValue(currentPage.toString());
+      setPageInputValue(String(currentPage || 1));
     }
   };
 
@@ -131,8 +140,8 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
       
       {/* Right side - Comment button, Dashboard button and page selector */}
       <div className="flex items-center space-x-4">
-        {!hidePageSelector && (
-          <Popover>
+        {!hidePageSelector && totalPages > 0 && (
+          <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
             <PopoverTrigger asChild>
               <Button
                 variant="ghost"
@@ -141,7 +150,7 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
               >
                 <BookOpen className="h-4 w-4 mr-2" />
                 <span className="text-sm">
-                  Page <span className="font-bold">{currentPage}</span> of {totalPages}
+                  Page <span className="font-bold">{currentPage || 1}</span> of {totalPages || 1}
                 </span>
               </Button>
             </PopoverTrigger>
@@ -169,7 +178,11 @@ export const BookHeader: React.FC<BookHeaderProps> = ({
                   {getPageNumbers().map(page => (
                     <div
                       key={`page-${page}`}
-                      onClick={() => onPageChange(page)}
+                      onClick={() => {
+                        setIsPopoverOpen(false);
+                        // Delay the page change to ensure popover closes first
+                        setTimeout(() => onPageChange(page), 0);
+                      }}
                       className={`px-2 py-1 min-w-[30px] text-center ${
                         currentPage === page
                           ? 'bg-[#3A2618] text-[#E8DCC4]'
