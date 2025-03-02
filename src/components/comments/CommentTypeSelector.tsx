@@ -1,6 +1,9 @@
-
-import React from 'react';
-import { CommentType, commentTypeColors, commentTypeLabels } from '@/lib/commentTypes';
+import React from "react";
+import {
+  CommentType,
+  commentTypeColors,
+  commentTypeLabels,
+} from "@/lib/commentTypes";
 
 interface CommentTypeSelectorProps {
   selectedCommentType: CommentType;
@@ -23,11 +26,20 @@ const CommentTypeSelector: React.FC<CommentTypeSelectorProps> = ({
             type="button"
             onClick={() => setSelectedCommentType(type as CommentType)}
             className={`px-3 py-1 rounded-full text-sm transition-colors ${
-              selectedCommentType === type ? 'ring-2 ring-[#3A2618]' : ''
+              selectedCommentType === type ? "ring-2 ring-[#3A2618]" : ""
             }`}
-            style={{ 
+            style={{
+              fontWeight: selectedCommentType === type ? "bold" : "normal",
               backgroundColor: commentTypeColors[type as CommentType],
-              color: ['suggestion', 'spelling', 'praise', 'general'].includes(type as CommentType) ? '#3A2618' : 'white'
+              color: [
+                "suggestion",
+                "spelling",
+                "praise",
+                "general",
+                "question",
+              ].includes(type as CommentType)
+                ? "#3A2618"
+                : "white",
             }}
           >
             {label}
