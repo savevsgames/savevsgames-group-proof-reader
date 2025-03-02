@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
@@ -135,7 +134,7 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
   }, [currentNode, highlightCurrentNode, currentDecorations]);
 
   // Monaco editor options
-  const options = {
+  const options: monaco.editor.IStandaloneEditorConstructionOptions = {
     selectOnLineNumbers: true,
     readOnly: false,
     cursorStyle: 'line',
