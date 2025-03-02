@@ -15,7 +15,7 @@ export const ImageLoading: React.FC<ImageLoadingProps> = memo(({ imageData }) =>
         return (
           <p className="text-sm text-gray-500 animate-pulse flex items-center">
             <Sparkles className="h-4 w-4 mr-2 text-orange-400" />
-            Generating your image with AI...
+            Creating your pixel art fantasy image with AI...
           </p>
         );
       case 'uploading':
@@ -43,11 +43,11 @@ export const ImageLoading: React.FC<ImageLoadingProps> = memo(({ imageData }) =>
 
   return (
     <div className="flex flex-col items-center space-y-4">
-      <Skeleton className="w-full h-64 rounded-lg" />
+      <Skeleton className="w-full h-64 rounded-lg bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse" />
       {getStatusMessage()}
       {getAttemptsInfo()}
       <p className="text-xs text-gray-400">
-        This may take up to a minute. Please wait...
+        Creating pixel art fantasy imagery may take up to a minute...
       </p>
     </div>
   );

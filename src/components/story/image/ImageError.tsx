@@ -34,6 +34,19 @@ export const ImageError: React.FC<ImageErrorProps> = memo(({
       return "Unknown error occurred";
     }
     
+    if (imageData.error_message.includes('OpenAI API error')) {
+      if (imageData.error_message.includes('quota')) {
+        return "OpenAI API quota exceeded. Please try again later or contact support.";
+      }
+      if (imageData.error_message.includes('content policy')) {
+        return "The image prompt violates content policy. Please try a different, more appropriate prompt.";
+      }
+      if (imageData.error_message.includes('rate limit')) {
+        return "Rate limit exceeded. Please wait a minute and try again.";
+      }
+      return imageData.error_message.replace('OpenAI API error: ', '');
+    }
+    
     if (imageData.error_message.includes('attempt_count')) {
       return "There was a database configuration issue. Please try again.";
     }
@@ -50,6 +63,9 @@ export const ImageError: React.FC<ImageErrorProps> = memo(({
     return imageData.error_message;
   };
 
+  // Show enhanced prompt if available
+  const displayPrompt = imageData.enhanced_prompt || prompt;
+
   return (
     <div className="border-2 border-dashed border-red-300 bg-red-50 rounded-lg p-8 text-center flex flex-col items-center space-y-4">
       <AlertCircle className="h-12 w-12 text-red-400" />
@@ -59,7 +75,9 @@ export const ImageError: React.FC<ImageErrorProps> = memo(({
           Error: {getErrorMessage()}
         </p>
         {getAttemptsInfo()}
-        <p className="text-sm text-gray-500 mb-4 break-words">Prompt: "{prompt}"</p>
+        <p className="text-sm text-gray-500 mb-4 break-words">
+          <span className="font-semibold">Original prompt:</span> "{prompt}"
+        </p>
         <Button
           onClick={onRetry}
           disabled={loading}

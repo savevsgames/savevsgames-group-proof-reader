@@ -8,6 +8,7 @@ export interface ImageData {
   error_message?: string;
   request_id?: string;
   attempt_count?: number;
+  enhanced_prompt?: string;
 }
 
 // Extract image prompt from the text if it exists

@@ -44,7 +44,8 @@ export const StoryImage: React.FC<StoryImageProps> = memo(({
     currentNode, 
     currentPage, 
     promptLength: imagePrompt.length,
-    imageState: imageData?.status || 'no data'
+    imageState: imageData?.status || 'no data',
+    hasEnhancedPrompt: !!imageData?.enhanced_prompt
   });
 
   return (

@@ -49,6 +49,7 @@ export type Database = {
           book_id: string | null
           created_at: string | null
           id: string
+          image_generation_settings: Json | null
           model_settings: Json | null
           model_version: string | null
           permanent_context: string | null
@@ -60,6 +61,7 @@ export type Database = {
           book_id?: string | null
           created_at?: string | null
           id?: string
+          image_generation_settings?: Json | null
           model_settings?: Json | null
           model_version?: string | null
           permanent_context?: string | null
@@ -71,6 +73,7 @@ export type Database = {
           book_id?: string | null
           created_at?: string | null
           id?: string
+          image_generation_settings?: Json | null
           model_settings?: Json | null
           model_version?: string | null
           permanent_context?: string | null
@@ -268,37 +271,46 @@ export type Database = {
       }
       story_images: {
         Row: {
+          attempt_count: number | null
           book_id: string
           created_at: string | null
           enhanced_prompt: string | null
+          error_message: string | null
           id: string
           image_prompt: string
           image_url: string | null
           page_number: number
+          request_id: string | null
           status: string | null
           story_node: string
           updated_at: string | null
         }
         Insert: {
+          attempt_count?: number | null
           book_id: string
           created_at?: string | null
           enhanced_prompt?: string | null
+          error_message?: string | null
           id?: string
           image_prompt: string
           image_url?: string | null
           page_number: number
+          request_id?: string | null
           status?: string | null
           story_node: string
           updated_at?: string | null
         }
         Update: {
+          attempt_count?: number | null
           book_id?: string
           created_at?: string | null
           enhanced_prompt?: string | null
+          error_message?: string | null
           id?: string
           image_prompt?: string
           image_url?: string | null
           page_number?: number
+          request_id?: string | null
           status?: string | null
           story_node?: string
           updated_at?: string | null
