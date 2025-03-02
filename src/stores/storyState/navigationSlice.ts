@@ -1,4 +1,3 @@
-
 import { StateCreator } from 'zustand';
 import { StoryStore } from '@/types/story-types.definitions';
 import { shallow } from 'zustand/shallow';
@@ -229,7 +228,7 @@ export const createNavigationSlice: StateCreator<
     
     console.log(`[StoryStore] Navigating to page ${newPage} (current: ${currentPage})`);
     
-    // Get the target node for this page
+    // Get the target node for this page using the page-to-node mapping
     const targetNode = nodeMappings.pageToNode[newPage];
     
     // Enhanced validation for target node

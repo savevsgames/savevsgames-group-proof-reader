@@ -1,8 +1,7 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
- 
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -66,7 +65,7 @@
     --ring: 212.7 26.8% 83.9%;
   }
 }
- 
+
 @layer base {
   * {
     @apply border-border;
@@ -76,25 +75,21 @@
   }
 }
 
-/* JSON Editor Highlighting */
-.json-node-highlight {
-  background-color: rgba(59, 130, 246, 0.1);
-  border-left: 3px solid rgba(59, 130, 246, 0.6);
+/* JSON Editor Node Highlighting */
+.current-node-highlight {
+  background-color: rgba(249, 115, 22, 0.2); /* Orange with transparency */
+  border-radius: 4px;
+  animation: pulse-highlight 2s infinite;
 }
 
-/* Make sure the highlighted node is visible with a subtle animation */
-.json-node-highlight {
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
+@keyframes pulse-highlight {
   0% {
-    background-color: rgba(59, 130, 246, 0.1);
+    background-color: rgba(249, 115, 22, 0.1);
   }
   50% {
-    background-color: rgba(59, 130, 246, 0.2);
+    background-color: rgba(249, 115, 22, 0.3);
   }
   100% {
-    background-color: rgba(59, 130, 246, 0.1);
+    background-color: rgba(249, 115, 22, 0.1);
   }
 }

@@ -1,4 +1,3 @@
-
 import { CustomStory, NodeMappings, StoryNode } from '@/types';
 
 // Debug tracking array for node creation
@@ -163,7 +162,7 @@ function analyzeInkStoryStructure(storyData: CustomStory): {
   // Convert segments to nodes and track them in custom story format
   const customStory: CustomStory = {};
   storySegments.forEach((segment, index) => {
-    // Use fragment IDs for node keys
+    // Use fragment IDs for node keys (0-based indexing)
     const nodeKey = `fragment_${index}`;
     
     // Create the story node
@@ -186,6 +185,7 @@ function analyzeInkStoryStructure(storyData: CustomStory): {
     });
 
     // Create the page mapping
+    // IMPORTANT: Create 1-based page numbers for UI display
     const page = index + 1;
     nodeToPage[nodeKey] = page;
     pageToNode[page] = nodeKey;
