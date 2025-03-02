@@ -97,6 +97,7 @@ export type Database = {
           created_at: string | null
           creator_id: string | null
           id: string
+          is_public_editable: boolean | null
           story_file: string
           story_url: string | null
           subtitle: string | null
@@ -108,6 +109,7 @@ export type Database = {
           created_at?: string | null
           creator_id?: string | null
           id?: string
+          is_public_editable?: boolean | null
           story_file: string
           story_url?: string | null
           subtitle?: string | null
@@ -119,6 +121,7 @@ export type Database = {
           created_at?: string | null
           creator_id?: string | null
           id?: string
+          is_public_editable?: boolean | null
           story_file?: string
           story_url?: string | null
           subtitle?: string | null
